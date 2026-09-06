@@ -1,5 +1,5 @@
 import { $ } from "bun";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ESrg, EligibilityProof, FinancingRequest, Intake, ProofEngine } from "@anora/core";
@@ -51,13 +51,14 @@ export function liveProofEngine(verifierAddress: string, rpcUrl: string): ProofE
       if (!entry) throw new Error(`${esrg.id} has no registry commitment`);
 
       const work = await mkdtemp(join(tmpdir(), "anora-proof-"));
-      await writeFile(join(CIRCUIT_DIR, "Prover.toml"), proverToml(req, esrg, intakes, entry));
+      await cp(join(CIRCUIT_DIR, "Nargo.toml"), join(work, "Nargo.toml"));
+      await cp(join(CIRCUIT_DIR, "src"), join(work, "src"), { recursive: true });
+      await writeFile(join(work, "Prover.toml"), proverToml(req, esrg, intakes, entry));
 
-      await $`nargo execute`.cwd(CIRCUIT_DIR).quiet();
-      await $`bb write_vk -b target/eligibility.json -o ${work} --oracle_hash keccak`
-        .cwd(CIRCUIT_DIR).quiet();
-      await $`bb prove -b target/eligibility.json -w target/eligibility.gz -k ${work}/vk -o ${work} --oracle_hash keccak`
-        .cwd(CIRCUIT_DIR).quiet();
+      await $`nargo execute`.cwd(work).quiet();
+      await $`bb write_vk -b target/eligibility.json -o . --oracle_hash keccak`.cwd(work).quiet();
+      await $`bb prove -b target/eligibility.json -w target/eligibility.gz -k vk -o . --oracle_hash keccak`
+        .cwd(work).quiet();
 
       const proof = await readFile(join(work, "proof"));
       const publicInputs = fields(await readFile(join(work, "public_inputs")));
