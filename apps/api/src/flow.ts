@@ -3,8 +3,8 @@ import {
   requireStep, screenSubscription,
 } from "@anora/core";
 import type {
-  ESrg, Facility, FinancingRequest, NoteToken, Ports, RequestStatus,
-  Subscription, TrancheName, TrancheTerms,
+  ESrg, EligibilityProof, Facility, FinancingRequest, NoteToken, Ports,
+  RequestStatus, Subscription, TrancheName, TrancheTerms,
 } from "@anora/core";
 import { FlowError } from "./errors";
 import { investorById } from "./adapters/mock/investors";
@@ -21,6 +21,8 @@ export type FlowState = {
   facility: Facility;
   subscriptions: Subscription[];
   note?: NoteToken;
+  proof?: Omit<EligibilityProof, "proofHex">;
+  onChain?: { ok: boolean; gasUsed?: number };
   registryRef?: string;
   reversibleTo?: RequestStatus;
   history: HistoryEntry[];
@@ -112,8 +114,10 @@ export function makeFlow(ports: Ports) {
 
       const esrg = (await ports.esrg.get(state.request.esrgId))!;
       const intakes = await ports.esrg.intakes(esrg.id);
+      let proof: EligibilityProof;
       try {
-        await ports.proof.prove(state.request, esrg, intakes);
+        proof = await ports.proof.prove(state.request, esrg, intakes);
+        state.onChain = await ports.proof.verifyOnChain(proof);
       } catch (cause) {
         throw new FlowError(
           "capability_not_available",
@@ -121,7 +125,15 @@ export function makeFlow(ports: Ports) {
           { capability: "proof", because: (cause as Error).message },
         );
       }
-      stamp(state, "proven", "facility agent", "Eligibility proven");
+      if (!state.onChain.ok) {
+        throw new FlowError("capability_not_available", "The proof did not verify on-chain", {
+          capability: "proof",
+        });
+      }
+
+      const { proofHex: _discarded, ...withoutProofBytes } = proof;
+      state.proof = withoutProofBytes;
+      stamp(state, "proven", "facility agent", `Eligibility proven; nullifier ${proof.nullifier}`);
       return state;
     },
 
