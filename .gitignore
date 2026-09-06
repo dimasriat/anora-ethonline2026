@@ -1,0 +1,13 @@
+# Artefak build Noir/Barretenberg — bisa dihasilkan ulang dari sumber
+target/
+
+node_modules/
+dist/
+
+# Foundry
+out/
+cache/
+broadcast/
+
+.env
+.DS_Store
