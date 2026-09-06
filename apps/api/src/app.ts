@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { serveStatic } from "hono/bun";
 import type { Ports, TrancheName } from "@anora/core";
 import { makeFlow } from "./flow";
 import { FlowError, STATUS_FOR } from "./errors";
@@ -56,6 +57,10 @@ export function makeApp(ports: Ports) {
     }
     return c.json(await flow.subscribe(id(c), body.investorId, body.tranche, Number(body.unitsIdr)));
   });
+
+  const built = "./apps/web/dist";
+  app.use("/*", serveStatic({ root: built }));
+  app.get("*", serveStatic({ path: `${built}/index.html` }));
 
   return app;
 }
