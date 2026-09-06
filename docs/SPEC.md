@@ -132,6 +132,11 @@ Every subtraction floors at zero. Cash is conserved: the four payments plus
 permitted costs plus residual equal cash received, up to explicitly tracked
 rounding dust.
 
+Repayment runs this waterfall and records the result on the request: what each
+tranche was paid, what loss each absorbed, and whether cash was conserved.
+Rupiah does not move — settlement is permanently simulated — but the allocation
+is computed, not asserted.
+
 ## 7. Loss allocation
 
 A separate function from payment priority.

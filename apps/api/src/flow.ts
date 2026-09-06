@@ -1,10 +1,10 @@
 import {
-  facilityFrom, isReversible, previousStep, remainingCapacityIdr,
-  requireStep, screenSubscription,
+  allocateLoss, distribute, facilityFrom, isReversible, previousStep,
+  remainingCapacityIdr, requireStep, screenSubscription,
 } from "@anora/core";
 import type {
-  ESrg, EligibilityProof, Facility, FinancingRequest, NoteToken, Ports,
-  RequestStatus, Subscription, TrancheName, TrancheTerms,
+  Distribution, ESrg, EligibilityProof, Facility, FinancingRequest, NoteToken,
+  Ports, RequestStatus, Subscription, TrancheName, TrancheTerms,
 } from "@anora/core";
 import { FlowError } from "./errors";
 import { investorById } from "./adapters/mock/investors";
@@ -24,12 +24,53 @@ export type FlowState = {
   proof?: Omit<EligibilityProof, "proofHex">;
   onChain?: { ok: boolean; gasUsed?: number };
   registryRef?: string;
+  settlement?: Settlement;
   reversibleTo?: RequestStatus;
   history: HistoryEntry[];
 };
 
 const MAX_LTV_BP = 7_000;
 const MATURITY_DAYS = 90;
+const DAYS_IN_YEAR = 365;
+
+export type Settlement = {
+  cashReceivedIdr: number;
+  paid: Distribution;
+  loss: { tranche: TrancheName; lossIdr: number }[];
+  conserved: boolean;
+};
+
+function claimsOf(state: FlowState) {
+  const of = (name: TrancheName) => state.facility.tranches.find((t) => t.name === name)!;
+  const interest = (terms: TrancheTerms) =>
+    Math.floor((terms.capacityIdr * terms.returnBp * state.request.maturityDays)
+      / (10_000 * DAYS_IN_YEAR));
+  return {
+    seniorPrincipalIdr: of("SENIOR").capacityIdr,
+    juniorPrincipalIdr: of("JUNIOR").capacityIdr,
+    seniorReturnIdr: interest(of("SENIOR")),
+    juniorReturnIdr: interest(of("JUNIOR")),
+  };
+}
+
+export function settle(state: FlowState, cashReceivedIdr: number): Settlement {
+  const claims = claimsOf(state);
+  const paid = distribute(cashReceivedIdr, claims);
+
+  const issued = claims.seniorPrincipalIdr + claims.juniorPrincipalIdr;
+  const principalPaid = paid.seniorPrincipalIdr + paid.juniorPrincipalIdr;
+  const realisedLoss = Math.max(issued - principalPaid, 0);
+
+  const loss = state.facility.tranches.map((t) => ({
+    tranche: t.name,
+    lossIdr: allocateLoss(realisedLoss, t),
+  }));
+
+  const out = paid.seniorReturnIdr + paid.seniorPrincipalIdr
+    + paid.juniorReturnIdr + paid.juniorPrincipalIdr + paid.residualIdr;
+
+  return { cashReceivedIdr, paid, loss, conserved: out === cashReceivedIdr };
+}
 
 export function makeFlow(ports: Ports) {
   const states = new Map<string, FlowState>();
@@ -205,13 +246,23 @@ export function makeFlow(ports: Ports) {
       return state;
     },
 
-    async repay(id: string): Promise<FlowState> {
+    async repay(id: string, cashReceivedIdr?: number): Promise<FlowState> {
       const state = must(id);
       gate(state, "funded", "Repayment");
 
+      const claims = claimsOf(state);
+      const dueInFull = claims.seniorPrincipalIdr + claims.juniorPrincipalIdr
+        + claims.seniorReturnIdr + claims.juniorReturnIdr;
+
+      state.settlement = settle(state, cashReceivedIdr ?? dueInFull);
       if (state.note) state.note = await ports.token.redeem(state.note.series);
       state.request.epoch += 1;
-      stamp(state, "repaid", "cooperative", `Repaid; security released; round ${state.request.epoch}`);
+
+      const shortfall = state.settlement.loss.reduce((sum, l) => sum + l.lossIdr, 0);
+      stamp(state, "repaid", "cooperative",
+        shortfall === 0
+          ? `Repaid in full; security released; round ${state.request.epoch}`
+          : `Settled with ${shortfall} of loss; security released; round ${state.request.epoch}`);
       return state;
     },
 

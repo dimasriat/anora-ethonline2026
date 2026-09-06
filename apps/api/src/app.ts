@@ -45,7 +45,10 @@ export function makeApp(ports: Ports) {
   app.post("/api/requests/:id/prove", async (c) => c.json(await flow.prove(id(c))));
   app.post("/api/requests/:id/tokenize", async (c) => c.json(await flow.tokenize(id(c))));
   app.post("/api/requests/:id/register", async (c) => c.json(await flow.registerAndFund(id(c))));
-  app.post("/api/requests/:id/repay", async (c) => c.json(await flow.repay(id(c))));
+  app.post("/api/requests/:id/repay", async (c) => {
+    const body: { cashReceivedIdr?: number } = await c.req.json().catch(() => ({}));
+    return c.json(await flow.repay(id(c), body.cashReceivedIdr === undefined ? undefined : Number(body.cashReceivedIdr)));
+  });
   app.post("/api/requests/:id/back", async (c) => c.json(await flow.back(id(c))));
 
   app.post("/api/requests/:id/subscribe", async (c) => {

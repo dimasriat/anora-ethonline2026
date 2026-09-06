@@ -16,7 +16,7 @@ Last updated: 6 September 2026.
 
 | Capability | Mode | Why |
 |---|---|---|
-| Settlement waterfall | **live** | Pure computation, implemented and covered by 12 tests |
+| Settlement waterfall | **live** | Runs at repayment; 12 unit tests plus 7 covering the flow end to end |
 | Subscription screening | **live** | Allowlist, mandate, ticket and capacity gates, 10 tests |
 | Eligibility proof generation | **live** | Real circuit, run per request when `ADAPTER_PROOF=live`. 7 circuit tests, 5 of which must fail |
 | On-chain proof verification | **testnet** | Called on every prove when `ADAPTER_PROOF=live`. A request that fails verification does not advance |
