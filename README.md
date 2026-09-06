@@ -61,9 +61,9 @@ outside source, the source is named at the point it is used.
 
 ## Team
 
+- **Panata Gama** — product, design, interface, and the demand that no claim
+  outrun its evidence
 - **Dimas Riatmodjo** — architecture, backend, contracts, circuits
-- **Panata Gama** — product, interface, and the demand that no claim outrun its
-  evidence
 
 ## Licence
 
