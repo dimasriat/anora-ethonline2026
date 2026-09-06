@@ -12,7 +12,7 @@ export type StepView = {
 
 export const STEPS: Record<string, StepView> = {
   none: { title: "Choose a receipt", owner: "Borrower" },
-  draft: { title: "Sign the mandate", owner: "Borrower", action: { label: "Sign", step: "sign-mandate" } },
+  draft: { title: "Sign the mandate", owner: "Borrower" },
   mandate_signed: { title: "Review the request", owner: "Facility Agent", action: { label: "Approve", step: "approve" } },
   approved: { title: "Verify eligibility", owner: "Facility Agent", action: { label: "Run the proof", step: "prove" } },
   proven: { title: "Issue the note", owner: "Facility Agent", action: { label: "Tokenise", step: "tokenize" } },

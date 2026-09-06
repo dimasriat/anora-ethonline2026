@@ -11,9 +11,14 @@ const codeOf = async (fn: () => Promise<unknown>): Promise<string> => {
   throw new Error("expected a refusal");
 };
 
+const signMandate = async (id: string) => {
+  await flow.approveMandate(id, "OFF-1");
+  await flow.approveMandate(id, "OFF-3");
+};
+
 const upToTokenized = async () => {
   const s = await flow.create("SRG-TEH-024");
-  await flow.signMandate(s.request.id);
+  await signMandate(s.request.id);
   await flow.approve(s.request.id);
   s.request.status = "proven";
   await flow.tokenize(s.request.id);
@@ -38,6 +43,40 @@ describe("create", () => {
   });
 });
 
+describe("mandate quorum", () => {
+  test("one officer is not enough", async () => {
+    const s = await flow.create("SRG-TEH-024");
+    await flow.approveMandate(s.request.id, "OFF-1");
+    expect(flow.get(s.request.id)!.request.status).toBe("draft");
+  });
+
+  test("two officers sign the mandate", async () => {
+    const s = await flow.create("SRG-TEH-024");
+    await flow.approveMandate(s.request.id, "OFF-1");
+    const done = await flow.approveMandate(s.request.id, "OFF-3");
+    expect(done.request.status).toBe("mandate_signed");
+    expect(done.mandateSignature).toBeTruthy();
+  });
+
+  test("the same officer approving twice does not reach the quorum", async () => {
+    const s = await flow.create("SRG-TEH-024");
+    await flow.approveMandate(s.request.id, "OFF-2");
+    await flow.approveMandate(s.request.id, "OFF-2");
+    expect(flow.get(s.request.id)!.request.status).toBe("draft");
+  });
+
+  test("an unknown officer is refused", async () => {
+    const s = await flow.create("SRG-TEH-024");
+    expect(await codeOf(() => flow.approveMandate(s.request.id, "OFF-9"))).toBe("unknown_officer");
+  });
+
+  test("every facility gets an organisation wallet", async () => {
+    const s = await flow.create("SRG-TEH-024");
+    expect(s.orgWallet!.threshold).toBe(2);
+    expect(s.orgWallet!.officers).toHaveLength(3);
+  });
+});
+
 describe("step order", () => {
   test("refuses approval before the mandate is signed", async () => {
     const s = await flow.create("SRG-TEH-024");
@@ -59,7 +98,7 @@ describe("step order", () => {
 describe("prove", () => {
   test("reports the capability as unavailable rather than faking a proof", async () => {
     const s = await flow.create("SRG-TEH-024");
-    await flow.signMandate(s.request.id);
+    await signMandate(s.request.id);
     await flow.approve(s.request.id);
     expect(await codeOf(() => flow.prove(s.request.id))).toBe("capability_not_available");
     expect(flow.get(s.request.id)!.request.status).toBe("approved");
@@ -124,7 +163,7 @@ describe("funding and repayment", () => {
 describe("back", () => {
   test("rewinds one step while only documents exist", async () => {
     const s = await flow.create("SRG-TEH-024");
-    await flow.signMandate(s.request.id);
+    await signMandate(s.request.id);
     expect((await flow.back(s.request.id)).request.status).toBe("draft");
   });
 

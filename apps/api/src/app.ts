@@ -4,6 +4,7 @@ import type { Ports, TrancheName } from "@anora/core";
 import { makeFlow } from "./flow";
 import { FlowError, STATUS_FOR } from "./errors";
 import { INVESTORS } from "./adapters/mock/investors";
+import { OFFICERS } from "./adapters/mock/wallet";
 
 export function makeApp(ports: Ports) {
   const flow = makeFlow(ports);
@@ -40,7 +41,12 @@ export function makeApp(ports: Ports) {
     return c.json(await flow.create(body.esrgId), 201);
   });
 
-  app.post("/api/requests/:id/sign-mandate", async (c) => c.json(await flow.signMandate(id(c))));
+  app.post("/api/requests/:id/approve-mandate", async (c) => {
+    const body: { officerId?: string } = await c.req.json().catch(() => ({}));
+    if (!body.officerId) throw new FlowError("unknown_officer", "officerId is required");
+    return c.json(await flow.approveMandate(id(c), body.officerId));
+  });
+  app.get("/api/officers", (c) => c.json(OFFICERS));
   app.post("/api/requests/:id/approve", async (c) => c.json(await flow.approve(id(c))));
   app.post("/api/requests/:id/prove", async (c) => c.json(await flow.prove(id(c))));
   app.post("/api/requests/:id/tokenize", async (c) => c.json(await flow.tokenize(id(c))));

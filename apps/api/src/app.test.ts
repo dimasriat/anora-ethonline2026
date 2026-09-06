@@ -82,7 +82,8 @@ describe("error codes reach the client", () => {
 
   test("an unbuilt capability is 501, not a fake success", async () => {
     const id = await openRequest();
-    await post(`/api/requests/${id}/sign-mandate`);
+    await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-1" });
+    await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-3" });
     await post(`/api/requests/${id}/approve`);
     const res = await post(`/api/requests/${id}/prove`);
     expect(res.status).toBe(501);
@@ -92,7 +93,9 @@ describe("error codes reach the client", () => {
   test("a refused investor is 403 and names the gate", async () => {
     app = makeApp(withProvableEligibility());
     const id = await openRequest();
-    for (const step of ["sign-mandate", "approve", "prove", "tokenize"]) {
+    await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-1" });
+    await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-3" });
+    for (const step of ["approve", "prove", "tokenize"]) {
       const res = await post(`/api/requests/${id}/${step}`);
       expect(res.status).toBe(200);
     }
@@ -107,7 +110,9 @@ describe("error codes reach the client", () => {
   test("the whole lifecycle runs when eligibility can be proven", async () => {
     app = makeApp(withProvableEligibility());
     const id = await openRequest();
-    for (const step of ["sign-mandate", "approve", "prove", "tokenize"]) {
+    await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-1" });
+    await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-3" });
+    for (const step of ["approve", "prove", "tokenize"]) {
       await post(`/api/requests/${id}/${step}`);
     }
     await post(`/api/requests/${id}/subscribe`, {

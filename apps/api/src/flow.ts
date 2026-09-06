@@ -4,10 +4,11 @@ import {
 } from "@anora/core";
 import type {
   Distribution, ESrg, EligibilityProof, Facility, FinancingRequest, NoteToken,
-  Ports, RequestStatus, Subscription, TrancheName, TrancheTerms,
+  OrgWallet, Ports, RequestStatus, Subscription, TrancheName, TrancheTerms,
 } from "@anora/core";
 import { FlowError } from "./errors";
 import { investorById } from "./adapters/mock/investors";
+import { OFFICERS, QUORUM_THRESHOLD } from "./adapters/mock/wallet";
 
 export type HistoryEntry = {
   at: string;
@@ -20,6 +21,9 @@ export type FlowState = {
   request: FinancingRequest;
   facility: Facility;
   subscriptions: Subscription[];
+  orgWallet?: OrgWallet;
+  mandateApprovals: string[];
+  mandateSignature?: string;
   note?: NoteToken;
   proof?: Omit<EligibilityProof, "proofHex">;
   onChain?: { ok: boolean; gasUsed?: number };
@@ -128,17 +132,43 @@ export function makeFlow(ports: Ports) {
         },
         facility,
         subscriptions: [],
+        mandateApprovals: [],
         history: [],
       };
+      state.orgWallet = await ports.wallet.createOrgWallet(OFFICERS, QUORUM_THRESHOLD);
       states.set(id, state);
       stamp(state, "draft", "cooperative", `Request opened against ${esrgId}`);
       return state;
     },
 
-    async signMandate(id: string): Promise<FlowState> {
+    /** One officer approves. Whether that is enough is the wallet's call. */
+    async approveMandate(id: string, officerId: string): Promise<FlowState> {
       const state = must(id);
       gate(state, "draft", "Signing the mandate");
-      stamp(state, "mandate_signed", "cooperative", "Financing mandate signed");
+
+      const officer = OFFICERS.find((o) => o.id === officerId);
+      if (!officer) {
+        throw new FlowError("unknown_officer", `unknown officer: ${officerId}`, { officerId });
+      }
+      if (!state.orgWallet) {
+        throw new FlowError("capability_not_available", "No organisation wallet", { id });
+      }
+      if (!state.mandateApprovals.includes(officerId)) state.mandateApprovals.push(officerId);
+
+      const reached = state.mandateApprovals.length >= state.orgWallet.threshold;
+      if (!reached) {
+        stamp(state, "draft", officer.name,
+          `${officer.role} approved (${state.mandateApprovals.length}/${state.orgWallet.threshold})`);
+        return state;
+      }
+
+      state.mandateSignature = await ports.wallet.signAsOrg(
+        state.orgWallet,
+        state.mandateApprovals,
+        `Financing mandate ${state.request.esrgId} - ${state.request.requestedIdr} IDR`,
+      );
+      stamp(state, "mandate_signed", "cooperative",
+        `Quorum reached (${state.mandateApprovals.length}/${state.orgWallet.threshold}); mandate signed`);
       return state;
     },
 

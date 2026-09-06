@@ -2,6 +2,7 @@ import type {
   CapabilityStatus, ESrg, EligibilityProof, FinancingRequest, Intake, NoteToken, Ports,
 } from "@anora/core";
 import { ESRGS, INTAKES } from "./seed";
+import { mockWallet } from "./wallet";
 
 const seriesFor = (esrgId: string): string => `ANR-${esrgId.replace("SRG-TEH-", "SRG-")}`;
 
@@ -64,6 +65,8 @@ export function mockPorts(): Ports {
       },
     },
 
+    wallet: mockWallet(),
+
     status(): CapabilityStatus[] {
       return [
         { capability: "esrg", mode: "simulated", because: "No real tea e-SRG exists to use" },
@@ -71,6 +74,7 @@ export function mockPorts(): Ports {
         { capability: "token", mode: "simulated", because: "The ATS note is not deployed for this repository yet" },
         { capability: "proof", mode: "planned", because: "The eligibility circuit is not written yet" },
         { capability: "settlement", mode: "simulated", because: "Rupiah settlement requires a licensed payment partner" },
+        { capability: "wallet", mode: "simulated", because: "No Privy credentials configured; the quorum is enforced in memory" },
       ];
     },
   };

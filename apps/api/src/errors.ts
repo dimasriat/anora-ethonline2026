@@ -2,6 +2,7 @@ export type ErrorCode =
   | "unknown_request"
   | "unknown_receipt"
   | "unknown_investor"
+  | "unknown_officer"
   | "receipt_encumbered"
   | "capability_not_available"
   | "step_out_of_order"
@@ -28,6 +29,7 @@ export const STATUS_FOR: Record<ErrorCode, number> = {
   unknown_request: 404,
   unknown_receipt: 404,
   unknown_investor: 404,
+  unknown_officer: 404,
   receipt_encumbered: 409,
   capability_not_available: 501,
   step_out_of_order: 409,
