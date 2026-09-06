@@ -35,6 +35,15 @@ export type FlowState = {
   proof?: { publicInputs: string[]; nullifier: string; checks: { label: string; pass: boolean }[] };
   onChain?: { ok: boolean; gasUsed?: number };
   registryRef?: string;
+  settlement?: {
+    cashReceivedIdr: number;
+    paid: {
+      seniorReturnIdr: number; seniorPrincipalIdr: number;
+      juniorReturnIdr: number; juniorPrincipalIdr: number; residualIdr: number;
+    };
+    loss: { tranche: TrancheName; lossIdr: number }[];
+    conserved: boolean;
+  };
   reversibleTo?: string;
   history: { at: string; step: string; by: string; note: string }[];
 };
