@@ -44,10 +44,27 @@ export interface ProofEngine {
   verifyOnChain(proof: EligibilityProof): Promise<{ ok: boolean; gasUsed?: number }>;
 }
 
+export type Officer = { id: string; name: string; role: string };
+
+export type OrgWallet = {
+  walletId: string;
+  address: string;
+  quorumId: string;
+  threshold: number;
+  officers: Officer[];
+};
+
+/** A cooperative is not one person. Signing needs a quorum of its officers. */
+export interface WalletProvider {
+  createOrgWallet(officers: Officer[], threshold: number): Promise<OrgWallet>;
+  signAsOrg(wallet: OrgWallet, signerIds: string[], message: string): Promise<string>;
+}
+
 export interface Ports {
   esrg: EsrgRepository;
   registry: RegistryGate;
   token: TokenIssuer;
   proof: ProofEngine;
+  wallet: WalletProvider;
   status(): CapabilityStatus[];
 }
