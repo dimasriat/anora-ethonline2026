@@ -1,7 +1,7 @@
 import { makeApp } from "./app";
-import { mockPorts } from "./adapters/mock/index";
+import { resolvePorts } from "./ports";
 
 const port = Number(process.env.PORT ?? 3333);
 console.log(`anora listening on 127.0.0.1:${port}`);
 
-export default { port, hostname: "127.0.0.1", fetch: makeApp(mockPorts()).fetch };
+export default { port, hostname: "127.0.0.1", fetch: makeApp(resolvePorts()).fetch };
