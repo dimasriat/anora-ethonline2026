@@ -18,8 +18,8 @@ Last updated: 6 September 2026.
 |---|---|---|
 | Settlement waterfall | **live** | Pure computation, implemented and covered by 12 tests |
 | Subscription screening | **live** | Allowlist, mandate, ticket and capacity gates, 10 tests |
-| Eligibility proof generation | **planned** | Toolchain measured working in the spike; the real circuit is not written |
-| On-chain proof verification | **planned** | Verifier deployed and measured in the spike at 2,329,205 gas; not yet wired to a request |
+| Eligibility proof generation | **live** | The circuit is written and proves in 2.5 s; 7 tests, 5 of which must fail |
+| On-chain proof verification | **testnet** | Verifier deployed to Hedera testnet; a real proof verifies at 2,549,917 gas. Not yet called per request by the API |
 | ATS note issuance | **planned** | Not deployed for this repository |
 | Allowlisted transfer | **planned** | Screening logic exists; no on-chain enforcement yet |
 | Persistent storage | **planned** | In-memory. Deliberate for a deterministic demo |
@@ -35,12 +35,14 @@ testnet:
 
 | | |
 |---|---|
-| On-chain proof verification | returns `true`, 2,329,205 gas |
-| Transaction | `0xe6e3709d2c7add55c53468c5e9e203f3ab39fb81711015313559961e6e067635` |
-| Local proving, trivial circuit | `write_vk` 0.124 s, `prove` 0.558 s, `verify` 0.041 s |
+| Eligibility proof verified on-chain | returns `true`, 2,549,917 gas |
+| Transaction | `0x2c5a10fef7ce292f924e435e572a0efd824e49e490c92fb6b3c41f0608e3543e` |
+| Verifier | `0x96daE21bB0Ba3529032de506DBd7d875D56D8DFb` |
+| Local proving, real circuit | `execute` 2.8 s, `write_vk` 4.3 s, `prove` 2.5 s, `verify` 0.04 s |
+| Proof size | 8,384 bytes, 10 public inputs |
 
-Those numbers come from a one-assertion probe circuit. The real eligibility
-circuit will cost more, and this file will say so once it exists.
+The spike's probe circuit verified at 2,329,205 gas. The real circuit costs
+2,549,917 — 9.5% more for six assertions and a Merkle membership check.
 
 ## Rules for this file
 
