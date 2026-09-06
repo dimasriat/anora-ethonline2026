@@ -20,8 +20,8 @@ Last updated: 6 September 2026.
 | Subscription screening | **live** | Allowlist, mandate, ticket and capacity gates, 10 tests |
 | Eligibility proof generation | **live** | Real circuit, run per request when `ADAPTER_PROOF=live`. 7 circuit tests, 5 of which must fail |
 | On-chain proof verification | **testnet** | Called on every prove when `ADAPTER_PROOF=live`. A request that fails verification does not advance |
-| ATS note issuance | **planned** | Not deployed for this repository |
-| Allowlisted transfer | **planned** | Screening logic exists; no on-chain enforcement yet |
+| Permissioned note | **testnet** | `AnoraNote` deployed to Hedera testnet; allocation, activation and transfer all run on-chain |
+| Allowlisted transfer | **testnet** | Enforced by the contract. An approved transfer succeeded; a transfer to an unapproved wallet reverted with `NotAllowlisted` |
 | Persistent storage | **planned** | In-memory. Deliberate for a deterministic demo |
 | e-SRG documents | **simulated, permanently** | No real tea e-SRG exists to use. Warehouse receipts have covered tea since 2006, but the system is not running in practice. That gap is part of why this project exists |
 | Registry confirmation | **simulated, permanently** | Pusat Registrasi (Bappebti) exposes no public API |
@@ -40,6 +40,9 @@ testnet:
 | Verifier | `0x96daE21bB0Ba3529032de506DBd7d875D56D8DFb` |
 | Local proving, real circuit | `execute` 2.8 s, `write_vk` 4.3 s, `prove` 2.5 s, `verify` 0.04 s |
 | Proof size | 8,384 bytes, 10 public inputs |
+| Note | `0x796fD9361A9119Aa9cdDBd3bc87522C2e9907baF` |
+| Approved transfer | 61,229 gas, `0x3a2b381d…7d8e` |
+| Refused transfer | reverted `NotAllowlisted`, `0x7aaecf3b…c06b` |
 
 The spike's probe circuit verified at 2,329,205 gas. The real circuit costs
 2,549,917 — 9.5% more for six assertions and a Merkle membership check.

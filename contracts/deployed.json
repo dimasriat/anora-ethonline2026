@@ -10,5 +10,29 @@
     "block": 40170366,
     "gasUsed": 2549917,
     "result": true
+  },
+  "AnoraNote": {
+    "address": "0x796fD9361A9119Aa9cdDBd3bc87522C2e9907baF",
+    "series": "ANR-SRG-024",
+    "underlying": "SRG-TEH-024",
+    "partitions": {
+      "SENIOR": 270000000,
+      "JUNIOR": 120000000
+    },
+    "operator": "0xDB46DCbC36a9BB3fcaAd59EBce638f209Bf2629A",
+    "evidence": {
+      "activate": "0x6db0813998ae2a8d1656e983addc5b6e023f6988ac6a7afdc2d949318e5c9ffb",
+      "approvedTransfer": {
+        "transaction": "0x3a2b381d7a672dee33e30cb56a7cc7027133e6c8225f44c961e7c5b2f8397d8e",
+        "gasUsed": 61229,
+        "result": "270,000,000 SENIOR split into 230,000,000 and 40,000,000"
+      },
+      "refusedTransfer": {
+        "transaction": "0x7aaecf3b368982978989606e5a55df7bd919b6c769777d02be3a5f59dfb8c06b",
+        "gasUsed": 28915,
+        "status": "reverted",
+        "error": "NotAllowlisted(0x\u2026dEaD)"
+      }
+    }
   }
 }
