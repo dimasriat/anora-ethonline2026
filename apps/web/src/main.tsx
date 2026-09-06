@@ -1,10 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-
-function App() {
-  return <main>Anora</main>;
-}
+import { App } from "./App";
+import "./index.css";
 
 const root = document.getElementById("root");
-if (!root) throw new Error("#root tidak ada di index.html");
+if (!root) throw new Error("#root is missing from index.html");
 createRoot(root).render(<StrictMode><App /></StrictMode>);
