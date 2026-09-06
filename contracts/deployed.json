@@ -1,0 +1,14 @@
+{
+  "network": "hedera-testnet",
+  "chainId": 296,
+  "deployedAt": "2026-09-06",
+  "RelationsLib": "0x57699aB05049F16Ac319D6acb1e0184f2541d3c7",
+  "ZKTranscriptLib": "0xa03659E4B9ECfFC7Be649DeE3e8cb18a53b98107",
+  "HonkVerifier": "0x96daE21bB0Ba3529032de506DBd7d875D56D8DFb",
+  "verification": {
+    "transaction": "0x2c5a10fef7ce292f924e435e572a0efd824e49e490c92fb6b3c41f0608e3543e",
+    "block": 40170366,
+    "gasUsed": 2549917,
+    "result": true
+  }
+}

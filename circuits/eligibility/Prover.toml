@@ -1,0 +1,17 @@
+registry_root = "0x2ffde7a8f3e6123f413fe00b55b6f02de6cfb319eeb729c9b5acd6e3eec79b72"
+receipt_key = "0x149ed61dfcc44c896864dc5e98a873063199a2a3daf456447bdd66c5275e0d3e"
+mandate_hash = "0x1ed9fa2cba5be6b80cdd1a41d8b926e0db92b295d3023fa7edb5ae750bf7d677"
+epoch = "1"
+collateral_value_idr = "600000000"
+requested_principal_idr = "420000000"
+policy_ltv_bp = "7000"
+policy_max_tenor_days = "90"
+requested_tenor_days = "90"
+secret = "0x1a2b3c"
+nullifier_key = "0x4d5e6f"
+receipt_id = "0x53524754454824"
+quantity_kg = "24000"
+intakes = ["3600", "2850", "3300", "2400", "3150", "2700", "3450", "2550"]
+path = ["100", "101", "102", "103", "104", "105", "106", "107"]
+index = "5"
+mandate_preimage = "0x9911aa"
