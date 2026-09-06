@@ -24,6 +24,8 @@ export type Subscription = {
   id: string; investorId: string; tranche: TrancheName; unitsIdr: number; at: string;
 };
 
+export type Officer = { id: string; name: string; role: string };
+
 export type FlowState = {
   request: {
     id: string; esrgId: string; requestedIdr: number; maturityDays: number;
@@ -31,6 +33,12 @@ export type FlowState = {
   };
   facility: { ceilingIdr: number; tranches: TrancheTerms[] };
   subscriptions: Subscription[];
+  orgWallet?: {
+    walletId: string; address: string; quorumId: string;
+    threshold: number; officers: Officer[];
+  };
+  mandateApprovals: string[];
+  mandateSignature?: string;
   note?: { series: string; underlying: string; ceilingIdr: number; state: string };
   proof?: { publicInputs: string[]; nullifier: string; checks: { label: string; pass: boolean }[] };
   onChain?: { ok: boolean; gasUsed?: number };
@@ -76,6 +84,9 @@ export const api = {
   status: () => call<CapabilityStatus[]>("/status"),
   esrgs: () => call<ESrg[]>("/esrg"),
   investors: () => call<Investor[]>("/investors"),
+  officers: () => call<Officer[]>("/officers"),
+  approveMandate: (id: string, officerId: string) =>
+    call<FlowState>(`/requests/${id}/approve-mandate`, "POST", { officerId }),
   requests: () => call<FlowState[]>("/requests"),
   request: (id: string) => call<FlowState>(`/requests/${id}`),
   remaining: (id: string) =>

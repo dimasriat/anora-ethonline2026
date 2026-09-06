@@ -88,6 +88,11 @@ export function App() {
             </button>
           )}
 
+          {flow && flow.request.status === "draft" && flow.orgWallet && (
+            <Quorum flow={flow} busy={busy} enabled={mine}
+              onApprove={(officerId) => run(() => api.approveMandate(flow.request.id, officerId))} />
+          )}
+
           {flow && !step.action && flow.request.status === "tokenized" && (
             <Subscribe flow={flow} investors={investors} busy={busy} enabled={mine}
               onSubscribe={(i, t, u) => run(() => api.subscribe(flow.request.id, i, t, u))} />
@@ -119,6 +124,9 @@ function Facility({ flow }: { flow: FlowState }) {
       <Row k="Tenor" v={`${flow.request.maturityDays} days`} />
       {flow.note && <Row k="Note" v={`${flow.note.series} · ${flow.note.state}`} />}
       {flow.registryRef && <Row k="Security" v={flow.registryRef} />}
+      {flow.mandateSignature && (
+        <Row k="Mandate signature" v={`${flow.mandateSignature.slice(0, 18)}…`} />
+      )}
 
       {flow.proof && (
         <div className="proof">
@@ -145,6 +153,36 @@ function Facility({ flow }: { flow: FlowState }) {
           <small>{rp(taken(t.name))} of {rp(t.capacityIdr)}</small>
         </div>
       ))}
+    </div>
+  );
+}
+
+function Quorum({ flow, busy, enabled, onApprove }: {
+  flow: FlowState;
+  busy: boolean;
+  enabled: boolean;
+  onApprove: (officerId: string) => void;
+}) {
+  const wallet = flow.orgWallet!;
+  return (
+    <div className="quorum">
+      <p className="supporting">
+        A cooperative is not one person. A {rp(flow.request.requestedIdr)} agreement cannot be
+        signed by one officer alone — the organisation wallet requires{" "}
+        <strong>{wallet.threshold} of {wallet.officers.length}</strong>.
+      </p>
+      {wallet.officers.map((officer) => {
+        const signed = flow.mandateApprovals.includes(officer.id);
+        return (
+          <div key={officer.id} className="officer">
+            <span><strong>{officer.name}</strong><small>{officer.role}</small></span>
+            {signed
+              ? <span className="badge live">signed</span>
+              : <button disabled={busy || !enabled} onClick={() => onApprove(officer.id)}>Sign</button>}
+          </div>
+        );
+      })}
+      <Row k="Organisation wallet" v={wallet.address} />
     </div>
   );
 }
