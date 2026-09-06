@@ -1,0 +1,67 @@
+import type { Investor } from "@anora/core";
+
+export const INVESTORS: Investor[] = [
+  {
+    id: "INV-BRS",
+    name: "Bank Rakyat Sejahtera",
+    capitalType: "Commercial bank balance sheet",
+    riskProfile: "Capital-preserving; senior secured only",
+    mandate: ["SENIOR"],
+    ticketIdr: { min: 50_000_000, max: 270_000_000 },
+    allowlisted: true,
+    standing: "KYB verified · custody agreement on file",
+  },
+  {
+    id: "INV-DPN",
+    name: "Dana Pensiun Nusantara",
+    capitalType: "Pension fund",
+    riskProfile: "Liability-matched; no first-loss permitted",
+    mandate: ["SENIOR"],
+    ticketIdr: { min: 100_000_000, max: 270_000_000 },
+    allowlisted: true,
+    standing: "KYB verified · trustee mandate on file",
+  },
+  {
+    id: "INV-MVA",
+    name: "Mandiri Ventura Agri",
+    capitalType: "Agricultural credit fund",
+    riskProfile: "Yield-seeking; accepts subordinated exposure",
+    mandate: ["SENIOR", "JUNIOR"],
+    ticketIdr: { min: 25_000_000, max: 120_000_000 },
+    allowlisted: true,
+    standing: "KYB verified · qualified investor",
+  },
+  {
+    id: "INV-KIT",
+    name: "Koperasi Induk Tani",
+    capitalType: "Cooperative retained capital",
+    riskProfile: "Aligned first-loss; holds junior alongside members",
+    mandate: ["JUNIOR"],
+    ticketIdr: { min: 10_000_000, max: 120_000_000 },
+    allowlisted: true,
+    standing: "KYB verified · cooperative resolution on file",
+  },
+  {
+    id: "INV-YMS",
+    name: "Yayasan Modal Sosial",
+    capitalType: "Blended and concessional capital",
+    riskProfile: "Impact-first; subsidises junior to unlock senior",
+    mandate: ["JUNIOR"],
+    ticketIdr: { min: 10_000_000, max: 60_000_000 },
+    allowlisted: true,
+    standing: "KYB verified · grant mandate on file",
+  },
+  {
+    id: "INV-MFC",
+    name: "Meridian Frontier Credit",
+    capitalType: "Offshore credit fund",
+    riskProfile: "Opportunistic; highest yield appetite",
+    mandate: ["SENIOR", "JUNIOR"],
+    ticketIdr: { min: 50_000_000, max: 270_000_000 },
+    allowlisted: false,
+    standing: "KYB incomplete · beneficial ownership unverified",
+  },
+];
+
+export const investorById = (id: string): Investor | undefined =>
+  INVESTORS.find((x) => x.id === id);
