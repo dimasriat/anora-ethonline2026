@@ -18,8 +18,8 @@ Last updated: 6 September 2026.
 |---|---|---|
 | Settlement waterfall | **live** | Pure computation, implemented and covered by 12 tests |
 | Subscription screening | **live** | Allowlist, mandate, ticket and capacity gates, 10 tests |
-| Eligibility proof generation | **live** | The circuit is written and proves in 2.5 s; 7 tests, 5 of which must fail |
-| On-chain proof verification | **testnet** | Verifier deployed to Hedera testnet; a real proof verifies at 2,549,917 gas. Not yet called per request by the API |
+| Eligibility proof generation | **live** | Real circuit, run per request when `ADAPTER_PROOF=live`. 7 circuit tests, 5 of which must fail |
+| On-chain proof verification | **testnet** | Called on every prove when `ADAPTER_PROOF=live`. A request that fails verification does not advance |
 | ATS note issuance | **planned** | Not deployed for this repository |
 | Allowlisted transfer | **planned** | Screening logic exists; no on-chain enforcement yet |
 | Persistent storage | **planned** | In-memory. Deliberate for a deterministic demo |
