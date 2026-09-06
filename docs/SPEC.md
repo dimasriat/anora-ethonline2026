@@ -28,9 +28,13 @@ change hands under a permission rule.
 | Facility Agent | Verifies evidence and authority, approves facility controls | **Does not lend.** Approval is separate from capital |
 | Capital providers | Subscribe to Senior or Junior units | Cannot approve the facility they fund |
 
-The cooperative signs through an organisation wallet with a 2-of-3 quorum. A
-several-hundred-million-rupiah agreement is not one officer's signature, and
-that is how cooperatives actually work.
+The cooperative signs through a Privy organisation wallet owned by a **2-of-3
+key quorum** over its officers. A several-hundred-million-rupiah agreement is not
+one officer's signature, and that is how cooperatives actually work.
+
+The threshold is enforced by Privy, not by this application. A request carrying
+one signature is refused with *"Number of signatures does not match the wallet's
+authorization threshold"* before it reaches any of our code.
 
 ## 3. Facility terms
 

@@ -19,7 +19,11 @@ beforeEach(() => { flow = makeFlow(provable()); });
 const funded = async () => {
   const s = await flow.create("SRG-TEH-024");
   const id = s.request.id;
-  for (const step of ["signMandate", "approve", "prove", "tokenize"] as const) await flow[step](id);
+  await flow.approveMandate(id, "OFF-1");
+  await flow.approveMandate(id, "OFF-3");
+  await flow.approve(id);
+  await flow.prove(id);
+  await flow.tokenize(id);
   await flow.subscribe(id, "INV-BRS", "SENIOR", 270_000_000);
   await flow.subscribe(id, "INV-KIT", "JUNIOR", 120_000_000);
   await flow.registerAndFund(id);
