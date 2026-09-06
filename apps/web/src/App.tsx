@@ -131,6 +131,8 @@ function Facility({ flow }: { flow: FlowState }) {
         </div>
       )}
 
+      {flow.settlement && <Settlement settlement={flow.settlement} />}
+
       <h3>Tranches</h3>
       {flow.facility.tranches.map((t) => (
         <div key={t.name} className="tranche">
@@ -143,6 +145,25 @@ function Facility({ flow }: { flow: FlowState }) {
           <small>{rp(taken(t.name))} of {rp(t.capacityIdr)}</small>
         </div>
       ))}
+    </div>
+  );
+}
+
+function Settlement({ settlement }: { settlement: NonNullable<FlowState["settlement"]> }) {
+  const { paid, loss } = settlement;
+  return (
+    <div className="proof">
+      <h3>Settlement</h3>
+      <Row k="Cash received" v={rp(settlement.cashReceivedIdr)} />
+      <Row k="Senior return" v={rp(paid.seniorReturnIdr)} />
+      <Row k="Senior principal" v={rp(paid.seniorPrincipalIdr)} />
+      <Row k="Junior return" v={rp(paid.juniorReturnIdr)} />
+      <Row k="Junior principal" v={rp(paid.juniorPrincipalIdr)} />
+      <Row k="Residual to holder" v={rp(paid.residualIdr)} />
+      {loss.map((l) => (
+        <Row key={l.tranche} k={`${l.tranche} loss`} v={rp(l.lossIdr)} />
+      ))}
+      <Row k="Cash conserved" v={settlement.conserved ? "yes" : "no"} />
     </div>
   );
 }
