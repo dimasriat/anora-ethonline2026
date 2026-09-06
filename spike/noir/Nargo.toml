@@ -1,0 +1,4 @@
+[package]
+name = "spike"
+type = "bin"
+authors = [""]

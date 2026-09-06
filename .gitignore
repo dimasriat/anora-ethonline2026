@@ -1,4 +1,4 @@
-# Artefak build Noir/Barretenberg — bisa dihasilkan ulang dari sumber
+# Noir / Barretenberg build artifacts
 target/
 
 node_modules/
