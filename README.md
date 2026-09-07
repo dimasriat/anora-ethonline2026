@@ -9,31 +9,41 @@ Built for ETHOnline 2026, Classic / From Scratch track.
 
 Commodity producers and businesses frequently possess valuable inventories yet
 remain constrained by inadequate liquidity, as their capital is locked in
-storage until the goods are sold. Financial institutions are reluctant to lend
-against commodities whose ownership, condition, and collateral status cannot be
-verified with sufficient confidence. Although Indonesia's Sistem Resi Gudang
-(SRG) was established to make stored commodities viable collateral, adoption
-remains limited by fragmented infrastructure, weak institutional trust, and
-restricted access to financing. Anora addresses this gap by using a verified
-e-SRG to support a tokenized financing claim that can be divided into structured
-positions for eligible capital providers. Through selective traceability, the
-platform supplies the evidence required to assess the collateral without
-exposing confidential commercial records, thereby broadening access to credit
-while encouraging greater participation in the SRG ecosystem.
+storage until the goods are sold. Although Indonesia's Sistem Resi Gudang (SRG)
+was designed to make stored commodities viable collateral, participation
+remains limited because the evidence required for financing is fragmented
+across physical supply chains and difficult to share without exposing
+commercially sensitive information. Anora introduces selective traceability by
+linking warehouse and field attestations to cryptographic commitments, then
+using zero-knowledge proofs to verify specific financing conditions without
+revealing the underlying records. It makes financing conditional on a defined
+set of verifiable claims. A verified e-SRG can then support a tokenized
+financing claim divided into structured positions for eligible capital
+providers, giving institutions clearer evidence while preserving the boundaries
+of what the technology can prove.
 
 ## What this builds
 
-A financing facility backed by one e-SRG, issued as a permissioned security
-token with fixed Senior and Junior tranches, where eligibility is proven in zero
-knowledge rather than by disclosure.
+A financing facility backed by one verified e-SRG, issued as a permissioned
+security token with facility-specific Senior and Junior tranches whose terms are
+fixed before subscription, where selective traceability and eligibility are
+proven without disclosing confidential commercial records.
 
-- The **warehouse and the registry stay legally authoritative.** Nothing here
-  claims to transfer receipt ownership on-chain; the token represents a lender
-  claim, and the security interest is recorded the way Indonesian law requires.
-- **Zero-knowledge is used only where it earns its complexity:** proving the
-  request satisfies policy without revealing per-supplier purchase prices.
-- **Permissioning is demonstrated by refusal.** An investor who fails the
-  allowlist is shown being refused, not merely absent.
+1. The **warehouse and regulated registry remain legally authoritative.** Anora
+   does not transfer ownership of the receipt on-chain; the token represents a
+   financing claim, while the security interest is recorded through the
+   existing SRG framework.
+2. **Zero-knowledge is applied.** It proves that committed warehouse and field
+   records satisfy defined financing conditions without revealing supplier
+   identities, purchase prices, or underlying documents.
+3. **Permissioning is demonstrated through enforcement.** Participation and
+   transfers are restricted to eligible capital providers, and transactions
+   that fail the allowlist or tranche mandate are explicitly refused.
+4. **Technology supports institutional trust.** Accredited inspectors and
+   warehouse operators attest to the physical goods, while Compliance reviews
+   that evidence and makes financing conditional on verified records.
+   Cryptography protects and selectively proves those records; it does not
+   establish physical truth by itself.
 
 ## Status
 
@@ -54,9 +64,10 @@ outside source, the source is named at the point it is used.
 
 ## Team
 
-- **Panata Gama** — product, design, interface, and the demand that no claim
-  outrun its evidence
-- **Dimas Riatmodjo** — architecture, backend, contracts, circuits
+1. **Panata Gama** — product direction, UX/UI design, frontend experience,
+   structured finance, and evidence boundaries
+2. **Dimas Riatmodjo** — protocol architecture, backend, smart contracts,
+   zero-knowledge circuits, and integrations
 
 ## Licence
 
