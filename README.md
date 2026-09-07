@@ -1,32 +1,25 @@
 # Anora
 
-Financing an Indonesian electronic warehouse receipt (e-SRG) for made tea —
-before the tea is sold, and without publishing the cooperative's trade secrets.
+Anora turns verified Indonesian electronic warehouse receipts into structured,
+permissioned credit facilities without exposing sensitive commercial data.
 
 Built for ETHOnline 2026, Classic / From Scratch track.
 
 ## The problem
 
-A tea cooperative buys green leaf from smallholders, processes it into made tea,
-and stores the result in a licensed warehouse. The warehouse issues an
-electronic warehouse receipt. That receipt is already, by Indonesian law
-(UU 9/2006), a security instrument that a bank can lend against — up to 70% of
-appraised value.
-
-In practice that channel barely runs for tea, and when it does the cooperative
-gets one bilateral offer from one appointed bank, on terms it cannot compare.
-Meanwhile the money is needed *now*: smallholders are paid on delivery, and the
-tea sells months later.
-
-Two things are missing, and neither is a lending-capacity problem:
-
-1. **A market.** The receipt can back a loan today, but only through a single
-   counterparty. Nothing lets several investors take different slices of the
-   same facility at different risk.
-2. **Privacy that survives disclosure.** Deciding whether a request is eligible
-   requires knowing the purchase prices paid to each supplier. Those prices are
-   the cooperative's most sensitive commercial data, and handing them to every
-   prospective investor is not an acceptable cost of borrowing.
+Commodity producers and businesses frequently possess valuable inventories yet
+remain constrained by inadequate liquidity, as their capital is locked in
+storage until the goods are sold. Financial institutions are reluctant to lend
+against commodities whose ownership, condition, and collateral status cannot be
+verified with sufficient confidence. Although Indonesia's Sistem Resi Gudang
+(SRG) was established to make stored commodities viable collateral, adoption
+remains limited by fragmented infrastructure, weak institutional trust, and
+restricted access to financing. Anora addresses this gap by using a verified
+e-SRG to support a tokenized financing claim that can be divided into structured
+positions for eligible capital providers. Through selective traceability, the
+platform supplies the evidence required to assess the collateral without
+exposing confidential commercial records, thereby broadening access to credit
+while encouraging greater participation in the SRG ecosystem.
 
 ## What this builds
 
