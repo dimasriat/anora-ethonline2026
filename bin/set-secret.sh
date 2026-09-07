@@ -17,6 +17,12 @@ if ! git check-ignore -q "$ENV_FILE" 2>/dev/null; then
   exit 1
 fi
 
+if [ ! -t 0 ]; then
+  echo "REFUSING: no terminal available, so the value cannot be read without echoing it." >&2
+  echo "Edit .env directly instead:  \$EDITOR $(pwd)/$ENV_FILE" >&2
+  exit 1
+fi
+
 read -rsp "Value for $NAME (hidden, nothing will echo): " VALUE
 echo
 
