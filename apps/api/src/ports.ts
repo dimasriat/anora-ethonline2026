@@ -3,9 +3,29 @@ import { mockPorts } from "./adapters/mock/index";
 import { liveProofEngine } from "./adapters/live/proof";
 import { makePrivy } from "./adapters/live/privy";
 import { liveTokenIssuer } from "./adapters/live/token";
+import { unavailableChecker, worldChecker, type EligibilityChecker } from "./adapters/live/world";
 import deployed from "../../../contracts/deployed.json";
 
 const RPC_URL = process.env.HEDERA_RPC ?? "https://testnet.hashio.io/api";
+
+export function resolveChecker(): { checker: EligibilityChecker; live: boolean } {
+  const appId = process.env.WORLD_APP_ID;
+  const rpId = process.env.WORLD_RP_ID;
+  const signingKey = process.env.WORLD_RP_SIGNING_KEY;
+  if (!appId || !rpId || !signingKey) return { checker: unavailableChecker(), live: false };
+
+  return {
+    live: true,
+    checker: worldChecker({
+      appId: appId as `app_${string}`,
+      rpId,
+      signingKey,
+      action: process.env.WORLD_ACTION ?? "anora-eligibility",
+      environment: (process.env.WORLD_ENVIRONMENT ?? "sandbox") as "sandbox",
+      returnTo: process.env.PUBLIC_URL ?? "https://anora.dimsky.xyz",
+    }),
+  };
+}
 
 export function resolvePorts(): Ports {
   const base = mockPorts();

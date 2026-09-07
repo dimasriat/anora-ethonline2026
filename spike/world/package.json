@@ -1,0 +1,11 @@
+{
+  "name": "@anora/spike-world",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "bun run src/server.ts" },
+  "dependencies": {
+    "@worldcoin/idkit-core": "latest",
+    "hono": "^4.6.14"
+  }
+}
