@@ -67,6 +67,9 @@ export function App() {
       <header>
         <div className="brand">Anora</div>
         <nav>
+          <span className="role-label" title="One account can view every role. In production an account holds one.">
+            Viewing as
+          </span>
           {ROLES.map((r) => (
             <button key={r} className={r === role ? "on" : ""} onClick={() => setRole(r)}>
               {r}
