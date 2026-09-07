@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { bearer, type Authenticator } from "./auth";
 import type { Ports, TrancheName } from "@anora/core";
-import { makeFlow } from "./flow";
+import { FACILITIES_PER_OWNER, makeFlow } from "./flow";
 import { FlowError, STATUS_FOR } from "./errors";
 import { INVESTORS } from "./adapters/mock/investors";
 import { OFFICERS } from "./adapters/mock/wallet";
@@ -39,7 +39,14 @@ export function makeApp(ports: Ports, authenticate: Authenticator) {
 
   app.get("/api/esrg", async (c) => c.json(await ports.esrg.list()));
 
-  app.get("/api/me", async (c) => c.json(await callerOf(c)));
+  app.get("/api/me", async (c) => {
+    const { userId } = await callerOf(c);
+    const held = flow.all(userId).length;
+    return c.json({
+      userId,
+      facilities: { held, limit: FACILITIES_PER_OWNER, remaining: FACILITIES_PER_OWNER - held },
+    });
+  });
 
   app.get("/api/requests", async (c) => {
     const { userId } = await callerOf(c);

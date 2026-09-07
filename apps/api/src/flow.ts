@@ -40,7 +40,7 @@ const DAYS_IN_YEAR = 365;
 
 /* Each facility deploys a contract and creates a Privy wallet. Unbounded
    creation drains testnet gas, so a caller gets a fixed allowance. */
-const FACILITIES_PER_OWNER = 5;
+export const FACILITIES_PER_OWNER = 5;
 
 export type Settlement = {
   cashReceivedIdr: number;
