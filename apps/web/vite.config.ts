@@ -3,6 +3,9 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  /* One .env at the repo root serves both apps; without this vite reads only
+     apps/web/.env and VITE_* variables silently vanish from the bundle. */
+  envDir: "../..",
   build: { outDir: "dist" },
   server: {
     host: "127.0.0.1",

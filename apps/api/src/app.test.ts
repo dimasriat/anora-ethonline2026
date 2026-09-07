@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { makeApp } from "./app";
 import { mockPorts } from "./adapters/mock/index";
+import { openAuthenticator } from "./auth";
 import type { EligibilityProof, Ports } from "@anora/core";
 
 const withProvableEligibility = (): Ports => ({
@@ -16,7 +17,7 @@ const withProvableEligibility = (): Ports => ({
 });
 
 let app: ReturnType<typeof makeApp>;
-beforeEach(() => { app = makeApp(mockPorts()); });
+beforeEach(() => { app = makeApp(mockPorts(), openAuthenticator); });
 
 const body = async (res: Response): Promise<any> => res.json();
 
@@ -91,7 +92,7 @@ describe("error codes reach the client", () => {
   });
 
   test("a refused investor is 403 and names the gate", async () => {
-    app = makeApp(withProvableEligibility());
+    app = makeApp(withProvableEligibility(), openAuthenticator);
     const id = await openRequest();
     await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-1" });
     await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-3" });
@@ -108,7 +109,7 @@ describe("error codes reach the client", () => {
   });
 
   test("the whole lifecycle runs when eligibility can be proven", async () => {
-    app = makeApp(withProvableEligibility());
+    app = makeApp(withProvableEligibility(), openAuthenticator);
     const id = await openRequest();
     await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-1" });
     await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-3" });

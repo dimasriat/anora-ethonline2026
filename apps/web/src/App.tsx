@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import {
-  ApiError, api, pct, rp,
+  ApiError, api, pct, rp, setAccessToken,
   type CapabilityStatus, type ESrg, type FlowState, type Investor, type TrancheName,
 } from "./api";
 import { ROLES, STEPS, TRANCHE_COPY, type Role } from "./roles";
 
 export function App() {
+  const privy = usePrivyOrNull();
+  const [ready, setReady] = useState(false);
   const [role, setRole] = useState<Role>("Borrower");
   const [receipts, setReceipts] = useState<ESrg[]>([]);
   const [investors, setInvestors] = useState<Investor[]>([]);
@@ -15,10 +18,22 @@ export function App() {
   const [refusal, setRefusal] = useState<{ code: string; message: string } | null>(null);
 
   useEffect(() => {
+    if (!privy) { setReady(true); return; }
+    if (!privy.ready) return;
+    if (!privy.authenticated) { setAccessToken(null); setReady(true); return; }
+    privy.getAccessToken().then((token) => {
+      setAccessToken(token);
+      setReady(true);
+    });
+  }, [privy?.ready, privy?.authenticated]);
+
+  useEffect(() => {
+    if (!ready) return;
     api.esrgs().then(setReceipts).catch(() => setReceipts([]));
     api.investors().then(setInvestors).catch(() => setInvestors([]));
     api.status().then(setCapabilities).catch(() => setCapabilities([]));
-  }, []);
+    api.requests().then((list) => setFlow(list[list.length - 1] ?? null)).catch(() => {});
+  }, [ready]);
 
   const run = async (fn: () => Promise<FlowState>) => {
     setBusy(true);
@@ -50,11 +65,30 @@ export function App() {
               {STEPS[flow?.request.status ?? "none"]!.owner === r && <span className="dot" />}
             </button>
           ))}
+          {privy?.authenticated ? (
+            <button className="signout" onClick={() => { setAccessToken(null); privy.logout(); }}>
+              Sign out
+            </button>
+          ) : privy ? (
+            <button className="signin" onClick={() => privy.login()}>Sign in</button>
+          ) : null}
         </nav>
       </header>
 
       <main>
         <section className="stage">
+          {privy && privy.ready && !privy.authenticated && (
+            <div className="gate">
+              <h1>Sign in to open a facility</h1>
+              <p className="supporting">
+                Email or Google. A wallet is created for you — no seed phrase, and no
+                gas to fund. The platform settles on-chain as the facility operator.
+              </p>
+              <button className="primary" onClick={() => privy.login()}>Sign in</button>
+            </div>
+          )}
+
+          {(!privy || privy.authenticated) && (<>
           <p className="eyebrow">{mine ? "Your turn" : `With the ${step.owner}`}</p>
           <h1>{step.title}</h1>
 
@@ -101,6 +135,7 @@ export function App() {
           {!mine && flow && (
             <p className="handoff">Switch to the {step.owner} workspace to continue.</p>
           )}
+          </>)}
         </section>
 
         <aside>
@@ -155,6 +190,15 @@ function Facility({ flow }: { flow: FlowState }) {
       ))}
     </div>
   );
+}
+
+/** Privy is optional: without an app id the provider is absent and the hook throws. */
+function usePrivyOrNull() {
+  try {
+    return usePrivy();
+  } catch {
+    return null;
+  }
 }
 
 function Quorum({ flow, busy, enabled, onApprove }: {

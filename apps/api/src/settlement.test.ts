@@ -13,11 +13,14 @@ const provable = (): Ports => ({
   },
 });
 
+const OWNER = "did:privy:test";
 let flow: ReturnType<typeof makeFlow>;
 beforeEach(() => { flow = makeFlow(provable()); });
 
-const funded = async () => {
-  const s = await flow.create("SRG-TEH-024");
+let owners = 0;
+
+const funded = async (owner = OWNER) => {
+  const s = await flow.create("SRG-TEH-024", owner);
   const id = s.request.id;
   await flow.approveMandate(id, "OFF-1");
   await flow.approveMandate(id, "OFF-3");
@@ -70,7 +73,7 @@ describe("settlement at repayment", () => {
 
   test("cash is conserved at every recovery level", async () => {
     for (const cash of [0, 1, 199_999_999, 270_000_000, 390_000_000, 500_000_000]) {
-      const id = await funded();
+      const id = await funded(`did:privy:cash-${owners++}`);
       const s = await flow.repay(id, cash);
       expect(s.settlement!.conserved).toBe(true);
     }
@@ -87,7 +90,7 @@ describe("settlement at repayment", () => {
 describe("settle", () => {
   test("is a pure function of the facility and the cash", async () => {
     const id = await funded();
-    const state = flow.get(id)!;
+    const state = flow.get(id, OWNER)!;
     expect(settle(state, 390_000_000)).toEqual(settle(state, 390_000_000));
   });
 });
