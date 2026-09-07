@@ -26,6 +26,16 @@ export type Subscription = {
 
 export type Officer = { id: string; name: string; role: string };
 
+export type Credential = { nullifierHash: string; verifiedAt: string; method: string };
+
+export type CheckSession = {
+  id: string;
+  state: "pending" | "verified" | "failed";
+  because?: string;
+  credential?: Credential;
+  connectorURI: string;
+};
+
 export type FlowState = {
   request: {
     id: string; esrgId: string; requestedIdr: number; maturityDays: number;
@@ -94,7 +104,10 @@ export const api = {
   me: () => call<{
     userId: string;
     facilities: { held: number; limit: number; remaining: number };
+    eligibility: Credential | null;
   }>("/me"),
+  openCheck: () => call<CheckSession>("/eligibility/session", "POST"),
+  readCheck: (id: string) => call<CheckSession>(`/eligibility/session/${id}`),
   status: () => call<CapabilityStatus[]>("/status"),
   esrgs: () => call<ESrg[]>("/esrg"),
   investors: () => call<Investor[]>("/investors"),
