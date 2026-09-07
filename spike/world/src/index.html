@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Selfie Check spike</title>
+<style>
+  body { margin:0; padding:32px; background:#faf9f6; color:#14171a;
+         font:14px/1.6 ui-sans-serif,system-ui,sans-serif; }
+  main { max-width:640px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 6px; }
+  p.lede { color:#6b7280; margin:0 0 24px; }
+  button { padding:10px 20px; border-radius:8px; border:1px solid #4a5d23;
+           background:#4a5d23; color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+  button:disabled { background:#fff; color:#6b7280; border-color:#e6e4de; }
+  #log { margin-top:24px; display:grid; gap:8px; }
+  #log > div { padding:10px 14px; background:#fff; border:1px solid #e6e4de; border-radius:8px; }
+  .ok { border-color:#4a5d23; }
+  .bad { border-color:#8c2f1f; background:#fdf3f1; }
+  .muted { color:#6b7280; }
+  .uri { word-break:break-all; font-size:11.5px; }
+  pre { margin:0; white-space:pre-wrap; word-break:break-all; font-size:11.5px; }
+  .open { display:none; margin-top:14px; padding:10px 18px; border-radius:8px;
+          border:1px solid #4a5d23; color:#4a5d23; text-decoration:none; font-weight:600; }
+  #qr { display:none; margin-top:18px; border:1px solid #e6e4de; border-radius:10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Selfie Check spike</h1>
+  <p class="lede">Isolated from Anora on purpose. If this fails, the problem is World, not our app.</p>
+  <button id="go">Request a Selfie Check</button>
+  <img id="qr" alt="Scan with the World ID Sandbox app" />
+  <a id="open" class="open" href="#">Open the World App on this phone</a>
+  <div id="log"></div>
+</main>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

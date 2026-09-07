@@ -18,3 +18,6 @@ contracts/spike/Verifier.sol
 # Generated from the circuit by bb write_solidity_verifier
 contracts/src/Verifier.sol
 circuits/eligibility/target/
+
+# Bundled by bun build from spike/world/src/app.ts
+spike/world/src/app.js
