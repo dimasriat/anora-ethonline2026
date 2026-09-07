@@ -34,7 +34,26 @@ reads as absent rather than forbidden — it is not theirs to know about.
 Each account may hold a limited number of facilities, because every facility
 deploys a contract and creates a wallet.
 
-## 3. Actors
+## 3. Who may act
+
+Every action that moves value is gated behind a **liveness check** — World ID
+Selfie Check, requested through IDKit and completed in the World ID app.
+
+It gates three things: signing the financing mandate, approving the facility,
+and subscribing to a tranche.
+
+What it establishes: a live person is acting, they are not a script, and the
+person returning is the one who verified.
+
+What it does **not** establish, and must never be claimed to:
+
+- **Uniqueness.** Selfie Check is 1:1 matching. It is not a one-person-one-account
+  guarantee and cannot stop someone holding several accounts.
+- **Identity.** It does not reveal who the person is.
+- **Authority.** That an investor represents Bank Rakyat Sejahtera is KYB, which
+  stays simulated.
+
+## 4. Actors
 
 | Actor | Authority | Not their authority |
 |---|---|---|
@@ -52,7 +71,7 @@ The threshold is enforced by Privy, not by this application. A request carrying
 one signature is refused with *"Number of signatures does not match the wallet's
 authorization threshold"* before it reaches any of our code.
 
-## 4. Facility terms
+## 5. Facility terms
 
 One approved e-SRG, one facility, fixed terms published before subscription
 opens. No revolver, no bespoke per-lender terms.
@@ -81,7 +100,7 @@ tranche name:
 | Junior | Rp 0 | Rp 120,000,000 |
 | Senior | Rp 120,000,000 | Rp 390,000,000 |
 
-## 5. Lifecycle
+## 6. Lifecycle
 
 ```
 draft → mandate_signed → approved → proven → tokenized → subscribed → funded → repaid
@@ -104,7 +123,7 @@ Steps before tokenization are reversible; steps after it are not. Once the note
 is issued and units are allocated, the record is on-chain, and rewinding the
 screen would only make it lie about the state.
 
-## 6. Eligibility proof
+## 7. Eligibility proof
 
 Zero knowledge is used only where it earns its complexity: proving the request
 satisfies policy without disclosing what each supplier was paid.
@@ -133,7 +152,7 @@ receipt identifier · Merkle path and index · commitment secret · nullifier ke
 The appraised value is a public input. Any claim that it is withheld is false,
 and the prospectus must not make it.
 
-## 7. Settlement waterfall
+## 8. Settlement waterfall
 
 ATS partitions are ownership buckets. They do not enforce payment priority. A
 separate deterministic settlement step does.
@@ -157,7 +176,7 @@ tranche was paid, what loss each absorbed, and whether cash was conserved.
 Rupiah does not move — settlement is permanently simulated — but the allocation
 is computed, not asserted.
 
-## 8. Loss allocation
+## 9. Loss allocation
 
 A separate function from payment priority.
 
@@ -178,7 +197,7 @@ That figure is a **deterministic structural threshold**. It is not expected loss
 not probability of default, not a rating, and not a guarantee. It ignores
 enforcement cost, recovery delay, and price volatility, all of which are real.
 
-## 9. Permissioning
+## 10. Permissioning
 
 Transfer is gated on the **receiving** side. Three checks, and all three must be
 visible when they refuse:
@@ -190,7 +209,7 @@ visible when they refuse:
 A permission system that is never seen refusing anyone has not been demonstrated.
 One investor in the roster is deliberately not allowlisted for this reason.
 
-## 10. What this does not claim
+## 11. What this does not claim
 
 - That the token grants ownership of the tea, or of the receipt.
 - That token partitions enforce payment priority. §6 does.
@@ -199,7 +218,7 @@ One investor in the roster is deliberately not allowlisted for this reason.
   system inherits the licensed warehouse's assertion; it does not verify it.
 - That any value listed as a public input in §6 is private.
 
-## 11. Live versus simulated
+## 12. Live versus simulated
 
 Every capability reports its own mode and the reason for it. See
 `docs/STATUS.md`. A demo that cannot name which parts are simulated is claiming
