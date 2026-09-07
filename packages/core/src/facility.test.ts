@@ -9,6 +9,7 @@ const junior = facility.tranches.find((t) => t.name === "JUNIOR")!;
 const investor = (over: Partial<Investor> = {}): Investor => ({
   id: "INV-TEST",
   name: "Test Capital",
+  address: "0x0000000000000000000000000000000000000001",
   capitalType: "Test",
   riskProfile: "Test",
   mandate: ["SENIOR", "JUNIOR"],
