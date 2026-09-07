@@ -107,6 +107,14 @@ export function App() {
             </div>
           )}
 
+          {!flow && facilities.length > 0 && (
+            <Facilities
+              facilities={facilities}
+              onOpen={(f) => { setRefusal(null); setFlow(f); }}
+              onStartNew={() => setFlow(null)}
+            />
+          )}
+
           {!flow && (
             <ul className="receipts">
               {receipts.map((r) => (
@@ -151,6 +159,28 @@ export function App() {
           <Capabilities rows={capabilities} />
         </aside>
       </main>
+    </div>
+  );
+}
+
+function Facilities({ facilities, onOpen }: {
+  facilities: FlowState[];
+  onOpen: (f: FlowState) => void;
+  onStartNew: () => void;
+}) {
+  return (
+    <div className="facilities">
+      <h3>Your facilities</h3>
+      {facilities.map((f) => (
+        <button key={f.request.id} className="facility-row" onClick={() => onOpen(f)}>
+          <span>
+            <strong>{f.request.id}</strong>
+            <small>{f.request.esrgId} · {rp(f.request.requestedIdr)}</small>
+          </span>
+          <span className="stage-chip">{STEPS[f.request.status]?.title ?? f.request.status}</span>
+        </button>
+      ))}
+      <p className="supporting">Or open a new one from a receipt below.</p>
     </div>
   );
 }
