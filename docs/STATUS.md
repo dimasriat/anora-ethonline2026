@@ -26,6 +26,7 @@ Last updated: 6 September 2026.
 | e-SRG documents | **simulated, permanently** | No real tea e-SRG exists to use. Warehouse receipts have covered tea since 2006, but the system is not running in practice. That gap is part of why this project exists |
 | Registry confirmation | **simulated, permanently** | Pusat Registrasi (Bappebti) exposes no public API |
 | Rupiah settlement | **simulated, permanently** | Requires a licensed payment partner |
+| Sign-in and user wallets | **live** | Privy email or Google login. A wallet is created for the visitor; the platform pays gas as facility operator |
 | Organisation wallet and quorum | **live** | Privy key quorum, 2 of 3 officers. Privy enforces the threshold; one signature is refused by Privy, not by this server |
 | KYB and organisational authority | **simulated** | Real onboarding is out of scope for a hackathon |
 

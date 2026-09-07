@@ -18,6 +18,7 @@ export type HistoryEntry = {
 };
 
 export type FlowState = {
+  ownerId: string;
   request: FinancingRequest;
   facility: Facility;
   subscriptions: Subscription[];
@@ -36,6 +37,10 @@ export type FlowState = {
 const MAX_LTV_BP = 7_000;
 const MATURITY_DAYS = 90;
 const DAYS_IN_YEAR = 365;
+
+/* Each facility deploys a contract and creates a Privy wallet. Unbounded
+   creation drains testnet gas, so a caller gets a fixed allowance. */
+const FACILITIES_PER_OWNER = 5;
 
 export type Settlement = {
   cashReceivedIdr: number;
@@ -80,9 +85,14 @@ export function makeFlow(ports: Ports) {
   const states = new Map<string, FlowState>();
   let sequence = 0;
 
-  const must = (id: string): FlowState => {
+  const must = (id: string, ownerId?: string): FlowState => {
     const state = states.get(id);
     if (!state) throw new FlowError("unknown_request", `unknown request: ${id}`, { id });
+    /* A facility belongs to whoever opened it. Someone else's id must read as
+       absent rather than forbidden — it is not theirs to know about. */
+    if (ownerId !== undefined && state.ownerId !== ownerId) {
+      throw new FlowError("unknown_request", `unknown request: ${id}`, { id });
+    }
     return state;
   };
 
@@ -108,10 +118,23 @@ export function makeFlow(ports: Ports) {
   };
 
   return {
-    all: (): FlowState[] => [...states.values()],
-    get: (id: string): FlowState | null => states.get(id) ?? null,
+    all: (ownerId: string): FlowState[] =>
+      [...states.values()].filter((s) => s.ownerId === ownerId),
 
-    async create(esrgId: string): Promise<FlowState> {
+    get: (id: string, ownerId: string): FlowState | null => {
+      const state = states.get(id);
+      return state && state.ownerId === ownerId ? state : null;
+    },
+
+    async create(esrgId: string, ownerId: string): Promise<FlowState> {
+      const held = [...states.values()].filter((s) => s.ownerId === ownerId).length;
+      if (held >= FACILITIES_PER_OWNER) {
+        throw new FlowError(
+          "facility_limit_reached",
+          `You already have ${held} facilities. Each one deploys a contract, so the demo caps them.`,
+          { limit: FACILITIES_PER_OWNER },
+        );
+      }
       const esrg: ESrg | null = await ports.esrg.get(esrgId);
       if (!esrg) throw new FlowError("unknown_receipt", `unknown receipt: ${esrgId}`, { esrgId });
       if (esrg.encumbrance !== "none") {
@@ -121,6 +144,7 @@ export function makeFlow(ports: Ports) {
       const facility = facilityFrom(esrg.valueIdr, MAX_LTV_BP);
       const id = `REQ-${++sequence}`;
       const state: FlowState = {
+        ownerId,
         request: {
           id,
           esrgId,

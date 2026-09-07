@@ -3,6 +3,7 @@ import { makeFlow } from "./flow";
 import { mockPorts } from "./adapters/mock/index";
 import { FlowError } from "./errors";
 
+const OWNER = "did:privy:test";
 let flow: ReturnType<typeof makeFlow>;
 beforeEach(() => { flow = makeFlow(mockPorts()); });
 
@@ -17,7 +18,7 @@ const signMandate = async (id: string) => {
 };
 
 const upToTokenized = async () => {
-  const s = await flow.create("SRG-TEH-024");
+  const s = await flow.create("SRG-TEH-024", OWNER);
   await signMandate(s.request.id);
   await flow.approve(s.request.id);
   s.request.status = "proven";
@@ -27,31 +28,31 @@ const upToTokenized = async () => {
 
 describe("create", () => {
   test("derives the requested principal from the receipt", async () => {
-    const s = await flow.create("SRG-TEH-024");
+    const s = await flow.create("SRG-TEH-024", OWNER);
     expect(s.request.requestedIdr).toBe(420_000_000);
     expect(s.facility.ceilingIdr).toBe(420_000_000);
     expect(s.request.status).toBe("draft");
   });
 
   test("gives a smaller receipt a smaller facility", async () => {
-    const s = await flow.create("SRG-TEH-031");
+    const s = await flow.create("SRG-TEH-031", OWNER);
     expect(s.request.requestedIdr).toBe(158_760_000);
   });
 
   test("refuses an unknown receipt", async () => {
-    expect(await codeOf(() => flow.create("SRG-NOPE"))).toBe("unknown_receipt");
+    expect(await codeOf(() => flow.create("SRG-NOPE", OWNER))).toBe("unknown_receipt");
   });
 });
 
 describe("mandate quorum", () => {
   test("one officer is not enough", async () => {
-    const s = await flow.create("SRG-TEH-024");
+    const s = await flow.create("SRG-TEH-024", OWNER);
     await flow.approveMandate(s.request.id, "OFF-1");
-    expect(flow.get(s.request.id)!.request.status).toBe("draft");
+    expect(flow.get(s.request.id, OWNER)!.request.status).toBe("draft");
   });
 
   test("two officers sign the mandate", async () => {
-    const s = await flow.create("SRG-TEH-024");
+    const s = await flow.create("SRG-TEH-024", OWNER);
     await flow.approveMandate(s.request.id, "OFF-1");
     const done = await flow.approveMandate(s.request.id, "OFF-3");
     expect(done.request.status).toBe("mandate_signed");
@@ -59,19 +60,19 @@ describe("mandate quorum", () => {
   });
 
   test("the same officer approving twice does not reach the quorum", async () => {
-    const s = await flow.create("SRG-TEH-024");
+    const s = await flow.create("SRG-TEH-024", OWNER);
     await flow.approveMandate(s.request.id, "OFF-2");
     await flow.approveMandate(s.request.id, "OFF-2");
-    expect(flow.get(s.request.id)!.request.status).toBe("draft");
+    expect(flow.get(s.request.id, OWNER)!.request.status).toBe("draft");
   });
 
   test("an unknown officer is refused", async () => {
-    const s = await flow.create("SRG-TEH-024");
+    const s = await flow.create("SRG-TEH-024", OWNER);
     expect(await codeOf(() => flow.approveMandate(s.request.id, "OFF-9"))).toBe("unknown_officer");
   });
 
   test("every facility gets an organisation wallet", async () => {
-    const s = await flow.create("SRG-TEH-024");
+    const s = await flow.create("SRG-TEH-024", OWNER);
     expect(s.orgWallet!.threshold).toBe(2);
     expect(s.orgWallet!.officers).toHaveLength(3);
   });
@@ -79,17 +80,17 @@ describe("mandate quorum", () => {
 
 describe("step order", () => {
   test("refuses approval before the mandate is signed", async () => {
-    const s = await flow.create("SRG-TEH-024");
+    const s = await flow.create("SRG-TEH-024", OWNER);
     expect(await codeOf(() => flow.approve(s.request.id))).toBe("step_out_of_order");
   });
 
   test("refuses repayment on a request that was never funded", async () => {
-    const s = await flow.create("SRG-TEH-024");
+    const s = await flow.create("SRG-TEH-024", OWNER);
     expect(await codeOf(() => flow.repay(s.request.id))).toBe("step_out_of_order");
   });
 
   test("refuses subscription before the note is issued", async () => {
-    const s = await flow.create("SRG-TEH-024");
+    const s = await flow.create("SRG-TEH-024", OWNER);
     expect(await codeOf(() => flow.subscribe(s.request.id, "INV-BRS", "SENIOR", 50_000_000)))
       .toBe("step_out_of_order");
   });
@@ -97,11 +98,11 @@ describe("step order", () => {
 
 describe("prove", () => {
   test("reports the capability as unavailable rather than faking a proof", async () => {
-    const s = await flow.create("SRG-TEH-024");
+    const s = await flow.create("SRG-TEH-024", OWNER);
     await signMandate(s.request.id);
     await flow.approve(s.request.id);
     expect(await codeOf(() => flow.prove(s.request.id))).toBe("capability_not_available");
-    expect(flow.get(s.request.id)!.request.status).toBe("approved");
+    expect(flow.get(s.request.id, OWNER)!.request.status).toBe("approved");
   });
 });
 
@@ -128,9 +129,9 @@ describe("subscribe", () => {
   test("closes the facility only when every tranche is full", async () => {
     const id = await upToTokenized();
     await flow.subscribe(id, "INV-BRS", "SENIOR", 270_000_000);
-    expect(flow.get(id)!.request.status).toBe("tokenized");
+    expect(flow.get(id, OWNER)!.request.status).toBe("tokenized");
     await flow.subscribe(id, "INV-KIT", "JUNIOR", 120_000_000);
-    expect(flow.get(id)!.request.status).toBe("subscribed");
+    expect(flow.get(id, OWNER)!.request.status).toBe("subscribed");
   });
 });
 
@@ -162,7 +163,7 @@ describe("funding and repayment", () => {
 
 describe("back", () => {
   test("rewinds one step while only documents exist", async () => {
-    const s = await flow.create("SRG-TEH-024");
+    const s = await flow.create("SRG-TEH-024", OWNER);
     await signMandate(s.request.id);
     expect((await flow.back(s.request.id)).request.status).toBe("draft");
   });
@@ -170,5 +171,26 @@ describe("back", () => {
   test("refuses to rewind once the note is issued", async () => {
     const id = await upToTokenized();
     expect(await codeOf(() => flow.back(id))).toBe("not_reversible");
+  });
+});
+
+describe("ownership", () => {
+  const OTHER = "did:privy:someone-else";
+
+  test("a facility belongs to whoever opened it", async () => {
+    const mine = await flow.create("SRG-TEH-024", OWNER);
+    expect(flow.all(OWNER).map((s) => s.request.id)).toContain(mine.request.id);
+    expect(flow.all(OTHER)).toHaveLength(0);
+  });
+
+  test("someone else's facility reads as absent, not forbidden", async () => {
+    const mine = await flow.create("SRG-TEH-024", OWNER);
+    expect(flow.get(mine.request.id, OTHER)).toBeNull();
+  });
+
+  test("the facility allowance is per owner", async () => {
+    for (let i = 0; i < 5; i++) await flow.create("SRG-TEH-024", OWNER);
+    expect(await codeOf(() => flow.create("SRG-TEH-024", OWNER))).toBe("facility_limit_reached");
+    expect((await flow.create("SRG-TEH-024", OTHER)).ownerId).toBe(OTHER);
   });
 });

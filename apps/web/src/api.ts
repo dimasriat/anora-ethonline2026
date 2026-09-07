@@ -66,10 +66,20 @@ export class ApiError extends Error {
   }
 }
 
+let accessToken: string | null = null;
+
+export const setAccessToken = (token: string | null): void => {
+  accessToken = token;
+};
+
 async function call<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers["content-type"] = "application/json";
+  if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+
   const res = await fetch(`/api${path}`, {
     method,
-    headers: body === undefined ? undefined : { "content-type": "application/json" },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const payload = await res.json();
@@ -81,6 +91,7 @@ async function call<T>(path: string, method = "GET", body?: unknown): Promise<T>
 }
 
 export const api = {
+  me: () => call<{ userId: string }>("/me"),
   status: () => call<CapabilityStatus[]>("/status"),
   esrgs: () => call<ESrg[]>("/esrg"),
   investors: () => call<Investor[]>("/investors"),

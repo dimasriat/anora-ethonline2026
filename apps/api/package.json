@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@anora/core": "workspace:*",
-    "hono": "^4.6.14"
+    "hono": "^4.6.14",
+    "jose": "^6.2.12"
   }
 }

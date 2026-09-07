@@ -1,14 +1,27 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
+import { bearer, type Authenticator } from "./auth";
 import type { Ports, TrancheName } from "@anora/core";
 import { makeFlow } from "./flow";
 import { FlowError, STATUS_FOR } from "./errors";
 import { INVESTORS } from "./adapters/mock/investors";
 import { OFFICERS } from "./adapters/mock/wallet";
 
-export function makeApp(ports: Ports) {
+export function makeApp(ports: Ports, authenticate: Authenticator) {
   const flow = makeFlow(ports);
   const app = new Hono();
+
+  const callerOf = (c: { req: { header: (k: string) => string | undefined } }) =>
+    authenticate(bearer(c.req.header("authorization")));
+
+  /** Reading someone else's facility must look like absence, not refusal. */
+  const ownedBy = async (c: Parameters<typeof callerOf>[0], requestId: string) => {
+    const { userId } = await callerOf(c);
+    if (!flow.get(requestId, userId)) {
+      throw new FlowError("unknown_request", `unknown request: ${requestId}`, { id: requestId });
+    }
+    return userId;
+  };
 
   app.onError((error, c) => {
     if (error instanceof FlowError) {
@@ -26,38 +39,67 @@ export function makeApp(ports: Ports) {
 
   app.get("/api/esrg", async (c) => c.json(await ports.esrg.list()));
 
-  app.get("/api/requests", (c) => c.json(flow.all()));
-  app.get("/api/requests/:id", (c) => {
-    const state = flow.get(id(c));
-    if (!state) throw new FlowError("unknown_request", `unknown request: ${id(c)}`);
-    return c.json(state);
+  app.get("/api/me", async (c) => c.json(await callerOf(c)));
+
+  app.get("/api/requests", async (c) => {
+    const { userId } = await callerOf(c);
+    return c.json(flow.all(userId));
   });
-  app.get("/api/requests/:id/tranches", (c) => c.json(flow.tranches(id(c))));
-  app.get("/api/requests/:id/remaining", (c) => c.json(flow.remaining(id(c))));
+  app.get("/api/requests/:id", async (c) => {
+    const userId = await ownedBy(c, id(c));
+    return c.json(flow.get(id(c), userId));
+  });
+  app.get("/api/requests/:id/tranches", async (c) => {
+    await ownedBy(c, id(c));
+    return c.json(flow.tranches(id(c)));
+  });
+  app.get("/api/requests/:id/remaining", async (c) => {
+    await ownedBy(c, id(c));
+    return c.json(flow.remaining(id(c)));
+  });
 
   app.post("/api/requests", async (c) => {
+    const { userId } = await callerOf(c);
     const body: { esrgId?: string } = await c.req.json().catch(() => ({}));
     if (!body.esrgId) throw new FlowError("unknown_receipt", "esrgId is required");
-    return c.json(await flow.create(body.esrgId), 201);
+    return c.json(await flow.create(body.esrgId, userId), 201);
   });
 
   app.post("/api/requests/:id/approve-mandate", async (c) => {
+    await ownedBy(c, id(c));
     const body: { officerId?: string } = await c.req.json().catch(() => ({}));
     if (!body.officerId) throw new FlowError("unknown_officer", "officerId is required");
     return c.json(await flow.approveMandate(id(c), body.officerId));
   });
   app.get("/api/officers", (c) => c.json(OFFICERS));
-  app.post("/api/requests/:id/approve", async (c) => c.json(await flow.approve(id(c))));
-  app.post("/api/requests/:id/prove", async (c) => c.json(await flow.prove(id(c))));
-  app.post("/api/requests/:id/tokenize", async (c) => c.json(await flow.tokenize(id(c))));
-  app.post("/api/requests/:id/register", async (c) => c.json(await flow.registerAndFund(id(c))));
+  app.post("/api/requests/:id/approve", async (c) => {
+    await ownedBy(c, id(c));
+    return c.json(await flow.approve(id(c)));
+  });
+  app.post("/api/requests/:id/prove", async (c) => {
+    await ownedBy(c, id(c));
+    return c.json(await flow.prove(id(c)));
+  });
+  app.post("/api/requests/:id/tokenize", async (c) => {
+    await ownedBy(c, id(c));
+    return c.json(await flow.tokenize(id(c)));
+  });
+  app.post("/api/requests/:id/register", async (c) => {
+    await ownedBy(c, id(c));
+    return c.json(await flow.registerAndFund(id(c)));
+  });
   app.post("/api/requests/:id/repay", async (c) => {
+    await ownedBy(c, id(c));
     const body: { cashReceivedIdr?: number } = await c.req.json().catch(() => ({}));
     return c.json(await flow.repay(id(c), body.cashReceivedIdr === undefined ? undefined : Number(body.cashReceivedIdr)));
   });
-  app.post("/api/requests/:id/back", async (c) => c.json(await flow.back(id(c))));
+  app.post("/api/requests/:id/back", async (c) => {
+    await ownedBy(c, id(c));
+    return c.json(await flow.back(id(c)));
+  });
 
   app.post("/api/requests/:id/subscribe", async (c) => {
+    await ownedBy(c, id(c));
     const body: { investorId?: string; tranche?: TrancheName; unitsIdr?: number } =
       await c.req.json().catch(() => ({}));
     if (!body.investorId) throw new FlowError("unknown_investor", "investorId is required");
