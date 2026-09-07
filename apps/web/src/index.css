@@ -138,3 +138,30 @@ nav .signin, nav .signout {
   border: 1px solid var(--line); background: var(--panel); cursor: pointer;
 }
 nav .signin { border-color: var(--accent); background: var(--accent); color: #fff; font-weight: 600; }
+
+.facilities { margin-bottom: 30px; }
+.facility-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  width: 100%; margin-bottom: 8px; padding: 14px 18px; text-align: left; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px; color: inherit;
+}
+.facility-row:hover { border-color: var(--accent); }
+.facility-row span { display: flex; flex-direction: column; }
+.facility-row small { color: var(--muted); font-size: 12px; }
+.stage-chip {
+  padding: 4px 11px; border-radius: 999px; background: var(--accent-soft);
+  color: var(--accent); font-size: 11.5px; font-weight: 650;
+}
+.allowance { margin-top: 18px; color: var(--muted); font-size: 12.5px; }
+
+.pick-heading { margin-top: 0; }
+.back-to-list {
+  display: inline-block; margin-bottom: 18px; padding: 0;
+  background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12.5px;
+}
+.back-to-list:hover { color: var(--accent); }
+
+nav .role-label {
+  align-self: center; margin-right: 4px; color: var(--muted);
+  font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+}

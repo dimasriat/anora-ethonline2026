@@ -51,6 +51,15 @@ testnet:
 The spike's probe circuit verified at 2,329,205 gas. The real circuit costs
 2,549,917 — 9.5% more for six assertions and a Merkle membership check.
 
+## Demo affordances, deliberately not production behaviour
+
+| | |
+|---|---|
+| **Role switching** | One signed-in account can view all three roles. In production an account holds one role. Kept so a single judge sees the whole chain of custody without three logins, and labelled "Viewing as" in the interface |
+| **Facility allowance** | Five per account. Not a product rule — every facility deploys a contract on Hedera testnet |
+| **Platform pays gas** | Correct for the product, not a shortcut. A cooperative will not fund a Hedera account |
+| **Officer keys held by the server** | The quorum is enforced by Privy, but all three keys live in one process, so the server can satisfy it alone. The mechanism is demonstrated; the separation of trust is not |
+
 ## Rules for this file
 
 - A capability moves out of **planned** only when it runs end to end.
