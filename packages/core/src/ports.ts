@@ -7,7 +7,8 @@
  * bagian mana yang disimulasikan adalah demo yang mengaku terlalu banyak.
  */
 import type {
-  ESrg, EligibilityProof, FinancingRequest, Intake, NoteToken,
+  ESrg, EligibilityProof, FinancingRequest, Intake, Investor, NoteToken,
+  TrancheName, TrancheTerms,
 } from "./domain";
 
 export type Mode = "live" | "testnet" | "simulated" | "planned";
@@ -34,7 +35,8 @@ export interface RegistryGate {
 }
 
 export interface TokenIssuer {
-  issueDraftNote(req: FinancingRequest, esrg: ESrg): Promise<NoteToken>;
+  issueDraftNote(req: FinancingRequest, esrg: ESrg, tranches: TrancheTerms[]): Promise<NoteToken>;
+  allocate(series: string, tranche: TrancheName, holder: Investor, unitsIdr: number): Promise<void>;
   activate(series: string): Promise<NoteToken>;
   redeem(series: string): Promise<NoteToken>;
 }

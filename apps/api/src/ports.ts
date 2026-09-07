@@ -2,6 +2,7 @@ import type { Ports } from "@anora/core";
 import { mockPorts } from "./adapters/mock/index";
 import { liveProofEngine } from "./adapters/live/proof";
 import { makePrivy } from "./adapters/live/privy";
+import { liveTokenIssuer } from "./adapters/live/token";
 import deployed from "../../../contracts/deployed.json";
 
 const RPC_URL = process.env.HEDERA_RPC ?? "https://testnet.hashio.io/api";
@@ -16,6 +17,19 @@ export function resolvePorts(): Ports {
     rewrite.set("proof", {
       mode: "testnet",
       because: `Real circuit, verified against ${deployed.HonkVerifier} on Hedera testnet`,
+    });
+  }
+
+  const chainKey = process.env.HEDERA_PRIVATE_KEY;
+  if (process.env.ADAPTER_TOKEN === "live" && chainKey) {
+    ports.token = liveTokenIssuer({
+      rpcUrl: RPC_URL,
+      privateKey: chainKey,
+      explorer: "https://hashscan.io/testnet",
+    });
+    rewrite.set("token", {
+      mode: "testnet",
+      because: "A permissioned note is deployed per facility; allocation and activation are on-chain",
     });
   }
 

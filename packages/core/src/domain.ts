@@ -75,6 +75,8 @@ export type TrancheTerms = {
 export type Investor = {
   id: string;
   name: string;
+  /** Where allocated units land when the note is on-chain. */
+  address: string;
   capitalType: string;
   riskProfile: string;
   mandate: TrancheName[];

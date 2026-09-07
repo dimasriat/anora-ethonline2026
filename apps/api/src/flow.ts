@@ -213,7 +213,7 @@ export function makeFlow(ports: Ports) {
       gate(state, "proven", "Issuing the note");
 
       const esrg = (await ports.esrg.get(state.request.esrgId))!;
-      state.note = await ports.token.issueDraftNote(state.request, esrg);
+      state.note = await ports.token.issueDraftNote(state.request, esrg, state.facility.tranches);
       stamp(state, "tokenized", "system", `Draft note ${state.note.series} reserved`);
       return state;
     },
@@ -237,6 +237,10 @@ export function makeFlow(ports: Ports) {
       if (!screening.ok) {
         const { code, ...detail } = screening.refusal;
         throw new FlowError(code, `${investor.name} was refused`, { investor: investor.name, ...detail });
+      }
+
+      if (state.note) {
+        await ports.token.allocate(state.note.series, tranche, investor, unitsIdr);
       }
 
       state.subscriptions.push({

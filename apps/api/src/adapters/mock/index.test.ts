@@ -38,6 +38,7 @@ describe("token", () => {
     const note = await ports.token.issueDraftNote(
       { id: "REQ-1", esrgId: esrg.id, requestedIdr: 420_000_000, maturityDays: 90, maxLtvBp: 7_000, epoch: 1, status: "proven" },
       esrg,
+      [],
     );
     expect(note.state).toBe("reserved");
     expect(note.underlying).toBe("SRG-TEH-024");
@@ -50,6 +51,7 @@ describe("token", () => {
     const draft = await ports.token.issueDraftNote(
       { id: "REQ-1", esrgId: esrg.id, requestedIdr: 420_000_000, maturityDays: 90, maxLtvBp: 7_000, epoch: 1, status: "proven" },
       esrg,
+      [],
     );
     expect((await ports.token.activate(draft.series)).state).toBe("active");
     expect((await ports.token.redeem(draft.series)).state).toBe("redeemed");

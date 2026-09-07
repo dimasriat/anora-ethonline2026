@@ -1,5 +1,6 @@
 import type {
-  CapabilityStatus, ESrg, EligibilityProof, FinancingRequest, Intake, NoteToken, Ports,
+  CapabilityStatus, ESrg, EligibilityProof, FinancingRequest, Intake, Investor,
+  NoteToken, Ports, TrancheName, TrancheTerms,
 } from "@anora/core";
 import { ESRGS, INTAKES } from "./seed";
 import { mockWallet } from "./wallet";
@@ -37,7 +38,11 @@ export function mockPorts(): Ports {
     },
 
     token: {
-      async issueDraftNote(req: FinancingRequest, esrg: ESrg): Promise<NoteToken> {
+      async issueDraftNote(
+        req: FinancingRequest,
+        esrg: ESrg,
+        _tranches: TrancheTerms[],
+      ): Promise<NoteToken> {
         const note: NoteToken = {
           series: seriesFor(esrg.id),
           underlying: esrg.id,
@@ -48,6 +53,13 @@ export function mockPorts(): Ports {
         notes.set(note.series, note);
         return note;
       },
+      async allocate(
+        _series: string,
+        _tranche: TrancheName,
+        _holder: Investor,
+        _unitsIdr: number,
+      ): Promise<void> {},
+
       async activate(series: string): Promise<NoteToken> {
         return noteAt(series, "active");
       },

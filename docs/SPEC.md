@@ -79,8 +79,8 @@ Each step names its owner and its gate:
 | `mandate_signed` | Cooperative | 2-of-3 organisation quorum reached |
 | `approved` | Facility Agent | Mandate signed |
 | `proven` | Facility Agent | Facility approved |
-| `tokenized` | System | Eligibility proof verified |
-| `subscribed` | Capital providers | Every tranche filled to capacity |
+| `tokenized` | System | Eligibility proof verified. A permissioned note is deployed for this facility |
+| `subscribed` | Capital providers | Every tranche filled to capacity. Each subscription allowlists the investor and allocates units on-chain |
 | `funded` | Pusat Registrasi | Registry confirmation — gates disbursement **and** token activation |
 | `repaid` | Cooperative | Facility funded |
 

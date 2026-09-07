@@ -20,7 +20,7 @@ Last updated: 6 September 2026.
 | Subscription screening | **live** | Allowlist, mandate, ticket and capacity gates, 10 tests |
 | Eligibility proof generation | **live** | Real circuit, run per request when `ADAPTER_PROOF=live`. 7 circuit tests, 5 of which must fail |
 | On-chain proof verification | **testnet** | Called on every prove when `ADAPTER_PROOF=live`. A request that fails verification does not advance |
-| Permissioned note | **testnet** | `AnoraNote` deployed to Hedera testnet; allocation, activation and transfer all run on-chain |
+| Permissioned note | **testnet** | A note is deployed per facility. Subscription allocates on-chain, funding activates, repayment redeems |
 | Allowlisted transfer | **testnet** | Enforced by the contract. An approved transfer succeeded; a transfer to an unapproved wallet reverted with `NotAllowlisted` |
 | Persistent storage | **planned** | In-memory. Deliberate for a deterministic demo |
 | e-SRG documents | **simulated, permanently** | No real tea e-SRG exists to use. Warehouse receipts have covered tea since 2006, but the system is not running in practice. That gap is part of why this project exists |
@@ -41,7 +41,9 @@ testnet:
 | Verifier | `0x96daE21bB0Ba3529032de506DBd7d875D56D8DFb` |
 | Local proving, real circuit | `execute` 2.8 s, `write_vk` 4.3 s, `prove` 2.5 s, `verify` 0.04 s |
 | Proof size | 8,384 bytes, 10 public inputs |
-| Note | `0x796fD9361A9119Aa9cdDBd3bc87522C2e9907baF` |
+| Note (manual proof of the gate) | `0x796fD9361A9119Aa9cdDBd3bc87522C2e9907baF` |
+| Note deployed by the app | `0x4EFaF36bD75f5F48C8522aa3AFdF0c5Fd6949cA6` |
+| Senior balance after subscription | 270,000,000 on-chain |
 | Approved transfer | 61,229 gas, `0x3a2b381d…7d8e` |
 | Refused transfer | reverted `NotAllowlisted`, `0x7aaecf3b…c06b` |
 

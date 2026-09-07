@@ -3,6 +3,7 @@ import type { Investor } from "@anora/core";
 export const INVESTORS: Investor[] = [
   {
     id: "INV-BRS",
+    address: "0x00000000000000000000000000000000000000B1",
     name: "Bank Rakyat Sejahtera",
     capitalType: "Commercial bank balance sheet",
     riskProfile: "Capital-preserving; senior secured only",
@@ -13,6 +14,7 @@ export const INVESTORS: Investor[] = [
   },
   {
     id: "INV-DPN",
+    address: "0x00000000000000000000000000000000000000D9",
     name: "Dana Pensiun Nusantara",
     capitalType: "Pension fund",
     riskProfile: "Liability-matched; no first-loss permitted",
@@ -23,6 +25,7 @@ export const INVESTORS: Investor[] = [
   },
   {
     id: "INV-MVA",
+    address: "0x00000000000000000000000000000000000000A4",
     name: "Mandiri Ventura Agri",
     capitalType: "Agricultural credit fund",
     riskProfile: "Yield-seeking; accepts subordinated exposure",
@@ -33,6 +36,7 @@ export const INVESTORS: Investor[] = [
   },
   {
     id: "INV-KIT",
+    address: "0x00000000000000000000000000000000000000C0",
     name: "Koperasi Induk Tani",
     capitalType: "Cooperative retained capital",
     riskProfile: "Aligned first-loss; holds junior alongside members",
@@ -43,6 +47,7 @@ export const INVESTORS: Investor[] = [
   },
   {
     id: "INV-YMS",
+    address: "0x00000000000000000000000000000000000000E5",
     name: "Yayasan Modal Sosial",
     capitalType: "Blended and concessional capital",
     riskProfile: "Impact-first; subsidises junior to unlock senior",
@@ -53,6 +58,7 @@ export const INVESTORS: Investor[] = [
   },
   {
     id: "INV-MFC",
+    address: "0x000000000000000000000000000000000000dEaD",
     name: "Meridian Frontier Credit",
     capitalType: "Offshore credit fund",
     riskProfile: "Opportunistic; highest yield appetite",
