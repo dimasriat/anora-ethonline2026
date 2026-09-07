@@ -116,6 +116,10 @@ export function App() {
           )}
 
           {!flow && (
+            <>
+            <h3 className="pick-heading">
+              {facilities.length > 0 ? "Open another facility" : "Choose a receipt to start"}
+            </h3>
             <ul className="receipts">
               {receipts.map((r) => (
                 <li key={r.id}>
@@ -123,12 +127,29 @@ export function App() {
                     <strong>{r.id}</strong>
                     <small>{r.commodity} · {r.quantityKg.toLocaleString("id-ID")} kg · {rp(r.valueIdr)}</small>
                   </div>
-                  <button disabled={busy || role !== "Borrower"} onClick={() => run(() => api.create(r.id))}>
+                  <button
+                    disabled={busy || role !== "Borrower" || allowance?.remaining === 0}
+                    onClick={() => run(() => api.create(r.id))}
+                  >
                     Choose
                   </button>
                 </li>
               ))}
             </ul>
+            {allowance && (
+              <p className="allowance">
+                {allowance.remaining > 0
+                  ? `${allowance.remaining} of ${allowance.limit} facilities left on this account.`
+                  : `You have used all ${allowance.limit} facilities on this account. Each one deploys a contract on Hedera testnet, so the demo caps them.`}
+              </p>
+            )}
+            </>
+          )}
+
+          {flow && (
+            <button className="back-to-list" onClick={() => { setFlow(null); setRefusal(null); }}>
+              ← All facilities
+            </button>
           )}
 
           {flow && step.action && (

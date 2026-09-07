@@ -153,3 +153,10 @@ nav .signin { border-color: var(--accent); background: var(--accent); color: #ff
   color: var(--accent); font-size: 11.5px; font-weight: 650;
 }
 .allowance { margin-top: 18px; color: var(--muted); font-size: 12.5px; }
+
+.pick-heading { margin-top: 0; }
+.back-to-list {
+  display: inline-block; margin-bottom: 18px; padding: 0;
+  background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12.5px;
+}
+.back-to-list:hover { color: var(--accent); }
