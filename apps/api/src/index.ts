@@ -1,5 +1,5 @@
 import { makeApp } from "./app";
-import { resolvePorts } from "./ports";
+import { resolveChecker, resolvePorts } from "./ports";
 import { openAuthenticator, privyAuthenticator } from "./auth";
 
 const port = Number(process.env.PORT ?? 3333);
@@ -11,5 +11,5 @@ const authenticate = appId ? privyAuthenticator(appId) : openAuthenticator;
 export default {
   port,
   hostname: "127.0.0.1",
-  fetch: makeApp(resolvePorts(), authenticate).fetch,
+  fetch: makeApp(resolvePorts(), authenticate, resolveChecker().checker).fetch,
 };

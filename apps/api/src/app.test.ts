@@ -2,6 +2,19 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { makeApp } from "./app";
 import { mockPorts } from "./adapters/mock/index";
 import { openAuthenticator } from "./auth";
+import type { Credential, EligibilityChecker } from "./adapters/live/world";
+
+const CREDENTIAL: Credential = {
+  nullifierHash: "0xtest",
+  verifiedAt: "2026-09-07T00:00:00.000Z",
+  method: "selfie-check",
+};
+
+const eligible = (yes: boolean): EligibilityChecker => ({
+  async open() { throw new Error("not used in tests"); },
+  read: () => null,
+  credentialOf: () => (yes ? CREDENTIAL : null),
+});
 import type { EligibilityProof, Ports } from "@anora/core";
 
 const withProvableEligibility = (): Ports => ({
@@ -17,7 +30,7 @@ const withProvableEligibility = (): Ports => ({
 });
 
 let app: ReturnType<typeof makeApp>;
-beforeEach(() => { app = makeApp(mockPorts(), openAuthenticator); });
+beforeEach(() => { app = makeApp(mockPorts(), openAuthenticator, eligible(true)); });
 
 const body = async (res: Response): Promise<any> => res.json();
 
@@ -92,7 +105,7 @@ describe("error codes reach the client", () => {
   });
 
   test("a refused investor is 403 and names the gate", async () => {
-    app = makeApp(withProvableEligibility(), openAuthenticator);
+    app = makeApp(withProvableEligibility(), openAuthenticator, eligible(true));
     const id = await openRequest();
     await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-1" });
     await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-3" });
@@ -109,7 +122,7 @@ describe("error codes reach the client", () => {
   });
 
   test("the whole lifecycle runs when eligibility can be proven", async () => {
-    app = makeApp(withProvableEligibility(), openAuthenticator);
+    app = makeApp(withProvableEligibility(), openAuthenticator, eligible(true));
     const id = await openRequest();
     await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-1" });
     await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-3" });
@@ -128,6 +141,29 @@ describe("error codes reach the client", () => {
     expect(final.request.status).toBe("repaid");
     expect(final.note.state).toBe("redeemed");
     expect(final.request.epoch).toBe(2);
+  });
+});
+
+describe("eligibility gate", () => {
+  test("signing the mandate needs a completed check", async () => {
+    app = makeApp(mockPorts(), openAuthenticator, eligible(false));
+    const id = await openRequest();
+    const res = await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-1" });
+    expect(res.status).toBe(403);
+    expect((await body(res)).error.code).toBe("not_eligible");
+  });
+
+  test("a completed check lets the same call through", async () => {
+    app = makeApp(mockPorts(), openAuthenticator, eligible(true));
+    const id = await openRequest();
+    const res = await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-1" });
+    expect(res.status).toBe(200);
+  });
+
+  test("the credential is reported on /me", async () => {
+    app = makeApp(mockPorts(), openAuthenticator, eligible(true));
+    const me = await body(await get("/api/me"));
+    expect(me.eligibility.method).toBe("selfie-check");
   });
 });
 

@@ -1,13 +1,14 @@
 import { Hono } from "hono";
 import { serveStatic } from "hono/bun";
 import { bearer, type Authenticator } from "./auth";
+import type { EligibilityChecker } from "./adapters/live/world";
 import type { Ports, TrancheName } from "@anora/core";
 import { FACILITIES_PER_OWNER, makeFlow } from "./flow";
 import { FlowError, STATUS_FOR } from "./errors";
 import { INVESTORS } from "./adapters/mock/investors";
 import { OFFICERS } from "./adapters/mock/wallet";
 
-export function makeApp(ports: Ports, authenticate: Authenticator) {
+export function makeApp(ports: Ports, authenticate: Authenticator, checker: EligibilityChecker) {
   const flow = makeFlow(ports);
   const app = new Hono();
 
@@ -45,7 +46,36 @@ export function makeApp(ports: Ports, authenticate: Authenticator) {
     return c.json({
       userId,
       facilities: { held, limit: FACILITIES_PER_OWNER, remaining: FACILITIES_PER_OWNER - held },
+      eligibility: checker.credentialOf(userId),
     });
+  });
+
+  /** A live person must stand behind anything that moves value. */
+  const requireEligibility = async (
+    c: Parameters<typeof callerOf>[0],
+    action: string,
+  ): Promise<void> => {
+    const { userId } = await callerOf(c);
+    if (checker.credentialOf(userId)) return;
+    throw new FlowError("not_eligible", `${action} needs a completed eligibility check`, {
+      action,
+    });
+  };
+
+  app.post("/api/eligibility/session", async (c) => {
+    const { userId } = await callerOf(c);
+    const session = await checker.open(userId);
+    return c.json({ id: session.id, connectorURI: session.connectorURI, state: session.state });
+  });
+
+  app.get("/api/eligibility/session/:id", async (c) => {
+    const { userId } = await callerOf(c);
+    const session = checker.read(c.req.param("id"));
+    if (!session || session.ownerId !== userId) {
+      throw new FlowError("unknown_request", "unknown eligibility session");
+    }
+    const { id, state, because, credential, connectorURI } = session;
+    return c.json({ id, state, because, credential, connectorURI });
   });
 
   app.get("/api/requests", async (c) => {
@@ -74,6 +104,7 @@ export function makeApp(ports: Ports, authenticate: Authenticator) {
 
   app.post("/api/requests/:id/approve-mandate", async (c) => {
     await ownedBy(c, id(c));
+    await requireEligibility(c, "Signing the mandate");
     const body: { officerId?: string } = await c.req.json().catch(() => ({}));
     if (!body.officerId) throw new FlowError("unknown_officer", "officerId is required");
     return c.json(await flow.approveMandate(id(c), body.officerId));
@@ -81,6 +112,7 @@ export function makeApp(ports: Ports, authenticate: Authenticator) {
   app.get("/api/officers", (c) => c.json(OFFICERS));
   app.post("/api/requests/:id/approve", async (c) => {
     await ownedBy(c, id(c));
+    await requireEligibility(c, "Approving the facility");
     return c.json(await flow.approve(id(c)));
   });
   app.post("/api/requests/:id/prove", async (c) => {
@@ -107,6 +139,7 @@ export function makeApp(ports: Ports, authenticate: Authenticator) {
 
   app.post("/api/requests/:id/subscribe", async (c) => {
     await ownedBy(c, id(c));
+    await requireEligibility(c, "Subscribing");
     const body: { investorId?: string; tranche?: TrancheName; unitsIdr?: number } =
       await c.req.json().catch(() => ({}));
     if (!body.investorId) throw new FlowError("unknown_investor", "investorId is required");
