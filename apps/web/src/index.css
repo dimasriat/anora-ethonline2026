@@ -165,3 +165,5 @@ nav .role-label {
   align-self: center; margin-right: 4px; color: var(--muted);
   font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
 }
+
+.gate .qr { display:block; margin: 18px 0; border: 1px solid var(--line); border-radius: 10px; }

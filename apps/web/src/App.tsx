@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import {
   ApiError, api, pct, rp, setAccessToken,
+  type CheckSession, type Credential,
   type CapabilityStatus, type ESrg, type FlowState, type Investor, type TrancheName,
 } from "./api";
 import { ROLES, STEPS, TRANCHE_COPY, type Role } from "./roles";
@@ -16,6 +17,8 @@ export function App() {
   const [flow, setFlow] = useState<FlowState | null>(null);
   const [facilities, setFacilities] = useState<FlowState[]>([]);
   const [allowance, setAllowance] = useState<{ held: number; limit: number; remaining: number } | null>(null);
+  const [credential, setCredential] = useState<Credential | null>(null);
+  const [check, setCheck] = useState<CheckSession | null>(null);
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<{ code: string; message: string } | null>(null);
 
@@ -39,8 +42,22 @@ export function App() {
 
   const refreshFacilities = () => {
     api.requests().then(setFacilities).catch(() => setFacilities([]));
-    api.me().then((me) => setAllowance(me.facilities)).catch(() => setAllowance(null));
+    api.me()
+      .then((me) => { setAllowance(me.facilities); setCredential(me.eligibility); })
+      .catch(() => setAllowance(null));
   };
+
+  const startCheck = () => run(async () => {
+    const opened = await api.openCheck();
+    setCheck(opened);
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 1500));
+      const latest = await api.readCheck(opened.id);
+      setCheck(latest);
+      if (latest.state === "verified") { setCredential(latest.credential ?? null); return flow!; }
+      if (latest.state === "failed") return flow!;
+    }
+  });
 
   const run = async (fn: () => Promise<FlowState>) => {
     setBusy(true);
@@ -99,7 +116,11 @@ export function App() {
             </div>
           )}
 
-          {(!privy || privy.authenticated) && (<>
+          {(!privy || privy.authenticated) && !credential && (
+            <Eligibility check={check} busy={busy} onStart={startCheck} />
+          )}
+
+          {(!privy || privy.authenticated) && credential && (<>
           <p className="eyebrow">{mine ? "Your turn" : `With the ${step.owner}`}</p>
           <h1>{step.title}</h1>
 
@@ -261,6 +282,50 @@ function usePrivyOrNull() {
   } catch {
     return null;
   }
+}
+
+function Eligibility({ check, busy, onStart }: {
+  check: CheckSession | null;
+  busy: boolean;
+  onStart: () => void;
+}) {
+  return (
+    <div className="gate">
+      <h1>Verify you are a live person</h1>
+      <p className="supporting">
+        Anora gates every action that moves value behind a liveness check. This proves a
+        real person is acting — it is <strong>not</strong> a proof of unique identity, and
+        it does not tell us who you are.
+      </p>
+
+      {!check && (
+        <button className="primary" disabled={busy} onClick={onStart}>
+          Start the check
+        </button>
+      )}
+
+      {check && (
+        <>
+          <img
+            className="qr"
+            alt="Scan with the World ID Sandbox app"
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(check.connectorURI)}`}
+          />
+          <p className="supporting">
+            Scan with the World ID Sandbox app, or{" "}
+            <a href={check.connectorURI}>open it on this phone</a>. The check continues on
+            the server, so you can leave this page and come back.
+          </p>
+          {check.state === "failed" && (
+            <div className="refusal" role="alert">
+              <code>check_failed</code>
+              <span>{check.because ?? "The check did not complete"}</span>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 function Quorum({ flow, busy, enabled, onApprove }: {
