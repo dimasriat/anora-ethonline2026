@@ -15,7 +15,10 @@ trusting it.
 | Person | Tool |
 |---|---|
 | Dimas Riatmodjo | **Claude Code** (Anthropic), run from a Linux VPS |
-| Panata Gama | *To be confirmed by Gama before submission.* Product work has been written prose and diagrams, not code |
+| Panata Gama | **Google Stitch** and **FigJam** to ideate screens, **NotebookLM** to scope against the spec, and **Claude** to brainstorm domain research into a working interface. **Figma** for the component library. Source: his own *Design Decision* deck, 5 September 2026, "My Process & Tools" |
+
+Gama's tools produced product decisions, screens and prose — not code committed
+to this repository. His only commits here would be documentation.
 
 No AI-generated images, audio, or video appear in the project. The Solidity
 verifier is generated, but by `bb write_solidity_verifier` from the compiled
