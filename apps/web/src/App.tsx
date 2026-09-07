@@ -14,6 +14,8 @@ export function App() {
   const [investors, setInvestors] = useState<Investor[]>([]);
   const [capabilities, setCapabilities] = useState<CapabilityStatus[]>([]);
   const [flow, setFlow] = useState<FlowState | null>(null);
+  const [facilities, setFacilities] = useState<FlowState[]>([]);
+  const [allowance, setAllowance] = useState<{ held: number; limit: number; remaining: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<{ code: string; message: string } | null>(null);
 
@@ -32,14 +34,20 @@ export function App() {
     api.esrgs().then(setReceipts).catch(() => setReceipts([]));
     api.investors().then(setInvestors).catch(() => setInvestors([]));
     api.status().then(setCapabilities).catch(() => setCapabilities([]));
-    api.requests().then((list) => setFlow(list[list.length - 1] ?? null)).catch(() => {});
+    refreshFacilities();
   }, [ready]);
+
+  const refreshFacilities = () => {
+    api.requests().then(setFacilities).catch(() => setFacilities([]));
+    api.me().then((me) => setAllowance(me.facilities)).catch(() => setAllowance(null));
+  };
 
   const run = async (fn: () => Promise<FlowState>) => {
     setBusy(true);
     setRefusal(null);
     try {
       setFlow(await fn());
+      refreshFacilities();
     } catch (error) {
       setRefusal(
         error instanceof ApiError
