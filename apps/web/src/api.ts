@@ -91,7 +91,10 @@ async function call<T>(path: string, method = "GET", body?: unknown): Promise<T>
 }
 
 export const api = {
-  me: () => call<{ userId: string }>("/me"),
+  me: () => call<{
+    userId: string;
+    facilities: { held: number; limit: number; remaining: number };
+  }>("/me"),
   status: () => call<CapabilityStatus[]>("/status"),
   esrgs: () => call<ESrg[]>("/esrg"),
   investors: () => call<Investor[]>("/investors"),
