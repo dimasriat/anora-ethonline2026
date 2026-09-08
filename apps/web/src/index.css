@@ -7,9 +7,16 @@
   --line-strong: #cbc8c0;
   --accent: #dff23c;
   --accent-ink: #4e5c00;
+  --accent-dark: #cbdd2a;
   --accent-soft: #f4fad4;
   --fill: #14161a;
+  --font: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --success: #15803d;
+  --success-soft: #edf8f0;
+  --warning: #a15c00;
+  --warning-soft: #fff7e8;
   --danger: #b42318;
+  --danger-soft: #fff1f0;
   color-scheme: light;
 }
 
@@ -84,7 +91,7 @@ body {
   color: var(--ink);
   min-width: 320px;
   min-height: 100vh;
-  font: 13px/1.55 "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font: 13px/1.55 var(--font);
 }
 
 button, input, select { font: inherit; }
