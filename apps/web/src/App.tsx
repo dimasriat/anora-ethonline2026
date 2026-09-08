@@ -8,7 +8,7 @@ import {
 import { ROLES, STEPS, TRANCHE_COPY, type Role } from "./roles";
 
 export function App() {
-  const [view, setView] = useState<"landing" | "how" | "product">("landing");
+  const [view, setView] = useState<"landing" | "how" | "access" | "product">("landing");
   const privy = usePrivyOrNull();
   const [ready, setReady] = useState(false);
   const [role, setRole] = useState<Role>("Borrower");
@@ -80,8 +80,10 @@ export function App() {
   const step = STEPS[flow?.request.status ?? "none"]!;
   const mine = step.owner === role;
 
-  if (view === "landing") return <LandingPage onEnter={() => setView("product")} onHow={() => setView("how")} />;
-  if (view === "how") return <HowItWorksPage onEnter={() => setView("product")} onBack={() => setView("landing")} />;
+  const openAccess = (nextRole?: Role) => { if (nextRole) setRole(nextRole); setView("access"); };
+  if (view === "landing") return <LandingPage onEnter={openAccess} onHow={() => setView("how")} />;
+  if (view === "how") return <HowItWorksPage onEnter={openAccess} onBack={() => setView("landing")} />;
+  if (view === "access") return <AccessPage role={role} onRole={setRole} onEnter={() => setView("product")} onBack={() => setView("landing")} />;
 
   return (
     <div className="shell">
@@ -213,22 +215,22 @@ export function App() {
   );
 }
 
-function PublicHeader({ onEnter, onHow }: { onEnter: () => void; onHow: () => void }) {
+function PublicHeader({ onEnter, onHow }: { onEnter: (role?: Role) => void; onHow: () => void }) {
   return (
     <header className="public-header">
       <strong className="public-wordmark">Anora</strong>
       <nav className="public-nav" aria-label="Public navigation">
         <button type="button" onClick={onHow}>How it works</button>
-        <button type="button" onClick={onEnter}>For borrowers</button>
-        <button type="button" onClick={onEnter}>For capital providers</button>
-        <button type="button" onClick={onEnter}>For facility agents</button>
+        <button type="button" onClick={() => onEnter("Borrower")}>For borrowers</button>
+        <button type="button" onClick={() => onEnter("Capital Provider")}>For capital providers</button>
+        <button type="button" onClick={() => onEnter("Facility Agent")}>For facility agents</button>
       </nav>
       <button className="public-sign-in" type="button" onClick={onEnter}>Sign in</button>
     </header>
   );
 }
 
-function LandingPage({ onEnter, onHow }: { onEnter: () => void; onHow: () => void }) {
+function LandingPage({ onEnter, onHow }: { onEnter: (role?: Role) => void; onHow: () => void }) {
   return (
     <div className="public-page landing-page">
       <div className="page-backdrop" aria-hidden="true"><img src="/parcel-11-3x2-loop.svg" alt="" /></div>
@@ -256,7 +258,7 @@ function LandingPage({ onEnter, onHow }: { onEnter: () => void; onHow: () => voi
   );
 }
 
-function HowItWorksPage({ onEnter, onBack }: { onEnter: () => void; onBack: () => void }) {
+function HowItWorksPage({ onEnter, onBack }: { onEnter: (role?: Role) => void; onBack: () => void }) {
   const steps = [
     ["Verify the official e-SRG", "The borrower connects an eligible receipt. The facility agent checks the registry record, ownership, expiry, insurance, and existing security rights.", "Borrower + Facility Agent"],
     ["Complete evidence and signatures", "The borrower reviews and signs the financing mandate and registry consent. Production access also requires KYB and organizational authorization.", "Borrower"],
@@ -290,6 +292,29 @@ function HowItWorksPage({ onEnter, onBack }: { onEnter: () => void; onBack: () =
           <button className="public-primary" type="button" onClick={onEnter}>Open Anora</button>
           <button className="public-secondary" type="button" onClick={onBack}>Back to overview</button>
         </div>
+      </main>
+    </div>
+  );
+}
+
+function AccessPage({ role, onRole, onEnter, onBack }: {
+  role: Role;
+  onRole: (role: Role) => void;
+  onEnter: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <div className="public-page">
+      <PublicHeader onEnter={(nextRole) => nextRole ? onRole(nextRole) : onEnter()} onHow={onBack} />
+      <main className="access-main">
+        <section><span className="access-kicker">Choose a workspace</span><h1>Enter Anora by role.</h1><p>Your role changes the workspace and actions shown. The underlying facility remains the same shared record.</p></section>
+        <section className="access-panel">
+          <fieldset><legend>Continue as</legend>
+            {ROLES.map((item) => <label className="role-option" key={item}><input type="radio" name="role" checked={role === item} onChange={() => onRole(item)} /><span><strong>{item}</strong><small>{item === "Borrower" ? "Finance eligible e-SRG inventory." : item === "Capital Provider" ? "Fund approved note positions." : "Review controls and settlement."}</small></span></label>)}
+          </fieldset>
+          <button className="public-primary access-submit" type="button" onClick={onEnter}>Open {role} workspace</button>
+          <button className="access-back" type="button" onClick={onBack}>Back to overview</button>
+        </section>
       </main>
     </div>
   );
