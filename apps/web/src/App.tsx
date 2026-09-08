@@ -8,6 +8,7 @@ import {
 import { ROLES, STEPS, TRANCHE_COPY, type Role } from "./roles";
 
 export function App() {
+  const [showProduct, setShowProduct] = useState(false);
   const privy = usePrivyOrNull();
   const [ready, setReady] = useState(false);
   const [role, setRole] = useState<Role>("Borrower");
@@ -78,6 +79,8 @@ export function App() {
 
   const step = STEPS[flow?.request.status ?? "none"]!;
   const mine = step.owner === role;
+
+  if (!showProduct) return <LandingPage onEnter={() => setShowProduct(true)} />;
 
   return (
     <div className="shell">
@@ -203,6 +206,44 @@ export function App() {
           {flow && <Facility flow={flow} />}
           <Capabilities rows={capabilities} />
         </aside>
+      </main>
+    </div>
+  );
+}
+
+function LandingPage({ onEnter }: { onEnter: () => void }) {
+  return (
+    <div className="public-page">
+      <header className="public-header">
+        <strong className="public-wordmark">Anora</strong>
+        <nav className="public-nav" aria-label="Public navigation">
+          <a href="#how-it-works">How it works</a>
+          <a href="#borrowers">For borrowers</a>
+          <a href="#capital-providers">For capital providers</a>
+          <a href="#facility-agents">For facility agents</a>
+        </nav>
+        <button className="public-sign-in" type="button" onClick={onEnter}>Sign in</button>
+      </header>
+      <main className="landing-main">
+        <section className="hero-grid" aria-labelledby="landing-title">
+          <div className="hero-copy">
+            <h1 id="landing-title">Turn verified inventory into investable credit.</h1>
+            <p>Anora connects eligible e-SRG holders with capital providers through structured, permissioned notes—without moving the warehouse receipt on-chain.</p>
+            <div className="hero-actions">
+              <button className="public-primary" type="button" onClick={onEnter}>Open Anora</button>
+              <a className="public-secondary" href="#how-it-works">How it works</a>
+            </div>
+          </div>
+          <figure className="hero-visual">
+            <img src="/anora-tea-warehouse.png" alt="Sealed tea inventory stored inside a licensed warehouse" />
+            <figcaption>Verified inventory. Structured access to capital.</figcaption>
+          </figure>
+        </section>
+        <section className="trust-strip" id="how-it-works" aria-label="Anora product boundaries">
+          <article><span>01</span><div><h2>Registry-authoritative collateral</h2><p>The official e-SRG remains in the Bappebti registry; Anora records a linked financing claim.</p></div></article>
+          <article><span>02</span><div><h2>Permissioned financing notes</h2><p>Only verified participants can subscribe to or hold Senior and Junior positions.</p></div></article>
+          <article><span>03</span><div><h2>Hedera settlement</h2><p>Issuance, eligible transfers, and facility events are recorded for auditability.</p></div></article>
+        </section>
       </main>
     </div>
   );
