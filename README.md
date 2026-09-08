@@ -45,6 +45,14 @@ proven without disclosing confidential commercial records.
    Cryptography protects and selectively proves those records; it does not
    establish physical truth by itself.
 
+## Design process
+
+The [Anora design process and tools](https://www.figma.com/board/He6V3rae674n4I8J1yJpmA/Anora-Design-Process-and-Tools?node-id=0-1&t=IBzqKLMS2LnwF2S4-1)
+documents how the product flow and interface evolved. AI-assisted tools were
+used to explore and compare early directions, while FigJam and Figma were used
+to map the system, evaluate the alternatives, and refine the final design
+before implementation.
+
 ## Status
 
 Under construction during ETHOnline 2026 (September 4–13). This README describes
