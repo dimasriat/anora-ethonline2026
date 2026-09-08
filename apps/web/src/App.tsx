@@ -236,7 +236,7 @@ function PublicHeader({ onEnter, onHow }: { onEnter: (role?: Role) => void; onHo
         <button type="button" onClick={() => onEnter("Capital Provider")}>For capital providers</button>
         <button type="button" onClick={() => onEnter("Facility Agent")}>For facility agents</button>
       </nav>
-      <button className="public-sign-in" type="button" onClick={onEnter}>Sign in</button>
+      <button className="public-sign-in" type="button" onClick={() => onEnter()}>Sign in</button>
     </header>
   );
 }
@@ -253,7 +253,7 @@ function LandingPage({ onEnter, onHow }: { onEnter: (role?: Role) => void; onHow
               <h1 id="landing-title">Turn verified inventory into investable credit.</h1>
               <p>Anora connects holders of Indonesian electronic warehouse receipts (e-SRG) with capital providers through structured, permissioned notes.</p>
               <div className="hero-actions">
-                <button className="public-primary" type="button" onClick={onEnter}>Get started</button>
+                <button className="public-primary" type="button" onClick={() => onEnter()}>Get started</button>
                 <button className="public-secondary" type="button" onClick={onHow}>How it works</button>
               </div>
             </div>
@@ -300,7 +300,7 @@ function HowItWorksPage({ onEnter, onBack }: { onEnter: (role?: Role) => void; o
           <p>The e-SRG and its registered security control remain authoritative in the regulated registry.</p>
         </section>
         <div className="hero-actions">
-          <button className="public-primary" type="button" onClick={onEnter}>Open Anora</button>
+          <button className="public-primary" type="button" onClick={() => onEnter()}>Open Anora</button>
           <button className="public-secondary" type="button" onClick={onBack}>Back to overview</button>
         </div>
       </main>
