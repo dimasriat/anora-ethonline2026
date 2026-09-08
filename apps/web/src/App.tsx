@@ -8,7 +8,7 @@ import {
 import { ROLES, STEPS, TRANCHE_COPY, type Role } from "./roles";
 
 export function App() {
-  const [showProduct, setShowProduct] = useState(false);
+  const [view, setView] = useState<"landing" | "how" | "product">("landing");
   const privy = usePrivyOrNull();
   const [ready, setReady] = useState(false);
   const [role, setRole] = useState<Role>("Borrower");
@@ -80,7 +80,8 @@ export function App() {
   const step = STEPS[flow?.request.status ?? "none"]!;
   const mine = step.owner === role;
 
-  if (!showProduct) return <LandingPage onEnter={() => setShowProduct(true)} />;
+  if (view === "landing") return <LandingPage onEnter={() => setView("product")} onHow={() => setView("how")} />;
+  if (view === "how") return <HowItWorksPage onEnter={() => setView("product")} onBack={() => setView("landing")} />;
 
   return (
     <div className="shell">
@@ -211,19 +212,25 @@ export function App() {
   );
 }
 
-function LandingPage({ onEnter }: { onEnter: () => void }) {
+function PublicHeader({ onEnter, onHow }: { onEnter: () => void; onHow: () => void }) {
+  return (
+    <header className="public-header">
+      <strong className="public-wordmark">Anora</strong>
+      <nav className="public-nav" aria-label="Public navigation">
+        <button type="button" onClick={onHow}>How it works</button>
+        <button type="button" onClick={onEnter}>For borrowers</button>
+        <button type="button" onClick={onEnter}>For capital providers</button>
+        <button type="button" onClick={onEnter}>For facility agents</button>
+      </nav>
+      <button className="public-sign-in" type="button" onClick={onEnter}>Sign in</button>
+    </header>
+  );
+}
+
+function LandingPage({ onEnter, onHow }: { onEnter: () => void; onHow: () => void }) {
   return (
     <div className="public-page">
-      <header className="public-header">
-        <strong className="public-wordmark">Anora</strong>
-        <nav className="public-nav" aria-label="Public navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href="#borrowers">For borrowers</a>
-          <a href="#capital-providers">For capital providers</a>
-          <a href="#facility-agents">For facility agents</a>
-        </nav>
-        <button className="public-sign-in" type="button" onClick={onEnter}>Sign in</button>
-      </header>
+      <PublicHeader onEnter={onEnter} onHow={onHow} />
       <main className="landing-main">
         <section className="hero-grid" aria-labelledby="landing-title">
           <div className="hero-copy">
@@ -231,7 +238,7 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
             <p>Anora connects eligible e-SRG holders with capital providers through structured, permissioned notes—without moving the warehouse receipt on-chain.</p>
             <div className="hero-actions">
               <button className="public-primary" type="button" onClick={onEnter}>Open Anora</button>
-              <a className="public-secondary" href="#how-it-works">How it works</a>
+              <button className="public-secondary" type="button" onClick={onHow}>How it works</button>
             </div>
           </div>
           <figure className="hero-visual">
@@ -244,6 +251,45 @@ function LandingPage({ onEnter }: { onEnter: () => void }) {
           <article><span>02</span><div><h2>Permissioned financing notes</h2><p>Only verified participants can subscribe to or hold Senior and Junior positions.</p></div></article>
           <article><span>03</span><div><h2>Hedera settlement</h2><p>Issuance, eligible transfers, and facility events are recorded for auditability.</p></div></article>
         </section>
+      </main>
+    </div>
+  );
+}
+
+function HowItWorksPage({ onEnter, onBack }: { onEnter: () => void; onBack: () => void }) {
+  const steps = [
+    ["Verify the official e-SRG", "The borrower connects an eligible receipt. The facility agent checks the registry record, ownership, expiry, insurance, and existing security rights.", "Borrower + Facility Agent"],
+    ["Complete evidence and signatures", "The borrower reviews and signs the financing mandate and registry consent. Production access also requires KYB and organizational authorization.", "Borrower"],
+    ["Approve and structure the facility", "The facility agent approves one set of terms linked to permissioned Senior and Junior financing-note positions.", "Facility Agent"],
+    ["Subscribe and settle", "Capital providers choose a tranche. Registry confirmation gates note activation and disbursement.", "Capital Provider + Facility Agent"],
+    ["Repay, release, or enforce", "Repayment follows the agreed waterfall before the security right is released.", "Facility Agent"],
+  ];
+  return (
+    <div className="public-page">
+      <PublicHeader onEnter={onEnter} onHow={() => {}} />
+      <main className="how-main">
+        <header className="how-intro">
+          <span>How Anora works</span>
+          <h1>From a verified receipt to accountable financing.</h1>
+          <p>The registry remains the source of truth. Anora coordinates the evidence, note structure, permissions, and settlement around it.</p>
+        </header>
+        <section className="process-ledger" aria-label="Financing process">
+          {steps.map(([title, copy, owner], index) => (
+            <article key={title}>
+              <span>{String(index + 1).padStart(2, "0")}</span>
+              <div><h2>{title}</h2><p>{copy}</p></div>
+              <aside><small>Primary owner</small><strong>{owner}</strong></aside>
+            </article>
+          ))}
+        </section>
+        <section className="boundary-note">
+          <h2>Anora tokenizes the financing claim—not the tea title.</h2>
+          <p>The e-SRG and its registered security control remain authoritative in the regulated registry.</p>
+        </section>
+        <div className="hero-actions">
+          <button className="public-primary" type="button" onClick={onEnter}>Open Anora</button>
+          <button className="public-secondary" type="button" onClick={onBack}>Back to overview</button>
+        </div>
       </main>
     </div>
   );
