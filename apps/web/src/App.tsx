@@ -7,6 +7,8 @@ import {
 } from "./api";
 import { ROLES, STEPS, TRANCHE_COPY, type Role } from "./roles";
 
+const WORKFLOW = ["none", "draft", "mandate_signed", "approved", "proven", "tokenized", "subscribed", "funded", "repaid"];
+
 export function App() {
   const [view, setView] = useState<"landing" | "how" | "access" | "product">("landing");
   const privy = usePrivyOrNull();
@@ -79,6 +81,7 @@ export function App() {
 
   const step = STEPS[flow?.request.status ?? "none"]!;
   const mine = step.owner === role;
+  const workflowIndex = WORKFLOW.indexOf(flow?.request.status ?? "none");
 
   const openAccess = (nextRole?: Role) => { if (nextRole) setRole(nextRole); setView("access"); };
   if (view === "landing") return <LandingPage onEnter={openAccess} onHow={() => setView("how")} />;
@@ -112,6 +115,14 @@ export function App() {
 
       <main id="workspace-main">
         <section className="stage">
+          <ol className="workflow-progress" aria-label="Facility progress">
+            {WORKFLOW.map((status, index) => (
+              <li key={status} className={index < workflowIndex ? "complete" : index === workflowIndex ? "current" : ""} aria-current={index === workflowIndex ? "step" : undefined}>
+                <span>{index < workflowIndex ? "✓" : index + 1}</span>
+                <small>{STEPS[status]!.title}</small>
+              </li>
+            ))}
+          </ol>
           {privy && privy.ready && !privy.authenticated && (
             <div className="gate">
               <h1>Sign in to open a facility</h1>
@@ -186,7 +197,7 @@ export function App() {
           {flow && step.action && (
             <button className="primary" disabled={busy || !mine}
               onClick={() => run(() => api.step(flow.request.id, step.action!.step))}>
-              {busy ? "Working…" : step.action.label}
+              <span aria-live="polite">{busy ? "Working…" : step.action.label}</span>
             </button>
           )}
 
