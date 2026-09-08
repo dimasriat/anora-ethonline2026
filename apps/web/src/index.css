@@ -99,6 +99,10 @@ header {
 }
 
 .brand { font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; font-size: 13px; }
+.product-back { min-height: 0; padding: 0; background: none; border: 0; color: var(--ink); cursor: pointer; }
+.product-back:hover { color: var(--accent-ink); }
+.skip-link { position: fixed; top: 8px; left: 8px; z-index: 10; padding: 8px 12px; background: var(--fill); color: white; transform: translateY(-150%); }
+.skip-link:focus { transform: translateY(0); }
 
 nav { display: flex; gap: 6px; }
 

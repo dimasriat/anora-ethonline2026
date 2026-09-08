@@ -85,8 +85,9 @@ export function App() {
 
   return (
     <div className="shell">
+      <a className="skip-link" href="#workspace-main">Skip to workspace</a>
       <header>
-        <div className="brand">Anora</div>
+        <button className="brand product-back" type="button" onClick={() => setView("landing")} aria-label="Return to Anora overview">Anora</button>
         <nav>
           <span className="role-label" title="One account can view every role. In production an account holds one.">
             Viewing as
@@ -107,7 +108,7 @@ export function App() {
         </nav>
       </header>
 
-      <main>
+      <main id="workspace-main">
         <section className="stage">
           {privy && privy.ready && !privy.authenticated && (
             <div className="gate">
