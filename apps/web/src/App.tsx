@@ -13,6 +13,23 @@ const ROLE_ACCESS: Record<Role, { summary: string; detail: string }> = {
   "Capital Provider": { summary: "Fund approved note positions.", detail: "For banks and qualified investors allocating capital to structured facilities." },
   "Facility Agent": { summary: "Review controls and settlement.", detail: "For authorized operators and reviewers administering each facility." },
 };
+const WORKSPACE_META: Record<Role, { title: string; summary: string; metrics: [string, string][] }> = {
+  Borrower: {
+    title: "Finance eligible inventory",
+    summary: "Connect an official e-SRG, complete the mandate, and follow every financing control through repayment.",
+    metrics: [["Eligible receipts", "2"], ["Active facilities", "1"], ["Next action", "Mandate"]],
+  },
+  "Capital Provider": {
+    title: "Allocate into approved notes",
+    summary: "Review verified facilities, compare tranche risk, and track permissioned holdings and cashflows.",
+    metrics: [["Open positions", "2"], ["Committed", "Rp 270m"], ["Next cashflow", "4 Dec"]],
+  },
+  "Facility Agent": {
+    title: "Move facilities through each control",
+    summary: "Review evidence, coordinate registry actions, and gate funding, settlement, repayment, or enforcement.",
+    metrics: [["Review queue", "2"], ["Registry actions", "1"], ["Settlement holds", "0"]],
+  },
+};
 
 export function App() {
   const [view, setView] = useState<"landing" | "how" | "access" | "product">("landing");
@@ -120,6 +137,18 @@ export function App() {
 
       <main id="workspace-main">
         <section className="stage">
+          <section className="workspace-summary" aria-label={`${role} workspace summary`}>
+            <div>
+              <p className="eyebrow">{role} workspace</p>
+              <h1>{WORKSPACE_META[role].title}</h1>
+              <p>{WORKSPACE_META[role].summary}</p>
+            </div>
+            <dl>
+              {WORKSPACE_META[role].metrics.map(([label, value]) => (
+                <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+              ))}
+            </dl>
+          </section>
           <ol className="workflow-progress" aria-label="Facility progress">
             {WORKFLOW.map((status, index) => (
               <li key={status} className={index < workflowIndex ? "complete" : index === workflowIndex ? "current" : ""} aria-current={index === workflowIndex ? "step" : undefined}>
