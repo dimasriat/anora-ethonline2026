@@ -35,8 +35,8 @@ describe("create", () => {
   });
 
   test("gives a smaller receipt a smaller facility", async () => {
-    const s = await flow.create("SRG-TEH-031", OWNER);
-    expect(s.request.requestedIdr).toBe(158_760_000);
+    const s = await flow.create("SRG-TEH-018", OWNER);
+    expect(s.request.requestedIdr).toBe(217_000_000);
   });
 
   test("refuses an unknown receipt", async () => {
@@ -158,6 +158,28 @@ describe("funding and repayment", () => {
     expect(s.request.status).toBe("repaid");
     expect(s.note!.state).toBe("redeemed");
     expect(s.request.epoch).toBe(2);
+  });
+});
+
+describe("secondary transfers", () => {
+  const funded = async () => {
+    const id = await upToTokenized();
+    await flow.subscribe(id, "INV-BRS", "SENIOR", 270_000_000);
+    await flow.subscribe(id, "INV-KIT", "JUNIOR", 120_000_000);
+    await flow.registerAndFund(id);
+    return id;
+  };
+
+  test("enforces pause, freeze, and recipient mandate before settlement", async () => {
+    const id = await funded();
+    flow.pause(id, true);
+    expect(() => flow.transfer(id, "INV-KIT", "INV-MVA", "JUNIOR", 10_000_000)).toThrow("paused");
+    flow.pause(id, false);
+    flow.freeze(id, "INV-MVA", true);
+    expect(() => flow.transfer(id, "INV-KIT", "INV-MVA", "JUNIOR", 10_000_000)).toThrow("frozen");
+    flow.freeze(id, "INV-MVA", false);
+    flow.transfer(id, "INV-KIT", "INV-MVA", "JUNIOR", 10_000_000);
+    expect(flow.positions(id)).toContainEqual({ investorId: "INV-MVA", tranche: "JUNIOR", unitsIdr: 10_000_000 });
   });
 });
 

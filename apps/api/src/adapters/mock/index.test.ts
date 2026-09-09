@@ -8,7 +8,9 @@ beforeEach(() => { ports = mockPorts(); });
 describe("esrg", () => {
   test("lists seeded receipts", async () => {
     const all = await ports.esrg.list();
-    expect(all.map((e) => e.id)).toEqual(["SRG-TEH-024", "SRG-TEH-031"]);
+    expect(all).toHaveLength(28);
+    expect(all.map((e) => e.id)).toContain("SRG-TEH-024");
+    expect(all.map((e) => e.id)).toContain("SRG-TPK-056");
   });
 
   test("returns null for an unknown receipt rather than throwing", async () => {
