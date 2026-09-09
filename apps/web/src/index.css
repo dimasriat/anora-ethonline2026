@@ -152,6 +152,9 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 40px; pa
 .workspace-summary dl div { min-width: 7rem; padding: .75rem; border-radius: 12px; background: var(--bg); }
 .workspace-summary dt { color: var(--muted); font-size: .72rem; }
 .workspace-summary dd { margin: .3rem 0 0; font-weight: 750; }
+.workspace-context { display: flex; align-items: center; gap: 1.25rem; margin: -0.5rem 0 1.5rem; color: var(--muted); font-size: .68rem; }
+.workspace-context span:first-child { display: inline-flex; align-items: center; gap: .45rem; margin-right: auto; color: var(--ink); }
+.workspace-context i { width: .45rem; height: .45rem; border-radius: 50%; background: var(--warning); box-shadow: 0 0 0 4px var(--warning-soft); }
 .workflow-progress { display: flex; gap: 0; margin: 0 0 34px; padding: 0 0 14px; overflow-x: auto; list-style: none; scrollbar-width: thin; }
 .workflow-progress li { position: relative; display: grid; min-width: 92px; justify-items: center; gap: 7px; color: var(--muted); text-align: center; }
 .workflow-progress li:not(:last-child)::after { position: absolute; top: 13px; left: calc(50% + 14px); width: calc(100% - 28px); height: 1px; background: var(--line-strong); content: ""; }
@@ -298,6 +301,7 @@ nav .role-label {
 @media (max-width: 620px) {
   .workspace-summary { grid-template-columns: 1fr; }
   .workspace-summary dl { grid-template-columns: 1fr; }
+  .workspace-context { align-items: flex-start; flex-direction: column; gap: .5rem; }
   .shell { padding-inline: 16px; }
   header { display: grid; }
   header nav { justify-content: flex-start; }

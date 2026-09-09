@@ -149,6 +149,11 @@ export function App() {
               ))}
             </dl>
           </section>
+          <div className="workspace-context" aria-label="Workspace environment">
+            <span><i aria-hidden="true" /> Demo environment</span>
+            <span>Registry controls simulated</span>
+            <span>Hedera testnet settlement</span>
+          </div>
           <ol className="workflow-progress" aria-label="Facility progress">
             {WORKFLOW.map((status, index) => (
               <li key={status} className={index < workflowIndex ? "complete" : index === workflowIndex ? "current" : ""} aria-current={index === workflowIndex ? "step" : undefined}>
