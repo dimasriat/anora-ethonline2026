@@ -9,6 +9,7 @@ import type {
 import { FlowError } from "./errors";
 import { investorById } from "./adapters/mock/investors";
 import { OFFICERS, QUORUM_THRESHOLD } from "./adapters/mock/wallet";
+import type { DocuSealSubmission } from "./docuseal";
 
 export type HistoryEntry = {
   at: string;
@@ -36,6 +37,16 @@ export type FlowState = {
   orgWallet?: OrgWallet;
   mandateApprovals: string[];
   mandateSignature?: string;
+  documentSigning?: {
+    status: "awaiting_signature" | "signed" | "declined" | "expired";
+    submissionId: number;
+    submitterId: number;
+    slug: string;
+    url: string;
+    completedAt?: string;
+    documentUrl?: string;
+    auditLogUrl?: string;
+  };
   note?: NoteToken;
   proof?: Omit<EligibilityProof, "proofHex">;
   onChain?: { ok: boolean; gasUsed?: number };
@@ -209,6 +220,26 @@ export function makeFlow(ports: Ports) {
       return state;
     },
 
+    beginDocumentSigning(id: string, submission: DocuSealSubmission): FlowState {
+      const state = must(id);
+      gate(state, "draft", "Starting document signing");
+      if (state.documentSigning) return state;
+      state.documentSigning = { ...submission, status: "awaiting_signature" };
+      state.history.push({ at: new Date().toISOString(), step: "draft", by: "borrower", note: `DocuSeal submission ${submission.submissionId} created` });
+      return state;
+    },
+
+    completeDocumentSigning(submissionId: number, completedAt: string, documentUrl?: string, auditLogUrl?: string): FlowState | null {
+      const state = [...states.values()].find((item) => item.documentSigning?.submissionId === submissionId);
+      if (!state?.documentSigning) return null;
+      if (state.documentSigning.status === "signed") return state;
+      gate(state, "draft", "Completing document signing");
+      state.documentSigning = { ...state.documentSigning, status: "signed", completedAt, documentUrl, auditLogUrl };
+      state.mandateSignature = `docuseal:${submissionId}`;
+      stamp(state, "mandate_signed", "borrower", `DocuSeal submission ${submissionId} completed`);
+      return state;
+    },
+
     async approve(id: string): Promise<FlowState> {
       const state = must(id);
       gate(state, "mandate_signed", "Approving the facility");
@@ -344,6 +375,11 @@ export function makeFlow(ports: Ports) {
         throw new FlowError("not_reversible", `${state.request.status} cannot be rewound`, {
           current: state.request.status,
         });
+      }
+      if (to === "draft") {
+        state.documentSigning = undefined;
+        state.mandateSignature = undefined;
+        state.mandateApprovals = [];
       }
       stamp(state, to, "system", `Rewound to ${to}`);
       return state;

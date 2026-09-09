@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { createHmac } from "node:crypto";
 import { makeApp } from "./app";
 import { mockPorts } from "./adapters/mock/index";
 import { openAuthenticator } from "./auth";
@@ -164,6 +165,39 @@ describe("eligibility gate", () => {
     app = makeApp(mockPorts(), openAuthenticator, eligible(true));
     const me = await body(await get("/api/me"));
     expect(me.eligibility.method).toBe("selfie-check");
+  });
+});
+
+describe("DocuSeal signing gate", () => {
+  test("a verified completion unlocks compliance review once", async () => {
+    app = makeApp(mockPorts(), openAuthenticator, eligible(true), {
+      webhookSecret: "webhook-secret",
+      client: { async createSubmission() { return { submissionId: 91, submitterId: 92, slug: "signed", url: "https://docuseal.com/s/signed" }; } },
+    });
+    const id = await openRequest();
+    const started = await post(`/api/requests/${id}/signing`, { signerEmail: "borrower@example.com", signerName: "Borrower" });
+    expect(started.status).toBe(201);
+    expect((await body(started)).documentSigning.status).toBe("awaiting_signature");
+    expect((await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-1" })).status).toBe(409);
+
+    const payload = JSON.stringify({ event_type: "submission.completed", timestamp: new Date().toISOString(), data: { id: 91, completed_at: "2026-09-10T00:00:00.000Z" } });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = createHmac("sha256", "webhook-secret").update(`${timestamp}.${payload}`).digest("hex");
+    const completed = await app.request("/api/webhooks/docuseal", { method: "POST", headers: { "content-type": "application/json", "x-docuseal-signature": `${timestamp}.${signature}` }, body: payload });
+    expect(completed.status).toBe(200);
+    expect((await body(await get(`/api/requests/${id}`))).request.status).toBe("mandate_signed");
+
+    const replay = await app.request("/api/webhooks/docuseal", { method: "POST", headers: { "content-type": "application/json", "x-docuseal-signature": `${timestamp}.${signature}` }, body: payload });
+    expect(replay.status).toBe(200);
+  });
+
+  test("rejects an unverified completion", async () => {
+    app = makeApp(mockPorts(), openAuthenticator, eligible(true), {
+      webhookSecret: "webhook-secret",
+      client: { async createSubmission() { return { submissionId: 91, submitterId: 92, slug: "signed", url: "https://docuseal.com/s/signed" }; } },
+    });
+    const result = await app.request("/api/webhooks/docuseal", { method: "POST", headers: { "x-docuseal-signature": "bad" }, body: "{}" });
+    expect(result.status).toBe(401);
   });
 });
 

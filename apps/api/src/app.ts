@@ -8,8 +8,14 @@ import { FlowError, STATUS_FOR } from "./errors";
 import { INVESTORS } from "./adapters/mock/investors";
 import { OFFICERS } from "./adapters/mock/wallet";
 import { applyIntake, intakeView, resetIntake, type IntakeAction } from "./intake";
+import { verifyDocuSealWebhook, type DocuSealClient } from "./docuseal";
 
-export function makeApp(ports: Ports, authenticate: Authenticator, checker: EligibilityChecker) {
+export function makeApp(
+  ports: Ports,
+  authenticate: Authenticator,
+  checker: EligibilityChecker,
+  docuseal: { client: DocuSealClient; webhookSecret: string } | null = null,
+) {
   const flow = makeFlow(ports);
   const app = new Hono();
 
@@ -123,9 +129,54 @@ export function makeApp(ports: Ports, authenticate: Authenticator, checker: Elig
     return c.json(await flow.create(body.esrgId, userId), 201);
   });
 
+  app.post("/api/requests/:id/signing", async (c) => {
+    const userId = await ownedBy(c, id(c));
+    await requireEligibility(c, "Signing the mandate");
+    if (!docuseal) throw new FlowError("capability_not_available", "DocuSeal is not configured");
+    const state = flow.get(id(c), userId)!;
+    if (state.documentSigning) return c.json(state);
+    const body: { signerEmail?: string; signerName?: string } = await c.req.json().catch(() => ({}));
+    const signerEmail = body.signerEmail?.trim() ?? "";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signerEmail)) {
+      throw new FlowError("unknown_request", "A valid signer email is required");
+    }
+    const submission = await docuseal.client.createSubmission({
+      requestId: state.request.id,
+      signerName: body.signerName?.trim() || intakeView().state.borrower.profile.entityName,
+      signerEmail,
+      receiptId: state.request.esrgId,
+      requestedIdr: state.request.requestedIdr,
+    });
+    return c.json(flow.beginDocumentSigning(id(c), submission), 201);
+  });
+
+  app.post("/api/webhooks/docuseal", async (c) => {
+    if (!docuseal) return c.json({ error: "DocuSeal is not configured" }, 503);
+    const rawBody = new Uint8Array(await c.req.raw.arrayBuffer());
+    if (!verifyDocuSealWebhook(rawBody, c.req.header("x-docuseal-signature"), docuseal.webhookSecret)) {
+      return c.json({ error: "Invalid webhook signature" }, 401);
+    }
+    let payload: {
+      event_type?: string;
+      timestamp?: string;
+      data?: { id?: number; completed_at?: string; combined_document_url?: string; audit_log_url?: string };
+    };
+    try { payload = JSON.parse(new TextDecoder().decode(rawBody)); }
+    catch { return c.json({ error: "Invalid webhook payload" }, 400); }
+    if (payload.event_type !== "submission.completed" || !payload.data?.id) return c.json({ ok: true });
+    flow.completeDocumentSigning(
+      payload.data.id,
+      payload.data.completed_at ?? payload.timestamp ?? new Date().toISOString(),
+      payload.data.combined_document_url,
+      payload.data.audit_log_url,
+    );
+    return c.json({ ok: true });
+  });
+
   app.post("/api/requests/:id/approve-mandate", async (c) => {
     await ownedBy(c, id(c));
     await requireEligibility(c, "Signing the mandate");
+    if (docuseal) throw new FlowError("step_out_of_order", "Complete the DocuSeal submission to sign the mandate");
     const body: { officerId?: string } = await c.req.json().catch(() => ({}));
     if (!body.officerId) throw new FlowError("unknown_officer", "officerId is required");
     return c.json(await flow.approveMandate(id(c), body.officerId));
