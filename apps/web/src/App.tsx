@@ -162,6 +162,10 @@ export function App() {
             <span>Registry controls simulated</span>
             <span>Hedera testnet settlement</span>
           </div>
+          <div className="workflow-heading">
+            <div><span>Facility lifecycle</span><strong>{step.title}</strong></div>
+            <small>Stage {workflowIndex + 1} of {WORKFLOW.length}</small>
+          </div>
           <ol className="workflow-progress" aria-label="Facility progress">
             {WORKFLOW.map((status, index) => (
               <li key={status} className={index < workflowIndex ? "complete" : index === workflowIndex ? "current" : ""} aria-current={index === workflowIndex ? "step" : undefined}>
