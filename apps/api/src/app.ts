@@ -135,15 +135,8 @@ export function makeApp(
     if (!docuseal) throw new FlowError("capability_not_available", "DocuSeal is not configured");
     const state = flow.get(id(c), userId)!;
     if (state.documentSigning) return c.json(state);
-    const body: { signerEmail?: string; signerName?: string } = await c.req.json().catch(() => ({}));
-    const signerEmail = body.signerEmail?.trim() ?? "";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signerEmail)) {
-      throw new FlowError("unknown_request", "A valid signer email is required");
-    }
     const submission = await docuseal.client.createSubmission({
       requestId: state.request.id,
-      signerName: body.signerName?.trim() || intakeView().state.borrower.profile.entityName,
-      signerEmail,
       receiptId: state.request.esrgId,
       requestedIdr: state.request.requestedIdr,
     });

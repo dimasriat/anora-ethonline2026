@@ -533,7 +533,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [signerEmail, setSignerEmail] = useState("borrower@anora.id");
   const [lastCommitment, setLastCommitment] = useState<{ investorId: string; tranche: TrancheName; unitsIdr: number } | null>(null);
   const [listing, setListing] = useState<{ sellerId: string; buyerId: string; tranche: TrancheName; unitsIdr: number; priceIdr: number } | null>(null);
   const [askPrice, setAskPrice] = useState("");
@@ -734,7 +733,7 @@ export default function App() {
     const signingWindow = window.open("about:blank", "_blank");
     run(async () => {
       try {
-        const next = await api.signing(flow!.request.id, signerEmail, intake?.borrower.profile.entityName ?? "Borrower");
+        const next = await api.signing(flow!.request.id);
         setFlow(next);
         if (next.documentSigning?.url && signingWindow) signingWindow.location.href = next.documentSigning.url;
         else signingWindow?.close();
@@ -1553,11 +1552,8 @@ export default function App() {
                 <p className="supporting-copy">{MANDATE_FOLLOWS}</p>
               </section>
             </div>
-            <div className="subscribe-fields">
-              <label><span>Signer email</span><input type="email" required value={signerEmail} onChange={(event) => setSignerEmail(event.target.value)} /></label>
-            </div>
             <div className="actions">
-              <button disabled={busy || !signerEmail} onClick={beginDocumentSigning}>
+              <button disabled={busy} onClick={beginDocumentSigning}>
                 {busy ? "Preparing…" : flow?.documentSigning ? "Open signing form" : "Sign now"}
               </button>
             </div>

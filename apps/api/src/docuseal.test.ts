@@ -9,9 +9,11 @@ describe("DocuSeal", () => {
       const payload = JSON.parse(String(init?.body));
       expect(payload.template_id).toBe(42);
       expect(payload.submitters[0].external_id).toBe("REQ-1");
+      expect(payload.submitters[0].email).toBeUndefined();
+      expect(payload.submitters[0].name).toBeUndefined();
       return Response.json([{ id: 7, submission_id: 9, slug: "signer-slug" }]);
     });
-    const result = await client.createSubmission({ requestId: "REQ-1", signerName: "Borrower", signerEmail: "borrower@example.com", receiptId: "SRG-1", requestedIdr: 100 });
+    const result = await client.createSubmission({ requestId: "REQ-1", receiptId: "SRG-1", requestedIdr: 100 });
     expect(result).toEqual({ submissionId: 9, submitterId: 7, slug: "signer-slug", url: "https://docuseal.com/s/signer-slug" });
   });
 

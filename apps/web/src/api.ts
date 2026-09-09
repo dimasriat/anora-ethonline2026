@@ -119,8 +119,7 @@ export const api = {
   esrgs: () => call("/esrg") as Promise<ESrg[]>,
   requests: async () => (await call("/requests") as Flow[]).map(normalizeFlow),
   create: async (esrgId: string) => normalizeFlow(await call("/requests", "POST", { esrgId })),
-  signing: (id: string, signerEmail: string, signerName: string) =>
-    call(`/requests/${id}/signing`, "POST", { signerEmail, signerName }).then(normalizeFlow),
+  signing: (id: string) => call(`/requests/${id}/signing`, "POST").then(normalizeFlow),
   step: async (id: string, s: string) => {
     if (s === "sign-mandate") {
       await call(`/requests/${id}/approve-mandate`, "POST", { officerId: "OFF-1" });

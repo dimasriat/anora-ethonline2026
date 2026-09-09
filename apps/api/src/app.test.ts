@@ -175,7 +175,7 @@ describe("DocuSeal signing gate", () => {
       client: { async createSubmission() { return { submissionId: 91, submitterId: 92, slug: "signed", url: "https://docuseal.com/s/signed" }; } },
     });
     const id = await openRequest();
-    const started = await post(`/api/requests/${id}/signing`, { signerEmail: "borrower@example.com", signerName: "Borrower" });
+    const started = await post(`/api/requests/${id}/signing`);
     expect(started.status).toBe(201);
     expect((await body(started)).documentSigning.status).toBe("awaiting_signature");
     expect((await post(`/api/requests/${id}/approve-mandate`, { officerId: "OFF-1" })).status).toBe(409);

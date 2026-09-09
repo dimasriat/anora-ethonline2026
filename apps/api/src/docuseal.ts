@@ -9,8 +9,6 @@ export type DocuSealSubmission = {
 
 export type DocuSealCreateInput = {
   requestId: string;
-  signerName: string;
-  signerEmail: string;
   receiptId: string;
   requestedIdr: number;
 };
@@ -56,8 +54,6 @@ export function makeDocuSealClient(config: Config, fetcher: Fetcher = fetch): Do
           send_email: false,
           submitters: [{
             role: config.signerRole,
-            name: input.signerName,
-            email: input.signerEmail,
             external_id: input.requestId,
             metadata: { request_id: input.requestId },
             fields: [
