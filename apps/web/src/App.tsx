@@ -243,26 +243,24 @@ function PublicHeader({ onEnter, onHow }: { onEnter: (role?: Role) => void; onHo
 
 function LandingPage({ onEnter, onHow }: { onEnter: (role?: Role) => void; onHow: () => void }) {
   return (
-    <div className="public-page landing-page">
-      <div className="page-backdrop" aria-hidden="true"><img src="/parcel-11-3x2-loop.svg" alt="" /></div>
+    <div className="public-page">
       <PublicHeader onEnter={onEnter} onHow={onHow} />
       <main className="landing-main">
         <section className="hero-grid" aria-labelledby="landing-title">
-          <div className="hero-panel">
-            <div className="hero-copy">
-              <h1 id="landing-title">Turn verified inventory into investable credit.</h1>
-              <p>Anora connects holders of Indonesian electronic warehouse receipts (e-SRG) with capital providers through structured, permissioned notes.</p>
-              <div className="hero-actions">
-                <button className="public-primary" type="button" onClick={() => onEnter()}>Get started</button>
-                <button className="public-secondary" type="button" onClick={onHow}>How it works</button>
-              </div>
+          <div className="hero-copy">
+            <h1 id="landing-title">Turn verified inventory into investable credit.</h1>
+            <p>Anora connects eligible e-SRG holders with capital providers through structured, permissioned notes—without moving the warehouse receipt on-chain.</p>
+            <div className="hero-actions">
+              <button className="public-primary" type="button" onClick={() => onEnter()}>Open Anora</button>
+              <button className="public-secondary" type="button" onClick={onHow}>How it works</button>
             </div>
-            <section className="trust-strip" aria-label="Anora product boundaries">
-              <article><span>01</span><div><h2>Registry-authoritative collateral</h2><p>The official e-SRG remains in the Bappebti registry; Anora records a linked financing claim.</p></div></article>
-              <article><span>02</span><div><h2>Permissioned financing notes</h2><p>Senior and Junior positions are designed for verified participants only.</p></div></article>
-              <article><span>03</span><div><h2>Onchain settlement</h2><p>Issuance, eligible transfers, and facility events are recorded for auditability.</p></div></article>
-            </section>
           </div>
+          <figure className="hero-visual"><img src="/anora-tea-warehouse.png" alt="Sealed tea inventory stored inside a licensed warehouse" /><figcaption>Verified inventory. Structured access to capital.</figcaption></figure>
+        </section>
+        <section className="trust-strip" aria-label="Anora product boundaries">
+          <article><span>01</span><div><h2>Registry-authoritative collateral</h2><p>The official e-SRG remains in the Bappebti registry; Anora records a linked financing claim.</p></div></article>
+          <article><span>02</span><div><h2>Permissioned financing notes</h2><p>Only verified participants can subscribe to or hold Senior and Junior positions.</p></div></article>
+          <article><span>03</span><div><h2>Hedera settlement</h2><p>Issuance, eligible transfers, and facility events are recorded for auditability.</p></div></article>
         </section>
       </main>
     </div>
