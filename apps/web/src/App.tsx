@@ -372,7 +372,7 @@ function AccessPage({ role, onRole, onEnter, onBack }: {
     <div className="public-page access-page">
       <header className="public-header compact-header"><strong className="public-wordmark">Anora</strong><button className="public-sign-in" type="button" onClick={onBack}>Back to overview</button></header>
       <main className="access-main">
-        <header className="access-intro"><span className="access-kicker">Secure access</span><h1>Choose how you use Anora.</h1><p>Privy verifies your email or wallet identity. Your workspace role determines what you can review and act on.</p></header>
+        <header className="access-intro"><span className="access-kicker">Secure access</span><h1>Choose how you use Anora.</h1><p>Privy verifies your email or wallet identity. Your workspace role determines what you can review and act on.</p><img className="access-figure" src="/anora-tea-warehouse.jpg" width="900" height="618" alt="Made tea stored in a licensed warehouse." /></header>
         <form className="access-panel" onSubmit={(event) => { event.preventDefault(); onEnter(); }}>
           <fieldset><legend>Continue as</legend>
             {ROLES.map((item) => <label className="role-option" key={item}><input type="radio" name="role" checked={role === item} onChange={() => onRole(item)} /><span><strong>{item}</strong><span>{ROLE_ACCESS[item].summary}</span><small>{ROLE_ACCESS[item].detail}</small></span></label>)}
