@@ -8,6 +8,11 @@ import {
 import { ROLES, STEPS, TRANCHE_COPY, type Role } from "./roles";
 
 const WORKFLOW = ["none", "draft", "mandate_signed", "approved", "proven", "tokenized", "subscribed", "funded", "repaid"];
+const ROLE_ACCESS: Record<Role, { summary: string; detail: string }> = {
+  Borrower: { summary: "Finance eligible e-SRG inventory.", detail: "For cooperatives and SRG-eligible enterprises seeking working capital." },
+  "Capital Provider": { summary: "Fund approved note positions.", detail: "For banks and qualified investors allocating capital to structured facilities." },
+  "Facility Agent": { summary: "Review controls and settlement.", detail: "For authorized operators and reviewers administering each facility." },
+};
 
 export function App() {
   const [view, setView] = useState<"landing" | "how" | "access" | "product">("landing");
@@ -313,17 +318,17 @@ function AccessPage({ role, onRole, onEnter, onBack }: {
   onBack: () => void;
 }) {
   return (
-    <div className="public-page">
-      <PublicHeader onEnter={(nextRole) => nextRole ? onRole(nextRole) : onEnter()} onHow={onBack} />
+    <div className="public-page access-page">
+      <header className="public-header compact-header"><strong className="public-wordmark">Anora</strong><button className="public-sign-in" type="button" onClick={onBack}>Back to overview</button></header>
       <main className="access-main">
-        <section><span className="access-kicker">Choose a workspace</span><h1>Enter Anora by role.</h1><p>Your role changes the workspace and actions shown. The underlying facility remains the same shared record.</p></section>
-        <section className="access-panel">
+        <header className="access-intro"><span className="access-kicker">Secure access</span><h1>Choose how you use Anora.</h1><p>Privy verifies your email or wallet identity. Your workspace role determines what you can review and act on.</p></header>
+        <form className="access-panel" onSubmit={(event) => { event.preventDefault(); onEnter(); }}>
           <fieldset><legend>Continue as</legend>
-            {ROLES.map((item) => <label className="role-option" key={item}><input type="radio" name="role" checked={role === item} onChange={() => onRole(item)} /><span><strong>{item}</strong><small>{item === "Borrower" ? "Finance eligible e-SRG inventory." : item === "Capital Provider" ? "Fund approved note positions." : "Review controls and settlement."}</small></span></label>)}
+            {ROLES.map((item) => <label className="role-option" key={item}><input type="radio" name="role" checked={role === item} onChange={() => onRole(item)} /><span><strong>{item}</strong><span>{ROLE_ACCESS[item].summary}</span><small>{ROLE_ACCESS[item].detail}</small></span></label>)}
           </fieldset>
-          <button className="public-primary access-submit" type="button" onClick={onEnter}>Open {role} workspace</button>
-          <button className="access-back" type="button" onClick={onBack}>Back to overview</button>
-        </section>
+          <button className="public-primary access-submit" type="submit">Continue with Privy <small>Demo</small></button>
+          <p className="access-note"><strong>Identity is not institutional authorization.</strong> Production access requires KYB plus a director mandate, power of attorney, or cooperative resolution.</p>
+        </form>
       </main>
     </div>
   );

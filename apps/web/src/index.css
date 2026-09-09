@@ -76,7 +76,9 @@ h1, h2, h3, h4 { font-weight: 700; }
 .role-option span { display: flex; flex-direction: column; }
 .role-option small { margin-top: 5px; color: var(--muted); }
 .access-submit { width: 100%; margin-top: 24px; }
-.access-back { width: 100%; margin-top: 12px; padding: 10px; background: none; border: 0; color: var(--muted); cursor: pointer; }
+.access-submit small { margin-left: 8px; padding: 2px 6px; color: var(--accent-ink); background: white; border-radius: 4px; text-transform: uppercase; }
+.access-note { margin: 18px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.access-note strong { color: var(--ink); }
 
 @media (max-width: 780px) {
   .public-header { grid-template-columns: 1fr auto; min-height: 74px; padding-inline: 20px; }
