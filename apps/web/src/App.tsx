@@ -399,7 +399,10 @@ function Facilities({ facilities, onOpen }: {
             <strong>{f.request.id}</strong>
             <small>{f.request.esrgId} · {rp(f.request.requestedIdr)}</small>
           </span>
-          <span className="stage-chip">{STEPS[f.request.status]?.title ?? f.request.status}</span>
+          <span className="facility-row-meta">
+            <span className="stage-chip">{STEPS[f.request.status]?.title ?? f.request.status}</span>
+            <small>Open →</small>
+          </span>
         </button>
       ))}
       <p className="supporting">Or open a new one from a receipt below.</p>
