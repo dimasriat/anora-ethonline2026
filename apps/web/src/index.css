@@ -184,6 +184,10 @@ h3 { margin: 20px 0 10px; font-size: 12px; letter-spacing: 0.06em; text-transfor
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 17px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
 }
+.receipt-title { display: flex; align-items: center; gap: .65rem; }
+.receipt-status { padding: .2rem .45rem; border-radius: 999px; font-size: .6rem; font-weight: 700; letter-spacing: .02em; }
+.receipt-status.clear { color: var(--success); background: var(--success-soft); }
+.receipt-status.held { color: var(--warning); background: var(--warning-soft); }
 .receipts li:hover { border-color: var(--fill); box-shadow: 4px 4px 0 var(--accent); }
 .receipts strong { display: block; }
 .receipts small, .tranche small, .capability small { display: block; color: var(--muted); font-size: 12px; }

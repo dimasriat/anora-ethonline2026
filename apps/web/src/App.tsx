@@ -217,7 +217,12 @@ export function App() {
               {receipts.map((r) => (
                 <li key={r.id}>
                   <div>
-                    <strong>{r.id}</strong>
+                    <span className="receipt-title">
+                      <strong>{r.id}</strong>
+                      <span className={`receipt-status ${r.encumbrance === "none" ? "clear" : "held"}`}>
+                        {r.encumbrance === "none" ? "Available" : "Encumbered"}
+                      </span>
+                    </span>
                     <small>{r.commodity} · {r.quantityKg.toLocaleString("id-ID")} kg · {rp(r.valueIdr)}</small>
                   </div>
                   <button
