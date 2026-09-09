@@ -45,6 +45,11 @@ export type Flow = {
   subscriptions: Subscription[];
   transfers: NoteTransfer[];
   controls: { paused: boolean; frozenInvestorIds: string[] };
+  documentSigning?: {
+    status: "awaiting_signature" | "signed" | "declined" | "expired";
+    submissionId: number; submitterId: number; slug: string; url: string;
+    completedAt?: string; documentUrl?: string; auditLogUrl?: string;
+  };
   settlement?: { cashReceivedIdr: number; costsIdr: number; availableIdr: number; seniorPaidIdr: number; juniorPaidIdr: number; seniorLossIdr: number; juniorLossIdr: number };
   registryRef?: string;
   history: { at: string; step: string; by: string; note: string }[];
@@ -114,6 +119,8 @@ export const api = {
   esrgs: () => call("/esrg") as Promise<ESrg[]>,
   requests: async () => (await call("/requests") as Flow[]).map(normalizeFlow),
   create: async (esrgId: string) => normalizeFlow(await call("/requests", "POST", { esrgId })),
+  signing: (id: string, signerEmail: string, signerName: string) =>
+    call(`/requests/${id}/signing`, "POST", { signerEmail, signerName }).then(normalizeFlow),
   step: async (id: string, s: string) => {
     if (s === "sign-mandate") {
       await call(`/requests/${id}/approve-mandate`, "POST", { officerId: "OFF-1" });

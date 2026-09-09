@@ -533,6 +533,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [signerEmail, setSignerEmail] = useState("borrower@anora.id");
   const [lastCommitment, setLastCommitment] = useState<{ investorId: string; tranche: TrancheName; unitsIdr: number } | null>(null);
   const [listing, setListing] = useState<{ sellerId: string; buyerId: string; tranche: TrancheName; unitsIdr: number; priceIdr: number } | null>(null);
   const [askPrice, setAskPrice] = useState("");
@@ -728,6 +729,21 @@ export default function App() {
   const advance = (step: string) => run(async () => {
     setFlow(await api.step(flow!.request.id, step));
   });
+
+  const beginDocumentSigning = () => {
+    const signingWindow = window.open("about:blank", "_blank");
+    run(async () => {
+      try {
+        const next = await api.signing(flow!.request.id, signerEmail, intake?.borrower.profile.entityName ?? "Borrower");
+        setFlow(next);
+        if (next.documentSigning?.url && signingWindow) signingWindow.location.href = next.documentSigning.url;
+        else signingWindow?.close();
+      } catch (error) {
+        signingWindow?.close();
+        throw error;
+      }
+    });
+  };
 
   /** Runs the step and the row-by-row sweep together, settling on the slower of
    *  the two. The sweep is presentation; the outcome is whatever the API returns. */
@@ -1519,7 +1535,7 @@ export default function App() {
 
         {screen === "mandate" && facility && (
           <Card title="Receipt and mandate">
-            <div className="status-strip"><span>Signature</span><Badge tone="neutral">DocuSeal</Badge></div>
+            <div className="status-strip"><span>Signature</span><Badge tone={flow?.documentSigning?.status === "signed" ? "success" : "neutral"}>{flow?.documentSigning?.status === "awaiting_signature" ? "Awaiting signature" : "DocuSeal"}</Badge></div>
             <div className="two-column">
               <section>
                 <h3>Receipt details</h3>
@@ -1537,9 +1553,12 @@ export default function App() {
                 <p className="supporting-copy">{MANDATE_FOLLOWS}</p>
               </section>
             </div>
+            <div className="subscribe-fields">
+              <label><span>Signer email</span><input type="email" required value={signerEmail} onChange={(event) => setSignerEmail(event.target.value)} /></label>
+            </div>
             <div className="actions">
-              <button disabled={busy} onClick={() => advanceSequenced("sign-mandate", MANDATE_DOCS.length)}>
-                {sequence ? "Submitting…" : "Sign and submit financing request"}
+              <button disabled={busy || !signerEmail} onClick={beginDocumentSigning}>
+                {busy ? "Preparing…" : flow?.documentSigning ? "Open signing form" : "Sign now"}
               </button>
             </div>
           </Card>
