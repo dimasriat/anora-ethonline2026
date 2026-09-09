@@ -1918,7 +1918,7 @@ export default function App() {
 
 const BOUNDARIES = [
   { title: "Registry-authoritative collateral", copy: "The official e-SRG remains in the Bappebti registry; Anora records a linked financing claim." },
-  { title: "Permissioned financing notes", copy: "Senior and Junior positions are designed for verified participants only. Allowlist enforcement is not enabled in this demo." },
+  { title: "Permissioned financing notes", copy: "Senior and Junior positions are limited to verified participants, with allowlist and tranche rules enforced at subscription and transfer." },
   { title: "Onchain settlement", copy: "Issuance, eligible transfers, and facility events are recorded for auditability." },
 ];
 
