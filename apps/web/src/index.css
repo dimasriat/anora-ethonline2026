@@ -72,6 +72,8 @@ h1, h2, h3, h4 { font-weight: 700; }
 .access-panel fieldset { margin: 0; padding: 0; border: 0; }
 .access-panel legend { margin-bottom: 14px; font-weight: 750; }
 .role-option { display: grid; grid-template-columns: 22px 1fr; gap: 14px; padding: 20px 4px; border-top: 1px solid var(--line); cursor: pointer; }
+.role-option:hover { background: var(--bg); }
+.role-option:has(input:checked) { margin-inline: -12px; padding-inline: 16px; background: var(--accent-soft); box-shadow: inset 3px 0 var(--accent-dark); }
 .role-option input { margin-top: 4px; accent-color: var(--public-accent); }
 .role-option span { display: flex; flex-direction: column; }
 .role-option small { margin-top: 5px; color: var(--muted); }
