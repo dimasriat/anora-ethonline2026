@@ -30,7 +30,29 @@ export function resolveChecker(): { checker: EligibilityChecker; live: boolean }
 export function resolvePorts(): Ports {
   const base = mockPorts();
   const ports = { ...base };
-  const rewrite = new Map<string, { mode: "live" | "testnet"; because: string }>();
+  const rewrite = new Map<string, { mode: "live" | "testnet" | "simulated"; because: string }>();
+
+  if (process.env.ADAPTER_PROOF === "demo") {
+    ports.proof = {
+      async prove() {
+        return {
+          proofHex: "0xdemo",
+          publicInputs: [],
+          nullifier: "0xdemo-nullifier",
+          checks: [
+            { label: "Receipt is valid and the holder is authorized", pass: true },
+            { label: "Lot total matches the warehouse quantity", pass: true },
+            { label: "LTV is within policy", pass: true },
+            { label: "Term is within policy", pass: true },
+            { label: "Mandate hash matches", pass: true },
+            { label: "Receipt has not been financed in this round", pass: true },
+          ],
+        };
+      },
+      async verifyOnChain() { return { ok: true, gasUsed: 2_390_842 }; },
+    };
+    rewrite.set("proof", { mode: "simulated", because: "Deterministic local demo proof" });
+  }
 
   if (process.env.ADAPTER_PROOF === "live") {
     ports.proof = liveProofEngine(deployed.HonkVerifier, RPC_URL);
