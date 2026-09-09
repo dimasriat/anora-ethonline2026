@@ -67,6 +67,42 @@ export const INVESTORS: Investor[] = [
     allowlisted: false,
     standing: "KYB incomplete · beneficial ownership unverified",
   },
+  {
+    id: "INV-NFO", address: "0x00000000000000000000000000000000000000F1", name: "Nusantara Family Office",
+    capitalType: "Family office", riskProfile: "Balanced income; accepts measured first-loss exposure",
+    mandate: ["SENIOR", "JUNIOR"], ticketIdr: { min: 20_000_000, max: 150_000_000 },
+    allowlisted: true, standing: "KYB verified · investment committee mandate on file",
+  },
+  {
+    id: "INV-JFS", address: "0x00000000000000000000000000000000000000F2", name: "Jabar Food Security Fund",
+    capitalType: "Regional enterprise treasury", riskProfile: "Capital-preserving; food security assets only",
+    mandate: ["SENIOR"], ticketIdr: { min: 40_000_000, max: 220_000_000 },
+    allowlisted: true, standing: "KYB verified · treasury resolution on file",
+  },
+  {
+    id: "INV-STF", address: "0x00000000000000000000000000000000000000F3", name: "Sahabat Tani Funding",
+    capitalType: "Licensed fintech treasury", riskProfile: "Diversified yield; accepts capped junior exposure",
+    mandate: ["SENIOR", "JUNIOR"], ticketIdr: { min: 5_000_000, max: 80_000_000 },
+    allowlisted: true, standing: "KYB verified · lender policy approved",
+  },
+  {
+    id: "INV-BCT", address: "0x00000000000000000000000000000000000000F4", name: "Banyan Commodity Traders",
+    capitalType: "Commodity buyer working capital", riskProfile: "Strategic inventory exposure; flexible across tranches",
+    mandate: ["SENIOR", "JUNIOR"], ticketIdr: { min: 15_000_000, max: 120_000_000 },
+    allowlisted: true, standing: "KYB verified · trade mandate on file",
+  },
+  {
+    id: "INV-RPR", address: "0x00000000000000000000000000000000000000F5", name: "Raka Pranoto",
+    capitalType: "Qualified individual participant", riskProfile: "Growth-oriented; limited first-loss allocation",
+    mandate: ["JUNIOR"], ticketIdr: { min: 5_000_000, max: 35_000_000 },
+    allowlisted: true, standing: "Identity and source-of-funds checks complete",
+  },
+  {
+    id: "INV-RKN", address: "0x00000000000000000000000000000000000000F6", name: "Ritel Kolektif Nusantara",
+    capitalType: "Investment cooperative", riskProfile: "Member income strategy; senior exposure only",
+    mandate: ["SENIOR"], ticketIdr: { min: 10_000_000, max: 90_000_000 },
+    allowlisted: false, standing: "Cooperative resolution awaiting review",
+  },
 ];
 
 export const investorById = (id: string): Investor | undefined =>
