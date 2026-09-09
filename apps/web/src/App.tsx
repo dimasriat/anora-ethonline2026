@@ -13,6 +13,11 @@ const ROLE_ACCESS: Record<Role, { summary: string; detail: string }> = {
   "Capital Provider": { summary: "Fund approved note positions.", detail: "For banks and qualified investors allocating capital to structured facilities." },
   "Facility Agent": { summary: "Review controls and settlement.", detail: "For authorized operators and reviewers administering each facility." },
 };
+const ROLE_ICONS: Record<Role, string> = {
+  Borrower: "M3 21V8l9-5 9 5v13H3Zm4 0V11h10v10M7 15h10M7 18h10",
+  "Capital Provider": "M3 21h18M3 7l9-5 9 5H3Zm3 3v7m6-7v7m6-7v7M3 17h18",
+  "Facility Agent": "M12 2 3 6v6c0 5 9 10 9 10s9-5 9-10V6l-9-4Zm-4 10 3 3 5-6",
+};
 const WORKSPACE_META: Record<Role, { title: string; summary: string; metrics: [string, string][] }> = {
   Borrower: {
     title: "Finance eligible inventory",
@@ -375,10 +380,11 @@ function AccessPage({ role, onRole, onEnter, onBack }: {
         <header className="access-intro"><span className="access-kicker">Secure access</span><h1>Choose how you use Anora.</h1><p>Privy verifies your email or wallet identity. Your workspace role determines what you can review and act on.</p><img className="access-figure" src="/anora-tea-warehouse.jpg" width="900" height="618" alt="Made tea stored in a licensed warehouse." /></header>
         <form className="access-panel" onSubmit={(event) => { event.preventDefault(); onEnter(); }}>
           <fieldset><legend>Continue as</legend>
-            {ROLES.map((item) => <label className="role-option" key={item}><input type="radio" name="role" checked={role === item} onChange={() => onRole(item)} /><span><strong>{item}</strong><span>{ROLE_ACCESS[item].summary}</span><small>{ROLE_ACCESS[item].detail}</small></span></label>)}
+            {ROLES.map((item) => <label className="role-option" key={item}><input type="radio" name="role" checked={role === item} onChange={() => onRole(item)} /><svg className="role-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={ROLE_ICONS[item]} /></svg><span><strong>{item}</strong><span>{ROLE_ACCESS[item].summary}</span><small>{ROLE_ACCESS[item].detail}</small></span></label>)}
           </fieldset>
           <button className="public-primary access-submit" type="submit">Continue with Privy <small>Demo</small></button>
           <p className="access-note"><strong>Identity is not institutional authorization.</strong> Production access requires KYB plus a director mandate, power of attorney, or cooperative resolution.</p>
+          <div className="access-assurance" aria-label="Access safeguards"><span>Encrypted sign-in</span><span>Role-scoped actions</span><span>Audit-ready records</span></div>
         </form>
       </main>
     </div>
