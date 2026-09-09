@@ -269,11 +269,11 @@ function LandingPage({ onEnter, onHow }: { onEnter: (role?: Role) => void; onHow
 
 function HowItWorksPage({ onEnter, onBack }: { onEnter: (role?: Role) => void; onBack: () => void }) {
   const steps = [
-    ["Verify the official e-SRG", "The borrower connects an eligible receipt. The facility agent checks the registry record, ownership, expiry, insurance, and existing security rights.", "Borrower + Facility Agent"],
-    ["Complete evidence and signatures", "The borrower reviews and signs the financing mandate and registry consent. Production access also requires KYB and organizational authorization.", "Borrower"],
-    ["Approve and structure the facility", "The facility agent approves one set of terms linked to permissioned Senior and Junior financing-note positions.", "Facility Agent"],
-    ["Subscribe and settle", "Capital providers choose a tranche. Registry confirmation gates note activation and disbursement.", "Capital Provider + Facility Agent"],
-    ["Repay, release, or enforce", "Repayment follows the agreed waterfall before the security right is released.", "Facility Agent"],
+    ["Verify the official e-SRG", "The borrower connects an eligible receipt. The facility agent checks the registry record, warehouse, ownership, expiry, insurance, and existing security rights.", "Borrower + Facility Agent"],
+    ["Complete evidence and signatures", "The borrower reviews, fills, and signs the financing mandate and registry consent through DocuSeal. Production access also requires KYB and organizational authorization.", "Borrower"],
+    ["Approve and structure the facility", "The facility agent approves one set of terms. Anora links the facility to permissioned Senior and Junior financing-note positions; the tea title stays off-chain.", "Facility Agent"],
+    ["Subscribe and settle", "Capital providers choose a tranche position. Registry confirmation gates note activation and disbursement, so funding cannot precede collateral control.", "Capital Provider + Facility Agent"],
+    ["Repay, release, or enforce", "Repayment follows the agreed waterfall before the security right is released. On default, the authorized party follows the signed enforcement process.", "Facility Agent"],
   ];
   return (
     <div className="public-page">
@@ -294,10 +294,10 @@ function HowItWorksPage({ onEnter, onBack }: { onEnter: (role?: Role) => void; o
           ))}
         </section>
         <section className="boundary-note">
-          <h2>Anora tokenizes the financing claim—not the tea title.</h2>
-          <p>The e-SRG and its registered security control remain authoritative in the regulated registry.</p>
+          <div><span className="access-kicker">Product boundary</span><h2>Anora tokenizes the financing claim—not the tea title.</h2></div>
+          <p>The e-SRG and its registered security control remain authoritative in the regulated registry. Note holders receive contractual economic rights subject to eligibility and transfer restrictions.</p>
         </section>
-        <div className="hero-actions">
+        <div className="hero-actions page-actions">
           <button className="public-primary" type="button" onClick={() => onEnter()}>Open Anora</button>
           <button className="public-secondary" type="button" onClick={onBack}>Back to overview</button>
         </div>
