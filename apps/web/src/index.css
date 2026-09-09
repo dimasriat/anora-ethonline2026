@@ -1,5 +1,6 @@
 :root {
   --bg: #f8f7f3;
+  --surface: #ffffff;
   --panel: #ffffff;
   --ink: #121720;
   --muted: #687182;
@@ -18,9 +19,12 @@
   --danger: #b42318;
   --danger-soft: #fff1f0;
   color-scheme: light;
+  font-synthesis: none;
 }
 
 * { box-sizing: border-box; }
+button, label, summary { -webkit-tap-highlight-color: transparent; }
+h1, h2, h3, h4 { font-weight: 700; }
 
 .public-page { --public-accent: #ef5b0c; min-height: 100vh; background: #fdfcf9; font-family: Inter, Arial, sans-serif; }
 .public-header { display: grid; grid-template-columns: 180px 1fr 180px; align-items: center; min-height: 98px; padding: 0 48px; border-bottom: 1px solid var(--line); }
