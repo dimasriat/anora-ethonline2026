@@ -328,6 +328,8 @@ nav .role-label {
   main { padding-top: 28px; }
   .workflow-progress { margin-inline: -16px; padding-inline: 16px; }
   .receipts li, .facility-row, .officer { align-items: flex-start; flex-direction: column; }
+  .facility-row span.facility-row-meta { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; }
+  .receipt-title { width: 100%; flex-direction: row; align-items: center; justify-content: space-between; }
   .receipts button, .officer button { width: 100%; }
 }
 
