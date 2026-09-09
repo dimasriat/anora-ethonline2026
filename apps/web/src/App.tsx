@@ -145,7 +145,15 @@ export function App() {
             </div>
             <dl>
               {WORKSPACE_META[role].metrics.map(([label, value]) => (
-                <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
+                <div key={label}>
+                  <dt>
+                    {label}
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                      <path d="M4 19V9m8 10V5m8 14v-7M2 19h20" />
+                    </svg>
+                  </dt>
+                  <dd>{value}</dd>
+                </div>
               ))}
             </dl>
           </section>
