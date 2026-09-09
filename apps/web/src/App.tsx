@@ -613,10 +613,13 @@ function Subscribe({ flow, investors, busy, enabled, onSubscribe }: {
 function Capabilities({ rows }: { rows: CapabilityStatus[] }) {
   return (
     <div className="panel">
-      <h3>What is real</h3>
+      <header className="capability-heading">
+        <div><p className="eyebrow">Environment</p><h3>What is real</h3></div>
+        <span>{rows.length} capabilities</span>
+      </header>
       {rows.map((r) => (
         <div key={r.capability} className="capability">
-          <span className={`badge ${r.mode}`}>{r.mode}</span>
+          <span className={`badge ${r.mode}`}><i aria-hidden="true" />{r.mode}</span>
           <div>
             <strong>{r.capability}</strong>
             <small>{r.because}</small>
