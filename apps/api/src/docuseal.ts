@@ -9,8 +9,6 @@ export type DocuSealSubmission = {
 
 export type DocuSealCreateInput = {
   requestId: string;
-  receiptId: string;
-  requestedIdr: number;
 };
 
 export type DocuSealClient = {
@@ -56,10 +54,6 @@ export function makeDocuSealClient(config: Config, fetcher: Fetcher = fetch): Do
             role: config.signerRole,
             external_id: input.requestId,
             metadata: { request_id: input.requestId },
-            fields: [
-              { name: "Receipt ID", default_value: input.receiptId, readonly: true },
-              { name: "Requested financing", default_value: String(input.requestedIdr), readonly: true },
-            ],
           }],
         }),
       });

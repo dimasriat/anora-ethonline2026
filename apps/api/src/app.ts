@@ -137,8 +137,6 @@ export function makeApp(
     if (state.documentSigning) return c.json(state);
     const submission = await docuseal.client.createSubmission({
       requestId: state.request.id,
-      receiptId: state.request.esrgId,
-      requestedIdr: state.request.requestedIdr,
     });
     return c.json(flow.beginDocumentSigning(id(c), submission), 201);
   });
