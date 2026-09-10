@@ -72,6 +72,15 @@ Open `http://127.0.0.1:3334/`. The demo API runs the complete role workflow
 without Hedera or identity credentials. The normal `start` and `dev:api`
 commands continue to use the repository's configured adapters.
 
+## DocuSeal signing
+
+Copy `.env.example` to `.env`, add the DocuSeal Cloud API key, verified template
+ID, and webhook secret, then configure DocuSeal to send `submission.completed`
+to the public `/api/webhooks/docuseal` endpoint. The backend creates an
+individual `/s/{slug}` signing session and only unlocks Compliance review after
+the signed webhook passes `X-Docuseal-Signature` verification. The existing
+shared `/d/Awg1hAT1aLHFsQ` URL identifies the form, not its numeric template ID.
+
 ## Provenance
 
 This repository was started on 6 September 2026 and all code in it is written
