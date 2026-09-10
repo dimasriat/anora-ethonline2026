@@ -1,6 +1,7 @@
 import { makeApp } from "./app";
 import { resolveChecker, resolvePorts } from "./ports";
 import { openAuthenticator, privyAuthenticator } from "./auth";
+import { resolveDocuSeal } from "./docuseal";
 
 const port = Number(process.env.PORT ?? 3333);
 console.log(`anora listening on 127.0.0.1:${port}`);
@@ -11,5 +12,5 @@ const authenticate = appId ? privyAuthenticator(appId) : openAuthenticator;
 export default {
   port,
   hostname: "127.0.0.1",
-  fetch: makeApp(resolvePorts(), authenticate, resolveChecker().checker).fetch,
+  fetch: makeApp(resolvePorts(), authenticate, resolveChecker().checker, resolveDocuSeal(process.env)).fetch,
 };

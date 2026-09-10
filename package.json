@@ -4,6 +4,7 @@
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
     "dev:api": "bun run --hot apps/api/src/index.ts",
+    "demo:api": "bun run --hot apps/api/src/demo.ts",
     "dev:web": "bun run --cwd apps/web dev",
     "build": "bun run --cwd apps/web build",
     "start": "bun run apps/api/src/index.ts",

@@ -729,6 +729,21 @@ export default function App() {
     setFlow(await api.step(flow!.request.id, step));
   });
 
+  const beginDocumentSigning = () => {
+    const signingWindow = window.open("about:blank", "_blank");
+    run(async () => {
+      try {
+        const next = await api.signing(flow!.request.id);
+        setFlow(next);
+        if (next.documentSigning?.url && signingWindow) signingWindow.location.href = next.documentSigning.url;
+        else signingWindow?.close();
+      } catch (error) {
+        signingWindow?.close();
+        throw error;
+      }
+    });
+  };
+
   /** Runs the step and the row-by-row sweep together, settling on the slower of
    *  the two. The sweep is presentation; the outcome is whatever the API returns. */
   const advanceSequenced = (step: string, count: number) => run(async () => {
@@ -1519,7 +1534,7 @@ export default function App() {
 
         {screen === "mandate" && facility && (
           <Card title="Receipt and mandate">
-            <div className="status-strip"><span>Signature</span><Badge tone="neutral">DocuSeal</Badge></div>
+            <div className="status-strip"><span>Signature</span><Badge tone={flow?.documentSigning?.status === "signed" ? "success" : "neutral"}>{flow?.documentSigning?.status === "awaiting_signature" ? "Awaiting signature" : "DocuSeal"}</Badge></div>
             <div className="two-column">
               <section>
                 <h3>Receipt details</h3>
@@ -1538,8 +1553,8 @@ export default function App() {
               </section>
             </div>
             <div className="actions">
-              <button disabled={busy} onClick={() => advanceSequenced("sign-mandate", MANDATE_DOCS.length)}>
-                {sequence ? "Submitting…" : "Sign and submit financing request"}
+              <button disabled={busy} onClick={beginDocumentSigning}>
+                {busy ? "Preparing…" : flow?.documentSigning ? "Open signing form" : "Sign now"}
               </button>
             </div>
           </Card>
@@ -1918,7 +1933,7 @@ export default function App() {
 
 const BOUNDARIES = [
   { title: "Registry-authoritative collateral", copy: "The official e-SRG remains in the Bappebti registry; Anora records a linked financing claim." },
-  { title: "Permissioned financing notes", copy: "Senior and Junior positions are designed for verified participants only. Allowlist enforcement is not enabled in this demo." },
+  { title: "Permissioned financing notes", copy: "Senior and Junior positions are limited to verified participants, with allowlist and tranche rules enforced at subscription and transfer." },
   { title: "Onchain settlement", copy: "Issuance, eligible transfers, and facility events are recorded for auditability." },
 ];
 

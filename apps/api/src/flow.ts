@@ -9,6 +9,7 @@ import type {
 import { FlowError } from "./errors";
 import { investorById } from "./adapters/mock/investors";
 import { OFFICERS, QUORUM_THRESHOLD } from "./adapters/mock/wallet";
+import type { DocuSealSubmission } from "./docuseal";
 
 export type HistoryEntry = {
   at: string;
@@ -17,14 +18,35 @@ export type HistoryEntry = {
   note: string;
 };
 
+export type NoteTransfer = {
+  id: string;
+  fromInvestorId: string;
+  toInvestorId: string;
+  tranche: TrancheName;
+  unitsIdr: number;
+  at: string;
+};
+
 export type FlowState = {
   ownerId: string;
   request: FinancingRequest;
   facility: Facility;
   subscriptions: Subscription[];
+  transfers: NoteTransfer[];
+  controls: { paused: boolean; frozenInvestorIds: string[] };
   orgWallet?: OrgWallet;
   mandateApprovals: string[];
   mandateSignature?: string;
+  documentSigning?: {
+    status: "awaiting_signature" | "signed" | "declined" | "expired";
+    submissionId: number;
+    submitterId: number;
+    slug: string;
+    url: string;
+    completedAt?: string;
+    documentUrl?: string;
+    auditLogUrl?: string;
+  };
   note?: NoteToken;
   proof?: Omit<EligibilityProof, "proofHex">;
   onChain?: { ok: boolean; gasUsed?: number };
@@ -156,6 +178,8 @@ export function makeFlow(ports: Ports) {
         },
         facility,
         subscriptions: [],
+        transfers: [],
+        controls: { paused: false, frozenInvestorIds: [] },
         mandateApprovals: [],
         history: [],
       };
@@ -193,6 +217,26 @@ export function makeFlow(ports: Ports) {
       );
       stamp(state, "mandate_signed", "cooperative",
         `Quorum reached (${state.mandateApprovals.length}/${state.orgWallet.threshold}); mandate signed`);
+      return state;
+    },
+
+    beginDocumentSigning(id: string, submission: DocuSealSubmission): FlowState {
+      const state = must(id);
+      gate(state, "draft", "Starting document signing");
+      if (state.documentSigning) return state;
+      state.documentSigning = { ...submission, status: "awaiting_signature" };
+      state.history.push({ at: new Date().toISOString(), step: "draft", by: "borrower", note: `DocuSeal submission ${submission.submissionId} created` });
+      return state;
+    },
+
+    completeDocumentSigning(submissionId: number, completedAt: string, documentUrl?: string, auditLogUrl?: string): FlowState | null {
+      const state = [...states.values()].find((item) => item.documentSigning?.submissionId === submissionId);
+      if (!state?.documentSigning) return null;
+      if (state.documentSigning.status === "signed") return state;
+      gate(state, "draft", "Completing document signing");
+      state.documentSigning = { ...state.documentSigning, status: "signed", completedAt, documentUrl, auditLogUrl };
+      state.mandateSignature = `docuseal:${submissionId}`;
+      stamp(state, "mandate_signed", "borrower", `DocuSeal submission ${submissionId} completed`);
       return state;
     },
 
@@ -332,6 +376,11 @@ export function makeFlow(ports: Ports) {
           current: state.request.status,
         });
       }
+      if (to === "draft") {
+        state.documentSigning = undefined;
+        state.mandateSignature = undefined;
+        state.mandateApprovals = [];
+      }
       stamp(state, to, "system", `Rewound to ${to}`);
       return state;
     },
@@ -346,6 +395,69 @@ export function makeFlow(ports: Ports) {
         tranche: t.name,
         remainingIdr: remainingCapacityIdr(t, state.subscriptions),
       }));
+    },
+
+    positions(id: string): { investorId: string; tranche: TrancheName; unitsIdr: number }[] {
+      const state = must(id);
+      const book = new Map<string, { investorId: string; tranche: TrancheName; unitsIdr: number }>();
+      const move = (investorId: string, tranche: TrancheName, unitsIdr: number) => {
+        const key = `${investorId}:${tranche}`;
+        const position = book.get(key) ?? { investorId, tranche, unitsIdr: 0 };
+        position.unitsIdr += unitsIdr;
+        book.set(key, position);
+      };
+      for (const item of state.subscriptions) move(item.investorId, item.tranche, item.unitsIdr);
+      for (const item of state.transfers) {
+        move(item.fromInvestorId, item.tranche, -item.unitsIdr);
+        move(item.toInvestorId, item.tranche, item.unitsIdr);
+      }
+      return [...book.values()].filter((item) => item.unitsIdr > 0);
+    },
+
+    transfer(id: string, fromInvestorId: string, toInvestorId: string, tranche: TrancheName, unitsIdr: number): FlowState {
+      const state = must(id);
+      gate(state, "funded", "Transferring");
+      if (state.controls.paused) throw new FlowError("step_out_of_order", "Transfers are paused");
+      const from = investorById(fromInvestorId);
+      const to = investorById(toInvestorId);
+      if (!from || !to) throw new FlowError("unknown_investor", "Unknown transfer participant");
+      if (fromInvestorId === toInvestorId) throw new FlowError("unknown_investor", "Sender and recipient must differ");
+      if (state.controls.frozenInvestorIds.includes(fromInvestorId) || state.controls.frozenInvestorIds.includes(toInvestorId)) {
+        throw new FlowError("not_eligible", "Sender or recipient is frozen");
+      }
+      if (!to.allowlisted) throw new FlowError("not_eligible", `${to.name} is not allowlisted`);
+      if (!to.mandate.includes(tranche)) throw new FlowError("mandate_excludes_tranche", `${to.name} cannot hold ${tranche}`);
+      const held = this.positions(id).find((item) => item.investorId === fromInvestorId && item.tranche === tranche)?.unitsIdr ?? 0;
+      if (!Number.isFinite(unitsIdr) || unitsIdr <= 0 || unitsIdr > held) {
+        throw new FlowError("exceeds_remaining_capacity", `${from.name} holds ${held} ${tranche} units`);
+      }
+      state.transfers.push({ id: `TRF-${state.transfers.length + 1}`, fromInvestorId, toInvestorId, tranche, unitsIdr, at: new Date().toISOString() });
+      state.history.push({ at: new Date().toISOString(), step: state.request.status, by: "capital provider", note: `${unitsIdr} ${tranche} units transferred from ${from.name} to ${to.name}` });
+      return state;
+    },
+
+    pause(id: string, paused: boolean): FlowState {
+      const state = must(id);
+      gate(state, "funded", "Changing transfer controls");
+      state.controls.paused = paused;
+      state.history.push({ at: new Date().toISOString(), step: state.request.status, by: "facility agent", note: paused ? "Transfers paused" : "Transfers resumed" });
+      return state;
+    },
+
+    freeze(id: string, investorId: string, frozen: boolean): FlowState {
+      const state = must(id);
+      gate(state, "funded", "Changing holder controls");
+      if (!investorById(investorId)) throw new FlowError("unknown_investor", `unknown investor: ${investorId}`);
+      state.controls.frozenInvestorIds = frozen
+        ? [...new Set([...state.controls.frozenInvestorIds, investorId])]
+        : state.controls.frozenInvestorIds.filter((id) => id !== investorId);
+      state.history.push({ at: new Date().toISOString(), step: state.request.status, by: "facility agent", note: frozen ? `${investorId} frozen` : `${investorId} unfrozen` });
+      return state;
+    },
+
+    reset(): void {
+      states.clear();
+      sequence = 0;
     },
   };
 }

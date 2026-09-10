@@ -7,7 +7,7 @@ async function call(path: string, method = "GET", body?: unknown) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const d = await r.json();
-  if (!r.ok) throw new Error(d.error ?? "Request failed. Please try again.");
+  if (!r.ok) throw new Error(typeof d.error === "string" ? d.error : d.error?.message ?? "Request failed. Please try again.");
   return d;
 }
 
@@ -45,6 +45,11 @@ export type Flow = {
   subscriptions: Subscription[];
   transfers: NoteTransfer[];
   controls: { paused: boolean; frozenInvestorIds: string[] };
+  documentSigning?: {
+    status: "awaiting_signature" | "signed" | "declined" | "expired";
+    submissionId: number; submitterId: number; slug: string; url: string;
+    completedAt?: string; documentUrl?: string; auditLogUrl?: string;
+  };
   settlement?: { cashReceivedIdr: number; costsIdr: number; availableIdr: number; seniorPaidIdr: number; juniorPaidIdr: number; seniorLossIdr: number; juniorLossIdr: number };
   registryRef?: string;
   history: { at: string; step: string; by: string; note: string }[];
@@ -91,8 +96,20 @@ export type IntakeOptions = { entityTypes: string[]; representativeRoles: string
 export type IntakeView = { state: IntakeState; options: IntakeOptions };
 
 export type Mode = {
-  adapters: { capability: string; mode: "live" | "simulated" }[];
+  adapters: { capability: string; mode: "live" | "testnet" | "simulated" | "planned" }[];
 };
+
+const normalizeFlow = (raw: Flow & {
+  request: Flow["request"] & { status?: string };
+  onChain?: Flow["onchain"];
+}): Flow => ({
+  ...raw,
+  step: raw.step ?? raw.request.status ?? "draft",
+  onchain: raw.onchain ?? raw.onChain,
+  transfers: raw.transfers ?? [],
+  controls: raw.controls ?? { paused: false, frozenInvestorIds: [] },
+  subscriptions: (raw.subscriptions ?? []).map((item) => ({ ...item, purchasePriceIdr: item.purchasePriceIdr ?? item.unitsIdr })),
+});
 
 export const api = {
   mode: () => call("/mode") as Promise<Mode>,
@@ -100,9 +117,16 @@ export const api = {
   note: () => call("/note") as Promise<Note>,
   chain: (esrgId: string) => call(`/chain/${esrgId}`) as Promise<Chain>,
   esrgs: () => call("/esrg") as Promise<ESrg[]>,
-  requests: () => call("/requests") as Promise<Flow[]>,
-  create: (esrgId: string) => call("/requests", "POST", { esrgId }) as Promise<Flow>,
-  step: (id: string, s: string) => call(`/requests/${id}/${s}`, "POST") as Promise<Flow>,
+  requests: async () => (await call("/requests") as Flow[]).map(normalizeFlow),
+  create: async (esrgId: string) => normalizeFlow(await call("/requests", "POST", { esrgId })),
+  signing: (id: string) => call(`/requests/${id}/signing`, "POST").then(normalizeFlow),
+  step: async (id: string, s: string) => {
+    if (s === "sign-mandate") {
+      await call(`/requests/${id}/approve-mandate`, "POST", { officerId: "OFF-1" });
+      return normalizeFlow(await call(`/requests/${id}/approve-mandate`, "POST", { officerId: "OFF-2" }));
+    }
+    return normalizeFlow(await call(`/requests/${id}/${s}`, "POST"));
+  },
   reset: () => call("/reset", "POST") as Promise<{ ok: true }>,
   intake: () => call("/intake") as Promise<IntakeView>,
   intakeAct: (role: string, action: IntakeAction) => call("/intake", "POST", { role, action }) as Promise<IntakeView>,
@@ -110,10 +134,10 @@ export const api = {
   tranches: (id: string) => call(`/requests/${id}/tranches`) as Promise<Band[]>,
   positions: (id: string) => call(`/requests/${id}/positions`) as Promise<Position[]>,
   subscribe: (id: string, body: { investorId: string; tranche: TrancheName; unitsIdr: number }) =>
-    call(`/requests/${id}/subscribe`, "POST", body) as Promise<Flow>,
+    call(`/requests/${id}/subscribe`, "POST", body).then(normalizeFlow),
   transfer: (id: string, body: {
     fromInvestorId: string; toInvestorId: string; tranche: TrancheName; unitsIdr: number;
-  }) => call(`/requests/${id}/transfer`, "POST", body) as Promise<Flow>,
-  pause: (id: string, paused: boolean) => call(`/requests/${id}/pause`, "POST", { paused }) as Promise<Flow>,
-  freeze: (id: string, investorId: string, frozen: boolean) => call(`/requests/${id}/freeze`, "POST", { investorId, frozen }) as Promise<Flow>,
+  }) => call(`/requests/${id}/transfer`, "POST", body).then(normalizeFlow),
+  pause: (id: string, paused: boolean) => call(`/requests/${id}/pause`, "POST", { paused }).then(normalizeFlow),
+  freeze: (id: string, investorId: string, frozen: boolean) => call(`/requests/${id}/freeze`, "POST", { investorId, frozen }).then(normalizeFlow),
 };
