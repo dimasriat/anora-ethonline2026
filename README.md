@@ -60,6 +60,18 @@ what the project is, not what is finished. Every component is labelled live,
 testnet, simulated, or planned as it lands — see `docs/STATUS.md` once the first
 integrations are in.
 
+## Run the local demo
+
+```bash
+bun install
+bun run demo:api
+bun run dev:web -- --port 3334
+```
+
+Open `http://127.0.0.1:3334/`. The demo API runs the complete role workflow
+without Hedera or identity credentials. The normal `start` and `dev:api`
+commands continue to use the repository's configured adapters.
+
 ## Provenance
 
 This repository was started on 6 September 2026 and all code in it is written

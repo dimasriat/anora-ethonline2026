@@ -7,6 +7,7 @@ import { FACILITIES_PER_OWNER, makeFlow } from "./flow";
 import { FlowError, STATUS_FOR } from "./errors";
 import { INVESTORS } from "./adapters/mock/investors";
 import { OFFICERS } from "./adapters/mock/wallet";
+import { applyIntake, intakeView, resetIntake, type IntakeAction } from "./intake";
 
 export function makeApp(ports: Ports, authenticate: Authenticator, checker: EligibilityChecker) {
   const flow = makeFlow(ports);
@@ -36,9 +37,18 @@ export function makeApp(ports: Ports, authenticate: Authenticator, checker: Elig
 
   app.get("/api/health", (c) => c.json({ ok: true }));
   app.get("/api/status", (c) => c.json(ports.status()));
+  app.get("/api/mode", (c) => c.json({ adapters: ports.status() }));
   app.get("/api/investors", (c) => c.json(INVESTORS));
 
   app.get("/api/esrg", async (c) => c.json(await ports.esrg.list()));
+  app.get("/api/intake", (c) => c.json(intakeView()));
+  app.post("/api/intake", async (c) => {
+    const body: { role?: string; action?: IntakeAction } = await c.req.json().catch(() => ({}));
+    if (!body.action) throw new FlowError("unknown_request", "intake action is required");
+    const receiptId = "receiptId" in body.action ? body.action.receiptId : undefined;
+    const receipt = receiptId ? await ports.esrg.get(receiptId) : null;
+    return c.json(applyIntake(body.role ?? "", body.action, receipt));
+  });
 
   app.get("/api/me", async (c) => {
     const { userId } = await callerOf(c);
@@ -88,7 +98,18 @@ export function makeApp(ports: Ports, authenticate: Authenticator, checker: Elig
   });
   app.get("/api/requests/:id/tranches", async (c) => {
     await ownedBy(c, id(c));
-    return c.json(flow.tranches(id(c)));
+    const state = flow.get(id(c), (await callerOf(c)).userId)!;
+    return c.json(flow.tranches(id(c)).map((terms) => ({
+      ...terms,
+      subscribedIdr: state.subscriptions
+        .filter((item) => item.tranche === terms.name)
+        .reduce((sum, item) => sum + item.unitsIdr, 0),
+      purchasePriceIdr: 0,
+    })));
+  });
+  app.get("/api/requests/:id/positions", async (c) => {
+    await ownedBy(c, id(c));
+    return c.json(flow.positions(id(c)));
   });
   app.get("/api/requests/:id/remaining", async (c) => {
     await ownedBy(c, id(c));
@@ -147,6 +168,30 @@ export function makeApp(ports: Ports, authenticate: Authenticator, checker: Elig
       throw new FlowError("mandate_excludes_tranche", "tranche must be SENIOR or JUNIOR");
     }
     return c.json(await flow.subscribe(id(c), body.investorId, body.tranche, Number(body.unitsIdr)));
+  });
+  app.post("/api/requests/:id/transfer", async (c) => {
+    await ownedBy(c, id(c));
+    const body: { fromInvestorId?: string; toInvestorId?: string; tranche?: TrancheName; unitsIdr?: number } = await c.req.json();
+    if (!body.fromInvestorId || !body.toInvestorId || (body.tranche !== "SENIOR" && body.tranche !== "JUNIOR")) {
+      throw new FlowError("unknown_investor", "A sender, recipient, and tranche are required");
+    }
+    return c.json(flow.transfer(id(c), body.fromInvestorId, body.toInvestorId, body.tranche, Number(body.unitsIdr)));
+  });
+  app.post("/api/requests/:id/pause", async (c) => {
+    await ownedBy(c, id(c));
+    const body: { paused?: boolean } = await c.req.json();
+    return c.json(flow.pause(id(c), Boolean(body.paused)));
+  });
+  app.post("/api/requests/:id/freeze", async (c) => {
+    await ownedBy(c, id(c));
+    const body: { investorId?: string; frozen?: boolean } = await c.req.json();
+    if (!body.investorId) throw new FlowError("unknown_investor", "investorId is required");
+    return c.json(flow.freeze(id(c), body.investorId, Boolean(body.frozen)));
+  });
+  app.post("/api/reset", (c) => {
+    flow.reset();
+    resetIntake();
+    return c.json({ ok: true as const });
   });
 
   const built = "./apps/web/dist";
