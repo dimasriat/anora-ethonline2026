@@ -25,6 +25,16 @@ export function demoChecker(): EligibilityChecker {
       return session;
     },
     read: (id) => sessions.get(id) ?? null,
-    credentialOf: (ownerId) => credentials.get(ownerId) ?? null,
+    credentialOf(ownerId) {
+      const held = credentials.get(ownerId);
+      if (held) return held;
+      const granted: Credential = {
+        nullifierHash: `0xdemo-${ownerId}`,
+        verifiedAt: new Date().toISOString(),
+        method: "selfie-check",
+      };
+      credentials.set(ownerId, granted);
+      return granted;
+    },
   };
 }

@@ -19,8 +19,10 @@ describe("demoChecker", () => {
     expect(session.connectorURI).toBe("");
   });
 
-  it("knows nothing about anyone who never opened a session", () => {
-    expect(demoChecker().credentialOf("did:privy:stranger")).toBeNull();
+  it("grants to anyone, because no check ever runs", () => {
+    const credential = demoChecker().credentialOf("did:privy:stranger");
+    expect(credential?.method).toBe("selfie-check");
+    expect(credential?.nullifierHash).toMatch(/^0xdemo/);
   });
 
   it("reads a session back by id", async () => {
