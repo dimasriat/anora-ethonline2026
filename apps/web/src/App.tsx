@@ -38,12 +38,12 @@ const SCREEN: Record<Screen, { actor: Role; eyebrow: string; title: string; summ
     title: "Sign the mandate",
   },
   review: {
-    actor: "Compliance",
+    actor: "Borrower",
     eyebrow: "Facility review",
     title: "Review the request",
   },
   proof: {
-    actor: "Compliance",
+    actor: "Borrower",
     eyebrow: "Private verification",
     title: "Verify eligibility",
   },
@@ -77,11 +77,16 @@ const ROLE_ICONS: Record<Role, string> = {
  *  the real ownership: SCREEN[].actor only describes whose concern the copy is. */
 const STEP_OWNER: Record<string, Role> = {
   draft: "Borrower",
-  mandate_signed: "Compliance",
-  approved: "Compliance",
+  /* Review and proof carry no decision, so they run from the borrower's own
+     page. These two entries are the retry owner when a run fails, not a queue
+     anyone waits in. */
+  mandate_signed: "Borrower",
+  approved: "Borrower",
+  /* The one step Compliance still holds: issuing the note mints a real ATS
+     token, and a person presses that. */
   proven: "Compliance",
   tokenized: "Capital Provider",
-  subscribed: "Compliance",
+  subscribed: "Capital Provider",
   funded: "Capital Provider",
   repaid: "Capital Provider",
 };
@@ -266,8 +271,8 @@ const JOURNEY: Record<Role, { label: string; hint: string; from: string }[]> = {
   Borrower: [
     { label: "Receipt", hint: "Select a receipt for review", from: "none" },
     { label: "Mandate", hint: "Review and sign", from: "draft" },
-    { label: "Compliance review", hint: "Documents, lien and eligibility checks", from: "mandate_signed" },
-    { label: "Note", hint: "Eligibility passed; Compliance issues note", from: "proven" },
+    { label: "Review and proof", hint: "Runs here, no approval to wait for", from: "mandate_signed" },
+    { label: "Note", hint: "Eligibility passed; Compliance issues the note", from: "proven" },
     { label: "Funded", hint: "Capital committed against your note", from: "tokenized" },
     { label: "Repayment", hint: "Track and release", from: "funded" },
   ],
@@ -280,12 +285,12 @@ const JOURNEY: Record<Role, { label: string; hint: string; from: string }[]> = {
     { label: "Cashflow", hint: "Track maturity proceeds", from: "funded" },
     { label: "Redemption", hint: "Return paid and units retired", from: "repaid" },
   ],
+  /* Compliance gates one step and supervises the rest. Review, eligibility and
+     settlement left this rail when they stopped being decisions. */
   "Compliance": [
-    { label: "Submission", hint: "Await borrower mandate", from: "none" },
-    { label: "Review", hint: "Check documents and lien", from: "mandate_signed" },
-    { label: "Eligibility", hint: "Run the private proof", from: "approved" },
-    { label: "Note", hint: "Create the draft", from: "proven" },
-    { label: "Settlement", hint: "Registry and release", from: "subscribed" },
+    { label: "Standby", hint: "Nothing waits on this desk", from: "none" },
+    { label: "Note", hint: "Issue the ATS note", from: "proven" },
+    { label: "Oversight", hint: "Controls, audit and distributions", from: "funded" },
   ],
 };
 
@@ -395,6 +400,8 @@ const ACTOR_COPY: Record<string, string> = {
 };
 
 const SEQ_STEP_MS = 260;
+/** Long enough to read the registry check that acceptance is re-asserting. */
+const RECEIPT_CHECK_MS = 1_600;
 
 const REVIEW_CHECKS = [
   "Receipt signature and document hash",
@@ -632,7 +639,9 @@ export default function App() {
   const intakeIds = Object.keys(intake?.receipts ?? {});
   const latestIntakeId = [...intakeIds].reverse().find(id => intake?.receipts[id] === "accepted") ?? intakeIds[intakeIds.length - 1];
   const facility = flowReceipt ?? selectedReceipt ?? esrgs.find(esrg => esrg.id === latestIntakeId) ?? null;
-  const stepOwner: Role = flow && !startingNew ? STEP_OWNER[flow.step] ?? "Borrower" : Object.values(intake?.receipts ?? {}).includes("proposed") && !acceptedReceipts.length ? "Compliance" : "Borrower";
+  /* A proposed receipt used to be Compliance's turn. It accepts itself now, so
+     the borrower is never told to go and wait on another desk. */
+  const stepOwner: Role = flow && !startingNew ? STEP_OWNER[flow.step] ?? "Borrower" : "Borrower";
   const screen: Screen = !flow || startingNew
     ? "pick"
     : STEP_SCREEN[flow.step] ?? "pick";
@@ -761,6 +770,10 @@ export default function App() {
   const proofChecks = flow?.proof?.checks ?? [];
   const proofCursor = useSequence(proofChecks.length, flow?.proof?.nullifier ?? "");
 
+  /** Which leg of the automatic run is on screen, so the two steps it passes
+   *  through show progress instead of a button nobody needs to press. */
+  const [autoStage, setAutoStage] = useState<null | "review" | "proof">(null);
+
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setErr(null);
@@ -778,6 +791,37 @@ export default function App() {
   const advance = (step: string) => run(async () => {
     setFlow(await api.step(flow!.request.id, step));
   });
+
+  /**
+   * Review and proof, run from wherever the mandate was signed.
+   *
+   * Neither step holds a decision: `approve` stamps evidence that the proof
+   * then checks, and the proof is a circuit. They were two workspace switches
+   * and four clicks for machine work, so they follow the signature instead.
+   *
+   * It stops at `proven` on purpose — issuing the note mints a real ATS token
+   * and stays a Compliance click. A failure leaves the facility at whatever
+   * step it reached, so the retry appears where the borrower already is.
+   */
+  const openTheBook = async (id: string) => {
+    try {
+      setAutoStage("review");
+      setSequence({ id: `approve-${Date.now()}`, count: REVIEW_CHECKS.length });
+      try {
+        const [reviewed] = await Promise.all([
+          api.step(id, "approve"),
+          new Promise((resolve) => setTimeout(resolve, REVIEW_CHECKS.length * SEQ_STEP_MS + 240)),
+        ]);
+        setFlow(reviewed);
+      } finally {
+        setSequence(null);
+      }
+      setAutoStage("proof");
+      setFlow(await api.step(id, "prove"));
+    } finally {
+      setAutoStage(null);
+    }
+  };
 
   /**
    * DocuSeal when it is configured; the officers' quorum when it is not.
@@ -798,7 +842,9 @@ export default function App() {
       } catch (error) {
         signingWindow?.close();
         if (!/docuseal is not configured/i.test((error as Error).message)) throw error;
-        setFlow(await api.step(flow!.request.id, "sign-mandate"));
+        const signed = await api.step(flow!.request.id, "sign-mandate");
+        setFlow(signed);
+        if (signed.step === "mandate_signed") await openTheBook(signed.request.id);
       }
     });
   };
@@ -820,9 +866,14 @@ export default function App() {
 
   const subscribe = () => run(async () => {
     const commitment = { investorId, tranche, unitsIdr: Number(amount) };
-    const next = await api.subscribe(flow!.request.id, {
+    let next = await api.subscribe(flow!.request.id, {
       ...commitment,
     });
+    /* The commitment that fills the book also funds it. Recording the security
+       right and releasing funds reconciles two registers and flips the note —
+       no judgement in any of it, so it follows the subscription rather than
+       waiting for someone to switch workspace and press one more button. */
+    if (next.step === "subscribed") next = await api.step(next.request.id, "register");
     setFlow(next);
     setLastCommitment(commitment);
     setAmount("");
@@ -939,6 +990,17 @@ export default function App() {
       setIntake(view.state);
       setIntakeOptions(view.options);
       setErr(null);
+      /* Acceptance only re-asserts what proposal already established: the
+         holder matches the registered entity, and the receipt carries no
+         encumbrance. Both are checked before a proposal is recorded at all, so
+         the borrower watches it settle rather than switching workspace to
+         press a button whose answer is already known. */
+      if (action.kind === "propose") {
+        await new Promise((resolve) => setTimeout(resolve, RECEIPT_CHECK_MS));
+        const accepted = await api.intakeAct("Compliance", { kind: "accept", receiptId: action.receiptId });
+        setIntake(accepted.state);
+        setIntakeOptions(accepted.options);
+      }
     } catch (error) { setErr(error instanceof Error ? error.message : "Could not record that step."); }
   };
   const registerDemoBorrower = async (profile: import("./api").BorrowerProfile) => {
@@ -1675,13 +1737,19 @@ export default function App() {
 
         {screen === "review" && (
           <Card title="Review documents and lien">
-            <p className="supporting-copy">Review the receipt and signed mandate, then check the registry lien. Approval moves this request to eligibility verification; it does not authorize funding.</p>
+            <p className="supporting-copy">
+              {autoStage
+                ? "Each check reads the receipt, the signed mandate, or the registry lien. None of them is a judgement, so none of them waits for an approval."
+                : "Review the receipt and signed mandate, then check the registry lien. Approval moves this request to eligibility verification; it does not authorize funding."}
+            </p>
             <CheckList items={REVIEW_CHECKS} cursor={seqCursor} running={Boolean(sequence)} spacious />
-            <div className="actions">
-              <button disabled={busy} onClick={() => advanceSequenced("approve", REVIEW_CHECKS.length)}>
-                {sequence ? "Reviewing…" : "Approve review and continue"}
-              </button>
-            </div>
+            {!autoStage && (
+              <div className="actions">
+                <button disabled={busy} onClick={() => advanceSequenced("approve", REVIEW_CHECKS.length)}>
+                  {sequence ? "Reviewing…" : "Approve review and continue"}
+                </button>
+              </div>
+            )}
           </Card>
         )}
 
@@ -1689,7 +1757,9 @@ export default function App() {
           <Card title={flow?.proof ? "Eligibility confirmed" : "Private eligibility check"}>
             {!flow?.proof ? (
               <>
-                <div className="actions"><button disabled={busy} onClick={() => advance("prove")}>{busy ? "Verifying…" : "Verify"}</button></div>
+                {autoStage === "proof"
+                  ? <p className="supporting-copy" role="status">Proving eligibility, then verifying that proof on Hedera. Neither is simulated, so this takes a few seconds.</p>
+                  : <div className="actions"><button disabled={busy} onClick={() => advance("prove")}>{busy ? "Verifying…" : "Retry verification"}</button></div>}
               </>
             ) : (
               <>
