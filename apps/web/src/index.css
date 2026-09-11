@@ -2334,3 +2334,9 @@ next to the field that fills it. */
 @media (max-width: 860px) {
   .loss-stack { grid-template-columns: 1fr; }
 }
+
+/* The form's grid gap owns the spacing; these blocks' own margins would compound with it. */
+.subscribe-form > * { margin-block: 0; }
+
+/* Section panels are a bare run of sibling cards. Same rhythm as .flow-main. */
+.section-panel { display: grid; gap: 20px; min-width: 0; }

@@ -2506,7 +2506,7 @@ function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onRes
             breadcrumb and sidebar already say which section this is — so in the
             flow the page heading was the section name twice over. */}
         {!inFlow && <header className="workspace-heading"><div><span className="eyebrow">{section === "Overview" ? meta.eyebrow : role}</span><h1>{section === "Overview" ? meta.title : section}</h1><p>{section === "Overview" ? meta.summary : `Review ${section.toLowerCase()} available to this workspace.`}</p>{lock && <p className="lock-note">{lockIcon}{lock}</p>}</div><button type="button" ref={headingAction} className={lock ? "locked-action" : undefined} disabled={!!lock} title={lock ?? undefined} onClick={onAction}>{lock && lockIcon}{meta.action}</button></header>}
-        {inFlow ? flowPanel : panels[section] ?? analytics}
+        {inFlow ? flowPanel : <div className="section-panel">{panels[section] ?? analytics}</div>}
       </main>
     </div>
   );
