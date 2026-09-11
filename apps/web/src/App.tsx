@@ -103,6 +103,17 @@ const STEP_SCREEN: Record<string, Screen> = {
   funded: "done",
   repaid: "done",
 };
+/** Whose page draws a screen. The step still decides which screen is current. */
+const SCREEN_ROLES: Record<Screen, Role[]> = {
+  pick: ["Borrower", "Compliance"],
+  mandate: ["Borrower", "Compliance"],
+  review: ["Borrower", "Compliance"],
+  proof: ["Borrower", "Compliance"],
+  note: ["Borrower", "Capital Provider", "Compliance"],
+  fund: ["Borrower", "Compliance"],
+  done: ["Borrower", "Capital Provider", "Compliance"],
+};
+
 const ROLE_COPY: Record<Role, { summary: string; detail: string }> = {
   Borrower: {
     summary: "Raise working capital against stored inventory.",
@@ -412,7 +423,6 @@ const REVIEW_CHECKS = [
 ];
 
 const MANDATE_DOCS = [
-  "Tokenization application",
   "Financing mandate",
   "Registry inquiry consent",
   "Data and privacy consent",
@@ -645,6 +655,8 @@ export default function App() {
   const screen: Screen = !flow || startingNew
     ? "pick"
     : STEP_SCREEN[flow.step] ?? "pick";
+
+  const onScreen = (name: Screen) => screen === name && !!activeRole && SCREEN_ROLES[name].includes(activeRole);
 
   useEffect(() => { headingRef.current?.focus(); }, [screen, activeRole]);
 
@@ -1105,6 +1117,7 @@ export default function App() {
     : 0;
   const ticketOutside = ticketValue > 0 && (ticketValue < ticketMin || ticketValue > ticketMax);
 
+  /** Only the workspace that commits capital draws this. The others read the book above it. */
   const subscriptionForm = (
     <form className="subscribe-form" onSubmit={(event) => { event.preventDefault(); subscribe(); }}>
       <div className="section-heading">
@@ -1704,13 +1717,13 @@ export default function App() {
 
   const stepCard = (
     <>
-        {screen === "pick" && !choosingReceipt && (
+        {onScreen("pick") && !choosingReceipt && (
           <div className="step-back-row">
             <button type="button" className="step-back" onClick={() => setReceiptId("")}>Back to receipt proposals</button>
             <span>Propose another receipt, or pick a different accepted one.</span>
           </div>
         )}
-        {screen === "pick" && !choosingReceipt && (
+        {onScreen("pick") && !choosingReceipt && (
           <Card title="Select an accepted receipt">
             {loading && <p className="empty-state">Loading available receipts…</p>}
             {!loading && acceptedReceipts.length === 0 && <p className="empty-state">No receipts have been accepted yet. Complete intake above, then ask Compliance to review your proposal.</p>}
@@ -1740,7 +1753,7 @@ export default function App() {
           </Card>
         )}
 
-        {screen === "mandate" && facility && (
+        {onScreen("mandate") && facility && (
           <Card title="Receipt and mandate">
             <div className="status-strip">
               <span>Signature</span>
@@ -1776,7 +1789,7 @@ export default function App() {
           </Card>
         )}
 
-        {screen === "review" && (
+        {onScreen("review") && (
           <Card title="Review documents and lien">
             <p className="supporting-copy">
               {autoStage
@@ -1794,7 +1807,7 @@ export default function App() {
           </Card>
         )}
 
-        {screen === "proof" && (
+        {onScreen("proof") && (
           <Card title={flow?.proof ? "Eligibility confirmed" : "Private eligibility check"}>
             {!flow?.proof ? (
               <>
@@ -1809,7 +1822,7 @@ export default function App() {
                     const settled = index < proofCursor;
                     return (
                       <div className="result-row" key={check.label} data-state={settled ? "done" : index === proofCursor ? "running" : "queued"}>
-                        <span>{PROOF_COPY[check.label] ?? "Eligibility policy check"}</span>
+                        <span>{check.label}</span>
                         {settled ? (
                           <Badge tone={check.pass ? "success" : "danger"}>{check.pass ? "Passed" : "Failed"}</Badge>
                         ) : (
@@ -1846,7 +1859,7 @@ export default function App() {
             Rp 390m of Rp 420m — and an investor read a capacity the subscribe
             form below did not agree with. The reference token is real and
             stays, as the labelled aside it always was. */}
-        {screen === "note" && flow?.note && !borrowerAwaitingRelease && bands.length > 0 && (
+        {onScreen("note") && flow?.note && !borrowerAwaitingRelease && bands.length > 0 && (
           <Card title="Funding structure" className="feature-card">
             <div className="funding-progress">
               <div>
@@ -1884,11 +1897,11 @@ export default function App() {
               <div><span>Junior commitment</span><strong>{rp(juniorCommitted)}</strong><p>First loss capital committed to this facility.</p></div>
               <div><span>Senior capacity unlocked</span><strong>{rp(seniorUnlocked)}</strong><p>Unlocked at {seniorBand && juniorBand ? (seniorBand / juniorBand).toFixed(2) : "0.00"}× Junior commitment.</p></div>
             </div>
-            {subscriptionForm}
+            {activeRole === "Capital Provider" && subscriptionForm}
           </Card>
         )}
 
-        {screen === "note" && flow?.note && !borrowerAwaitingRelease && bands.length === 0 && (
+        {onScreen("note") && flow?.note && !borrowerAwaitingRelease && bands.length === 0 && (
           <Card title="Note">
             <Row label="Token series" value={flow.note.series} mono />
             <Row label="Linked receipt" value={flow.note.underlying} mono />
@@ -1896,11 +1909,11 @@ export default function App() {
             <Row label="Transfer restrictions" value="Allowlisted holders only" />
             <Row label="State" value={noteState} />
             <p className="supporting-copy">The token represents an investor claim linked to the receipt; it does not transfer ownership of the e-SRG.</p>
-            {subscriptionForm}
+            {activeRole === "Capital Provider" && subscriptionForm}
           </Card>
         )}
 
-        {screen === "fund" && flow && !borrowerAwaitingRelease && (
+        {onScreen("fund") && flow && !borrowerAwaitingRelease && (
           <Card title="Closing checklist">
             <div className="summary-grid compact">
               <Row label="Subscriptions" value={`${flow.subscriptions.length} investors`} />
@@ -1928,7 +1941,7 @@ export default function App() {
           </Card>
         )}
 
-        {screen === "done" && flow && (
+        {onScreen("done") && flow && (
           <Card title="Facility status">
             <div className="truth-labels"><Badge tone={flow.step === "repaid" ? "neutral" : "success"}>{flow.step === "repaid" ? "Repaid" : "Active"}</Badge></div>
             <div className="summary-grid compact">
@@ -2067,7 +2080,7 @@ export default function App() {
 
         {/* Outside the fieldset on purpose: reading the record is not acting on
             the facility, so it stays available to whoever is looking. */}
-        {screen === "done" && flow && (
+        {onScreen("done") && flow && (
           <Card title="Activity">
             {myActivity.length === 0 ? (
               <p className="empty-state">Nothing from this workspace yet.</p>
