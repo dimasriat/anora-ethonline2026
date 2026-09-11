@@ -83,8 +83,8 @@ export function mockPorts(): Ports {
       return [
         { capability: "esrg", mode: "simulated", because: "No real tea e-SRG exists to use" },
         { capability: "registry", mode: "simulated", because: "Pusat Registrasi exposes no public API" },
-        { capability: "token", mode: "simulated", because: "The ATS note is not deployed for this repository yet" },
-        { capability: "proof", mode: "planned", because: "The eligibility circuit is not written yet" },
+        { capability: "token", mode: "simulated", because: "No Hedera credentials configured; the note and its partitions are held in memory" },
+        { capability: "proof", mode: "simulated", because: "No proving toolchain configured; the circuit's checks are answered deterministically" },
         { capability: "settlement", mode: "simulated", because: "Rupiah settlement requires a licensed payment partner" },
         { capability: "wallet", mode: "simulated", because: "No Privy credentials configured; the quorum is enforced in memory" },
       ];

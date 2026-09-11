@@ -1,15 +1,14 @@
 /**
  * What the workspace knows about a facility, in ANO-24's shape.
  *
- * The controller does not exist yet, so most of this is derived in the
- * browser from what the current API does return. That is a legitimate thing
- * for a screen to do — the arithmetic is the normative arithmetic — but it is
- * *not* the same as a number the chain enforces, and a demo that cannot tell
- * the two apart is claiming more than it has. So every block carries its
- * provenance and the interface prints it.
+ * Most of this is derived in the browser from what the API returns. That is a
+ * legitimate thing for a screen to do, since the arithmetic is the normative
+ * arithmetic, but it is not the same as a number the chain enforces, and a
+ * screen that cannot tell the two apart claims more than it has. So every
+ * block carries its provenance and the interface prints it.
  *
- * When Dimas's controller lands, each `derived` block is replaced by a
- * `controller` one and nothing above this file has to change shape.
+ * Each `derived` block is replaced by a `controller` one as the controller
+ * takes over, and nothing above this file has to change shape.
  */
 import type { Band, ESrg, Flow, Position, TrancheName } from "./api";
 import {
@@ -27,18 +26,18 @@ import { DEMONSTRATION_TERM_DAYS, DEMONSTRATION_UPFRONT_COSTS_IDR } from "./poli
 export type Provenance =
   /** Read back from the Hedera controller. Enforced. */
   | "controller"
-  /** Returned by the Anora API as it stands today. */
+  /** Returned by the Anora API. */
   | "server"
   /** Computed here from server inputs, with ANO-24's integer rules. */
   | "derived"
-  /** A value a role supplied in this window; no controller has accepted it. */
+  /** A value a role supplied in this window, before the controller accepts it. */
   | "local";
 
 export const PROVENANCE_COPY: Record<Provenance, string> = {
   controller: "Enforced on Hedera",
   server: "From the Anora API",
   derived: "Computed in this window from API inputs",
-  local: "Entered here; no controller has accepted it",
+  local: "Entered here; not yet written to the controller",
 };
 
 const GRAMS_PER_KG = 1_000n;
@@ -71,7 +70,7 @@ export type CollateralView = {
  * The receipt as an observation. The API carries one quantity and one value,
  * so the registry and warehouse counts start equal and the price divides out
  * exactly; a role can then vary the warehouse count to exercise the
- * reconciliation path the controller will own.
+ * reconciliation path the controller owns.
  */
 export function observationFrom(esrg: ESrg | null, haircutBp: bigint): CollateralReport {
   const quantityGrams = big(esrg?.quantityKg) * GRAMS_PER_KG;
@@ -148,7 +147,7 @@ export const COLLATERAL_STATE_COPY: Record<CollateralState, { label: string; ton
 
 export type FacilityProposal = Proposal & {
   provenance: Provenance;
-  /** True once the controller has locked these terms. Never true today. */
+  /** True once the controller has locked these terms. */
   locked: boolean;
 };
 

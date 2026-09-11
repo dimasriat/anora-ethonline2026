@@ -5,9 +5,9 @@
  * than in a component, for two reasons. The spec is explicit that these are
  * exact integer rules — `Math.round(face / (1 + y * t))` agrees with §4 on
  * most inputs and disagrees at the ties, and a screen that disagrees with the
- * controller by one rupiah is worse than a screen that shows nothing. And the
- * controller does not exist yet, so until it does this module is the only
- * thing standing between the interface and invented numbers.
+ * controller by one rupiah is worse than a screen that shows nothing. Until
+ * the controller answers for a facility, this module is the only thing
+ * standing between the interface and invented numbers.
  *
  * Fixture values live in tests, never here: §0 is emphatic that the worked
  * examples are regression cases, not defaults. Nothing in this file knows

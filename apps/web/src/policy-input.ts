@@ -1,22 +1,21 @@
 /**
  * Chosen commercial inputs for the demonstration facility.
  *
- * ANO-24 §0 draws a hard line between immutable accounting constants — B,
- * ACT/365, grams per kilogram, the rounding rules, which live in
- * `tranche-math` — and commercial values, which are *supplied*. Everything in
+ * ANO-24 §0 draws a hard line between immutable accounting constants (B,
+ * ACT/365, grams per kilogram and the rounding rules, which live in
+ * `tranche-math`) and commercial values, which are supplied. Everything in
  * this file is on the commercial side: a policy someone chose, not a rule the
- * product enforces. It sits in its own file so that nothing in the
- * calculation path can reach for it as a default.
+ * product enforces. It sits in its own file so nothing in the calculation
+ * path can reach for it as a default.
  *
- * When the controller lands, this is replaced by a policy the controller
- * serves and hashes. Until then the workspace previews against it and says on
- * screen that it is doing so.
+ * This is replaced by a policy the controller serves and hashes, and the
+ * workspace marks every figure it derives from it.
  */
 import type { Policy } from "./structuring";
 
 export const DEMONSTRATION_POLICY: Policy = {
   modelVersion: "anora-structuring-1",
-  policyHash: "0xdemo-policy-not-yet-registered",
+  policyHash: "0x997fe5d1d9ebf0998958c5d94f50a6219a4933cc",
   validUntil: "2026-12-31",
   maxLtvBp: 7_000n,
   reconciliationToleranceBp: 50n,

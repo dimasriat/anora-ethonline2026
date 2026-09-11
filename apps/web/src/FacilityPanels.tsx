@@ -329,7 +329,7 @@ export function StructuringPanel({ proposal, policy, canApprove }: {
         {canApprove
           ? <PendingAction
               label={feasible ? "Approve and lock terms" : "Cannot lock an infeasible structure"}
-              because="Locking writes caps, yields and hashes to the Hedera controller, which is not deployed yet. Nothing may be subscribed against a preview." />
+              because="Locking writes caps, yields and hashes to the Hedera controller. Nothing may be subscribed against a preview." />
           : <p className="supporting-copy">Compliance approves the exact proposal, or asks for revised evidence. There is no override.</p>}
       </Card>
     </>
@@ -698,7 +698,7 @@ export function SettlementPanel({ bands, positions, investors, recoveredIdr, set
           </div>
         </div>
         <PendingAction label="Claim and redeem"
-          because="Claiming pays the holder and burns their units in one transaction on the controller, which is not deployed yet." />
+          because="Claiming pays the holder and burns their units in one transaction on the controller." />
       </Card>
     </>
   );
