@@ -24,51 +24,26 @@ of what the technology can prove.
 
 ## What this builds
 
-One verified e-SRG backs one financing facility. That facility issues a
-permissioned note in two tranches — Senior and Junior — whose capacity, return,
-and loss bands are derived from the receipt and fixed before subscription opens.
-Eligibility is proven against committed records rather than disclosed ones, and
-every position is gated on who is permitted to hold it.
+A financing facility backed by one verified e-SRG, issued as a permissioned
+security token with facility-specific Senior and Junior tranches whose terms are
+fixed before subscription, where selective traceability and eligibility are
+proven without disclosing confidential commercial records.
 
-1. **The warehouse and the registry stay legally authoritative.** Anora moves
-   neither the tea nor the receipt on-chain. What is tokenized is a restricted
-   lender claim against one facility; the security interest is recorded through
-   the existing SRG framework, and the registry step sits between subscription
-   and funding.
-2. **Zero-knowledge proves the request, not the paperwork.** A Noir circuit
-   asserts six things about committed records: per-supplier made tea sums to the
-   receipt quantity, principal is within policy LTV, tenor is within policy
-   maximum, the receipt commitment is a member of the registry root, the proof
-   is bound to this receipt key, and the signed mandate hash matches. It returns
-   a nullifier over receipt and round, stable for that pair and nothing else,
-   which is what makes a repeat financing in the same round detectable; a
-   pledged receipt is separately refused at intake. Supplier identities,
-   green-leaf weights, purchase prices, the receipt identifier, and the
-   underlying documents stay private. Appraised value, requested principal, and the policy
-   limits are public inputs — the proof withholds the commercial record, not the
-   terms.
-3. **Permissioning is demonstrated by refusal.** Subscription is screened on
-   allowlist, tranche mandate, minimum and maximum ticket, and remaining tranche
-   capacity. Transfer is gated on the receiving side and on what the sender
-   actually holds, with pause and per-holder freeze available to the facility
-   agent. The note contract carries the same allowlist and mandate rules and
-   reverts by name — `NotAllowlisted`, `MandateExcludesTranche`,
-   `ExceedsCapacity`. One investor in the roster is deliberately not
-   allowlisted, because a permission rule never seen refusing anyone has not
-   been demonstrated.
-4. **Payment priority is computed, not implied by a tranche name.** Partitions
-   are ownership buckets and enforce nothing about who is paid first. Repayment
-   runs a deterministic waterfall — Senior return, Senior principal, Junior
-   return, Junior principal, then residual to the receipt holder — and allocates
-   loss through the attachment and detachment points stored on each tranche.
-   Conservation of cash is checked rather than asserted.
-5. **Cryptography does not establish physical truth.** The system inherits the
-   licensed warehouse's assertion about quantity and grade; it does not verify
-   the goods, and there is no inspector role in it. Acting on a facility is
-   gated on a liveness check and on a 2-of-3 officer quorum for the
-   cooperative's signature, while KYB, registry confirmation, and rupiah
-   settlement stay simulated. `docs/SPEC.md` is the specification the
-   implementation follows; `docs/STATUS.md` names the mode of every capability.
+1. The **warehouse and regulated registry remain legally authoritative.** Anora
+   does not transfer ownership of the receipt on-chain; the token represents a
+   financing claim, while the security interest is recorded through the
+   existing SRG framework.
+2. **Zero-knowledge is applied.** It proves that committed warehouse and field
+   records satisfy defined financing conditions without revealing supplier
+   identities, purchase prices, or underlying documents.
+3. **Permissioning is demonstrated through enforcement.** Participation and
+   transfers are restricted to eligible capital providers, and transactions
+   that fail the allowlist or tranche mandate are explicitly refused.
+4. **Technology supports institutional trust.** Accredited inspectors and
+   warehouse operators attest to the physical goods, while Compliance reviews
+   that evidence and makes financing conditional on verified records.
+   Cryptography protects and selectively proves those records; it does not
+   establish physical truth by itself.
 
 ## Design process
 
@@ -82,8 +57,8 @@ before implementation.
 
 Under construction during ETHOnline 2026 (September 4–13). This README describes
 what the project is, not what is finished. Every component is labelled live,
-testnet, simulated, or planned as it lands — `docs/STATUS.md` carries that table
-and the measured figures behind it.
+testnet, simulated, or planned as it lands — see `docs/STATUS.md` once the first
+integrations are in.
 
 ## Run the local demo
 

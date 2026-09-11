@@ -24,7 +24,7 @@ export default function IntakePanel({ state, receipts, role, proposeIds, onActio
       {!borrower && state.borrower.status !== "draft" && <section className="borrower-review" aria-label="Borrower application review"><h3>Borrower application</h3><dl>{[["Entity", state.borrower.profile.entityName], ["Entity type", state.borrower.profile.entityType], ["Registration / NIB", state.borrower.profile.registrationRef], ["Tax reference", state.borrower.profile.taxRef], ["Representative", state.borrower.profile.representativeRole], ["Authority reference", state.borrower.profile.authorityRef], ["Intended goods", `${latest?.commodity ?? state.borrower.profile.commodity} · ${latest?.quantityKg ?? state.borrower.profile.quantityKg} kg`], ["Warehouse", latest?.warehouse ?? state.borrower.profile.warehouse]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>{state.borrower.status === "submitted" && <button type="button" onClick={() => onAction({ kind: "approve-borrower" })}>Approve borrower</button>}{state.borrower.status === "approved" && <p className="access-note">Approved. Waiting for the borrower to confirm their eligibility.</p>}</section>}
       {borrower && state.borrower.status === "confirmed" && chosen.map((selected, index) => <form className="intake-proposal" key={index} onSubmit={event => { event.preventDefault(); onAction({ kind: "propose", receiptId: selected }); dropRow(index); }}>
         <label htmlFor={`intake-receipt-${index}`}>{index ? `Propose another receipt` : "Propose a receipt"}</label>
-        {!index && <p>Choose an e-SRG. The registry is checked for the holder and any existing pledge, and a receipt that passes is accepted for financing straight away. Add a row for each commodity.</p>}
+        {!index && <p>Choose an e-SRG for receipt review. Compliance must accept it before you can select it for financing. Add a row for each commodity you want reviewed.</p>}
         <div>
           {/* A receipt already drafted in another row is not offered twice. */}
           <select id={`intake-receipt-${index}`} value={selected} onChange={event => setRow(index, event.target.value)} required>
@@ -38,7 +38,7 @@ export default function IntakePanel({ state, receipts, role, proposeIds, onActio
       {!proposed.length && !borrower && <p className="supporting-copy">No receipt proposals yet. The borrower can propose receipts after confirming their registration.</p>}
       {proposed.map(receipt => <article className="intake-receipt" key={receipt.id}>
         <div><strong>{receipt.id} · {receipt.commodity}</strong><p>{receipt.warehouse} · {receipt.holder}</p></div>
-        <span className={`state-pill ${state.receipts[receipt.id] === "accepted" ? "teal" : "amber"}`}>{state.receipts[receipt.id] === "accepted" ? "Accepted for financing application" : "Checking holder and pledge status…"}</span>
+        <span className={`state-pill ${state.receipts[receipt.id] === "accepted" ? "teal" : "amber"}`}>{state.receipts[receipt.id] === "accepted" ? "Accepted for financing application" : "Awaiting receipt review"}</span>
         {state.receipts[receipt.id] === "proposed" && !borrower && <button type="button" onClick={() => onAction({ kind: "accept", receiptId: receipt.id })}>Accept receipt</button>}
         {state.receipts[receipt.id] === "accepted" && borrower && <button type="button" onClick={() => onSelect(receipt)}>Select for financing</button>}
       </article>)}
