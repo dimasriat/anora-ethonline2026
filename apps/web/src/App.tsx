@@ -1093,6 +1093,18 @@ export default function App() {
     </label>
   );
 
+  /* Where the typed ticket falls between this investor's floor and what the
+     tranche still has room for, held as a position so the limits can be drawn
+     instead of described. */
+  const ticketMin = me?.ticketIdr.min ?? 0;
+  const ticketMax = Math.min(room, me?.ticketIdr.max ?? 0);
+  const ticketBlocked = !!me && room < ticketMin;
+  const ticketValue = Number(amount) || 0;
+  const ticketAt = ticketMax > ticketMin
+    ? Math.min(1, Math.max(0, (ticketValue - ticketMin) / (ticketMax - ticketMin)))
+    : 0;
+  const ticketOutside = ticketValue > 0 && (ticketValue < ticketMin || ticketValue > ticketMax);
+
   const subscriptionForm = (
     <form className="subscribe-form" onSubmit={(event) => { event.preventDefault(); subscribe(); }}>
       <div className="section-heading">
@@ -1111,25 +1123,36 @@ export default function App() {
       {bands.length > 0 && (
         <div className="book-state">
           {bands.map((band) => {
-            const left = band.capacityIdr - band.subscribedIdr;
             const name = band.name === "SENIOR" ? "Senior" : "Junior";
+            const filled = band.capacityIdr ? band.subscribedIdr / band.capacityIdr : 0;
+            /* Senior capacity is released by Junior commitment. Marking that
+               gate on the Senior track states the relationship where the reader
+               is already looking, rather than in a sentence below the books. */
+            const gate = band.name === "SENIOR" && band.capacityIdr && seniorUnlocked > 0
+              ? seniorUnlocked / band.capacityIdr
+              : null;
             return (
-              <div className="book-line" key={band.name}>
-                <div className="book-head">
-                  <strong>{name} book</strong>
-                  <span>{rp(band.subscribedIdr)} of {rp(band.capacityIdr)}</span>
-                </div>
-                <progress max={band.capacityIdr} value={band.subscribedIdr} aria-label={`${name} subscription`} />
-                <span className="book-room">{left <= 0 ? "Full" : `${rp(left)} still open`}</span>
+              <div className="book-row" key={band.name}>
+                <span className="book-name">{name}</span>
+                <span
+                  className="book-track"
+                  role="img"
+                  aria-label={`${name}: ${rp(band.subscribedIdr)} committed of ${rp(band.capacityIdr)}`}
+                >
+                  <span className="book-fill" style={{ width: `${Math.min(100, filled * 100)}%` }} />
+                  {gate !== null && <span className="book-gate" style={{ left: `${Math.min(100, gate * 100)}%` }} />}
+                </span>
+                <span className="book-figure">
+                  <strong>{rp(band.subscribedIdr)}</strong><small> / {rp(band.capacityIdr)}</small>
+                </span>
               </div>
             );
           })}
-          <p className="book-close">
-            <strong>{rp(juniorCommitted)} Junior committed → {rp(seniorUnlocked)} Senior capacity unlocked.</strong>{" "}
-            {bookShortfall > 0
-              ? <>{rp(bookShortfall)} of approved commitments remain before allocation.</>
-              : <>Both books are full. Compliance can now record the security right and release funds.</>}
-          </p>
+          <dl className="book-close">
+            <div><dt>Junior committed</dt><dd>{rp(juniorCommitted)}</dd></div>
+            <div><dt>Senior unlocked</dt><dd>{rp(seniorUnlocked)}</dd></div>
+            <div><dt>Remaining</dt><dd>{bookShortfall > 0 ? rp(bookShortfall) : "Books full"}</dd></div>
+          </dl>
         </div>
       )}
       <div className="subscribe-fields">
@@ -1151,13 +1174,31 @@ export default function App() {
       {open && Number(amount) > 0 && <section className="commitment-comparison" aria-label="Commitment comparison">
         <div><span>Pay today</span><strong>{rp(suggestedPrice)}</strong></div>
         <div><span>Receive at maturity</span><strong>{rp(Number(amount))}</strong></div>
-        <p>{rp(Number(amount) - suggestedPrice)} discount return · {(open.returnBp / 100).toFixed(1)}% annualized target</p>
+        <div>
+          <span>Discount return</span>
+          <strong>{rp(Number(amount) - suggestedPrice)}</strong>
+          <small>{(open.returnBp / 100).toFixed(1)}% annualized</small>
+        </div>
       </section>}
-      <p className="ticket-range">
-        {me && room < me.ticketIdr.min
-          ? `Only ${rp(room)} is left in this tranche, below ${me.name}'s minimum ticket of ${rp(me.ticketIdr.min)}. Switch tranche or act as another investor.`
-          : `Ticket range ${rp(me?.ticketIdr.min ?? 0)} to ${rp(Math.min(room, me?.ticketIdr.max ?? 0))} for ${me?.name ?? "this investor"} in this tranche.`}
-      </p>
+      <div className={`ticket-gauge${ticketBlocked || ticketOutside ? " is-blocked" : ""}`}>
+        <div className="ticket-gauge-head">
+          <span>Ticket range</span>
+          <strong>{me?.name ?? "This investor"}</strong>
+        </div>
+        {ticketBlocked ? (
+          <p className="ticket-gauge-note">
+            Only {rp(room)} left in this tranche — under the {rp(ticketMin)} floor. Switch tranche or investor.
+          </p>
+        ) : (
+          <>
+            <div className="ticket-scale" role="img" aria-label={`Ticket range ${rp(ticketMin)} to ${rp(ticketMax)}`}>
+              <span className="ticket-track" />
+              {ticketValue > 0 && <span className="ticket-marker" style={{ left: `${ticketAt * 100}%` }} />}
+            </div>
+            <div className="ticket-bounds"><span>{rp(ticketMin)}</span><span>{rp(ticketMax)}</span></div>
+          </>
+        )}
+      </div>
       <div className="actions">
         <button type="submit" disabled={busy || !amount || !investorId}>Subscribe</button>
       </div>
