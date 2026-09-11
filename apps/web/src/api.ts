@@ -1,9 +1,11 @@
+import { authHeaders } from "./session";
 export const rp = (n: number) => "Rp " + n.toLocaleString("id-ID");
+
 
 async function call(path: string, method = "GET", body?: unknown) {
   const r = await fetch(`/api${path}`, {
     method,
-    headers: body ? { "content-type": "application/json" } : undefined,
+    headers: authHeaders(body),
     body: body ? JSON.stringify(body) : undefined,
   });
   const d = await r.json();
