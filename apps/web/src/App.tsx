@@ -412,7 +412,6 @@ const REVIEW_CHECKS = [
 ];
 
 const MANDATE_DOCS = [
-  "Tokenization application",
   "Financing mandate",
   "Registry inquiry consent",
   "Data and privacy consent",
