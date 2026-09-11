@@ -5,6 +5,7 @@ import type { EligibilityChecker } from "./adapters/live/world";
 import type { Ports, TrancheName } from "@anora/core";
 import { FACILITIES_PER_OWNER, makeFlow } from "./flow";
 import { FlowError, STATUS_FOR } from "./errors";
+import { qrSvg } from "./qr";
 import { INVESTORS } from "./adapters/mock/investors";
 import { OFFICERS } from "./adapters/mock/wallet";
 import { applyIntake, intakeView, resetIntake, type IntakeAction } from "./intake";
@@ -51,6 +52,7 @@ export function makeApp(
   app.post("/api/intake", async (c) => {
     const body: { role?: string; action?: IntakeAction } = await c.req.json().catch(() => ({}));
     if (!body.action) throw new FlowError("unknown_request", "intake action is required");
+    if (body.action.kind === "human") await requireEligibility(c, "The human check");
     const receiptId = "receiptId" in body.action ? body.action.receiptId : undefined;
     const receipt = receiptId ? await ports.esrg.get(receiptId) : null;
     return c.json(applyIntake(body.role ?? "", body.action, receipt));
@@ -81,7 +83,12 @@ export function makeApp(
   app.post("/api/eligibility/session", async (c) => {
     const { userId } = await callerOf(c);
     const session = await checker.open(userId);
-    return c.json({ id: session.id, connectorURI: session.connectorURI, state: session.state });
+    return c.json({
+      id: session.id,
+      connectorURI: session.connectorURI,
+      state: session.state,
+      qrSvg: session.connectorURI ? await qrSvg(session.connectorURI) : null,
+    });
   });
 
   app.get("/api/eligibility/session/:id", async (c) => {
@@ -91,7 +98,10 @@ export function makeApp(
       throw new FlowError("unknown_request", "unknown eligibility session");
     }
     const { id, state, because, credential, connectorURI } = session;
-    return c.json({ id, state, because, credential, connectorURI });
+    return c.json({
+      id, state, because, credential, connectorURI,
+      qrSvg: connectorURI ? await qrSvg(connectorURI) : null,
+    });
   });
 
   app.get("/api/requests", async (c) => {

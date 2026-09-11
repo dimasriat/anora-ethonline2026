@@ -1,4 +1,5 @@
 import { authHeaders } from "./session";
+import type { CheckSessionView } from "./world-check";
 export const rp = (n: number) => "Rp " + n.toLocaleString("id-ID");
 
 
@@ -115,6 +116,8 @@ const normalizeFlow = (raw: Flow & {
 
 export const api = {
   mode: () => call("/mode") as Promise<Mode>,
+  openCheck: () => call("/eligibility/session", "POST") as Promise<CheckSessionView>,
+  readCheckSession: (id: string) => call(`/eligibility/session/${id}`) as Promise<CheckSessionView>,
   prospectus: (id: string) => call(`/requests/${id}/prospectus`) as Promise<Prospectus>,
   note: () => call("/note") as Promise<Note>,
   chain: (esrgId: string) => call(`/chain/${esrgId}`) as Promise<Chain>,
