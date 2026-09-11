@@ -3,12 +3,14 @@ import { mockPorts } from "./adapters/mock/index";
 import { liveProofEngine } from "./adapters/live/proof";
 import { makePrivy } from "./adapters/live/privy";
 import { liveTokenIssuer } from "./adapters/live/token";
-import { unavailableChecker, worldChecker, type EligibilityChecker } from "./adapters/live/world";
+import { demoChecker, unavailableChecker, worldChecker, type EligibilityChecker } from "./adapters/live/world";
 import deployed from "../../../contracts/deployed.json";
 
 const RPC_URL = process.env.HEDERA_RPC ?? "https://testnet.hashio.io/api";
 
 export function resolveChecker(): { checker: EligibilityChecker; live: boolean } {
+  if (process.env.ADAPTER_ELIGIBILITY === "demo") return { checker: demoChecker(), live: false };
+
   const appId = process.env.WORLD_APP_ID;
   const rpId = process.env.WORLD_RP_ID;
   const signingKey = process.env.WORLD_RP_SIGNING_KEY;
