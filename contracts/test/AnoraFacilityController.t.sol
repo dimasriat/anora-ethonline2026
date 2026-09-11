@@ -254,3 +254,107 @@ contract SubscriptionTest is Test {
         assertEq(controller.paid(AnoraFacilityController.Slice.Senior, BANK), 268_675_027);
     }
 }
+
+contract ActivationTest is Test {
+    AnoraFacilityController controller;
+
+    address constant ORACLE = address(0xA1);
+    address constant SPONSOR = address(0x50);
+    address constant BANK = address(0xB0);
+
+    uint256 constant S_CAP = 270_000_000;
+    uint256 constant J_CAP = 120_000_000;
+    uint256 constant GRAMS = 24_000_000;
+
+    function setUp() public {
+        vm.warp(1_000_000);
+        controller = new AnoraFacilityController(ORACLE, 1 hours);
+        controller.openFacility(
+            AnoraFacilityController.Terms({
+                seniorCap: S_CAP,
+                juniorCap: J_CAP,
+                approvedIdr: 420_000_000,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                maxLtvBp: 7_000,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            })
+        );
+    }
+
+    function _report() internal {
+        vm.prank(ORACLE);
+        controller.reportCollateral(GRAMS, GRAMS, 25_000, 0, block.timestamp, 1, keccak256("e"));
+    }
+
+    function _fill() internal {
+        vm.prank(SPONSOR);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, J_CAP);
+        vm.prank(BANK);
+        controller.subscribe(AnoraFacilityController.Slice.Senior, S_CAP);
+    }
+
+    function test_activatesWhenEveryGateIsSatisfied() public {
+        _report();
+        _fill();
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        controller.activate();
+        assertTrue(controller.active());
+    }
+
+    function test_refusesUnfilledTranches() public {
+        _report();
+        vm.prank(SPONSOR);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, J_CAP);
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        vm.expectRevert(AnoraFacilityController.TrancheNotFilled.selector);
+        controller.activate();
+    }
+
+    function test_refusesWithoutRegistryConfirmation() public {
+        _report();
+        _fill();
+        vm.expectRevert(AnoraFacilityController.RegistryNotConfirmed.selector);
+        controller.activate();
+    }
+
+    function test_refusesStaleCollateral() public {
+        _report();
+        _fill();
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        vm.warp(block.timestamp + 2 hours);
+        vm.expectRevert(AnoraFacilityController.ReportTooOld.selector);
+        controller.activate();
+    }
+
+    function test_refusesWhenSponsorRetainsTooLittleJunior() public {
+        _report();
+        vm.prank(BANK);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, J_CAP);
+        vm.prank(BANK);
+        controller.subscribe(AnoraFacilityController.Slice.Senior, S_CAP);
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        vm.expectRevert(AnoraFacilityController.RetentionNotMet.selector);
+        controller.activate();
+    }
+
+    function test_refusesIssuedFaceAboveTheCoverageCeiling() public {
+        vm.prank(ORACLE);
+        controller.reportCollateral(GRAMS / 2, GRAMS / 2, 25_000, 0, block.timestamp, 1, keccak256("e"));
+        _fill();
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        vm.expectRevert(AnoraFacilityController.CoverageBreached.selector);
+        controller.activate();
+    }
+
+    function test_refusesASecondActivation() public {
+        _report();
+        _fill();
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        controller.activate();
+        vm.expectRevert(AnoraFacilityController.AlreadyActive.selector);
+        controller.activate();
+    }
+}

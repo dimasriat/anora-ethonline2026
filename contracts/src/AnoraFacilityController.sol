@@ -32,6 +32,11 @@ contract AnoraFacilityController {
     error NotOpen();
     error SeniorNotUnlocked();
     error ExceedsCap();
+    error AlreadyActive();
+    error TrancheNotFilled();
+    error RegistryNotConfirmed();
+    error RetentionNotMet();
+    error CoverageBreached();
     error ReportTooOld();
     error ReportFromTheFuture();
     error NonceNotAdvanced();
@@ -41,6 +46,8 @@ contract AnoraFacilityController {
 
     event FacilityOpened(uint256 seniorCap, uint256 juniorCap, uint256 termDays);
     event Subscribed(Slice indexed slice, address indexed holder, uint256 face, uint256 price);
+    event RegistryConfirmed(bytes32 security);
+    event Activated(uint256 issuedFace, uint256 eligibleValueIdr);
     event CollateralReported(uint256 eligibleValueIdr, uint256 observedAt, uint256 nonce, bytes32 evidence);
 
     address public immutable oracle;
@@ -49,6 +56,9 @@ contract AnoraFacilityController {
 
     Terms public terms;
     bool public open;
+
+    bool public active;
+    bytes32 public registrySecurity;
 
     mapping(Slice => uint256) public committed;
     mapping(Slice => mapping(address => uint256)) public face;
@@ -130,5 +140,32 @@ contract AnoraFacilityController {
         paid[slice][msg.sender] += price;
 
         emit Subscribed(slice, msg.sender, amount, price);
+    }
+
+    function confirmRegistry(bytes32 security) external {
+        if (security == bytes32(0)) revert EvidenceMissing();
+        registrySecurity = security;
+        emit RegistryConfirmed(security);
+    }
+
+    function issuedFace() public view returns (uint256) {
+        return committed[Slice.Senior] + committed[Slice.Junior];
+    }
+
+    function activate() external {
+        if (!open) revert NotOpen();
+        if (active) revert AlreadyActive();
+        if (committed[Slice.Senior] != terms.seniorCap || committed[Slice.Junior] != terms.juniorCap) {
+            revert TrancheNotFilled();
+        }
+        if (registrySecurity == bytes32(0)) revert RegistryNotConfirmed();
+        if (block.timestamp - observedAt > maxAge) revert ReportTooOld();
+        if (face[Slice.Junior][terms.sponsor] < Tranche.retainedMinimum(terms.juniorCap, terms.retentionBp)) {
+            revert RetentionNotMet();
+        }
+        if (issuedFace() > Collateral.ceiling(eligibleValueIdr, terms.maxLtvBp)) revert CoverageBreached();
+
+        active = true;
+        emit Activated(issuedFace(), eligibleValueIdr);
     }
 }
