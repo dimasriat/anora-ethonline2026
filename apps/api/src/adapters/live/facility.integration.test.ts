@@ -4,8 +4,9 @@ import deployed from "../../../../../contracts/deployed.json";
 
 const RPC = "https://testnet.hashio.io/api";
 const address = deployed.AnoraFacilityController.address;
+const online = process.env.ANORA_INTEGRATION === "1";
 
-describe("the deployed facility controller", () => {
+describe.skipIf(!online)("the deployed facility controller", () => {
   test("reports the settled split that the testnet run produced", async () => {
     const facility = liveFacilityReader(address, RPC);
     const state = await facility.read();
