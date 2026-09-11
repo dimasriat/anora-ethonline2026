@@ -25,6 +25,7 @@ contract AnoraFacilityController {
     }
 
     error NotOracle();
+    error NotCompliance();
     error AlreadyOpen();
     error EmptyTranche();
     error AboveApproved();
@@ -58,6 +59,7 @@ contract AnoraFacilityController {
     event CollateralReported(uint256 eligibleValueIdr, uint256 observedAt, uint256 nonce, bytes32 evidence);
 
     address public immutable oracle;
+    address public immutable compliance;
     uint256 public immutable maxAge;
     uint256 public immutable reconciliationToleranceBp;
 
@@ -85,8 +87,14 @@ contract AnoraFacilityController {
     uint256 public nonce;
     bytes32 public evidence;
 
-    constructor(address reporter, uint256 freshness) {
+    modifier onlyCompliance() {
+        if (msg.sender != compliance) revert NotCompliance();
+        _;
+    }
+
+    constructor(address reporter, address reviewer, uint256 freshness) {
         oracle = reporter;
+        compliance = reviewer;
         maxAge = freshness;
         reconciliationToleranceBp = 100;
     }
@@ -119,7 +127,7 @@ contract AnoraFacilityController {
         emit CollateralReported(eligibleValueIdr, reportedAt, reportNonce, reportEvidence);
     }
 
-    function openFacility(Terms calldata proposed) external {
+    function openFacility(Terms calldata proposed) external onlyCompliance {
         if (open) revert AlreadyOpen();
         if (proposed.seniorCap == 0 || proposed.juniorCap == 0) revert EmptyTranche();
         if (proposed.termDays == 0) revert EmptyTerm();
@@ -158,7 +166,7 @@ contract AnoraFacilityController {
         emit Subscribed(slice, msg.sender, amount, price);
     }
 
-    function confirmRegistry(bytes32 security) external {
+    function confirmRegistry(bytes32 security) external onlyCompliance {
         if (security == bytes32(0)) revert EvidenceMissing();
         registrySecurity = security;
         emit RegistryConfirmed(security);
@@ -168,7 +176,7 @@ contract AnoraFacilityController {
         return committed[Slice.Senior] + committed[Slice.Junior];
     }
 
-    function activate() external {
+    function activate() external onlyCompliance {
         if (!open) revert NotOpen();
         if (active) revert AlreadyActive();
         if (committed[Slice.Senior] != terms.seniorCap || committed[Slice.Junior] != terms.juniorCap) {
@@ -185,7 +193,7 @@ contract AnoraFacilityController {
         emit Activated(issuedFace(), eligibleValueIdr);
     }
 
-    function settle(uint256 recovered, uint256 costs, bytes32 evidenceOfCash) external {
+    function settle(uint256 recovered, uint256 costs, bytes32 evidenceOfCash) external onlyCompliance {
         if (!active) revert NotActive();
         if (settled) revert AlreadySettled();
         if (evidenceOfCash == bytes32(0)) revert EvidenceMissing();

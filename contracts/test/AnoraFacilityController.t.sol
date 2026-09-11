@@ -16,7 +16,7 @@ contract AnoraFacilityControllerTest is Test {
 
     function setUp() public {
         vm.warp(1_000_000);
-        controller = new AnoraFacilityController(ORACLE, MAX_AGE);
+        controller = new AnoraFacilityController(ORACLE, address(this), MAX_AGE);
     }
 
     function _report(uint256 registry, uint256 warehouse, uint256 observedAt, uint256 nonce) internal {
@@ -81,11 +81,11 @@ contract FacilityTermsTest is Test {
 
     function setUp() public {
         vm.warp(1_000_000);
-        controller = new AnoraFacilityController(ORACLE, 1 hours);
+        controller = new AnoraFacilityController(ORACLE, address(this), 1 hours);
     }
 
     function _open() internal {
-        vm.prank(COMPLIANCE);
+        
         controller.openFacility(
             AnoraFacilityController.Terms({
                 seniorCap: 270_000_000,
@@ -117,7 +117,7 @@ contract FacilityTermsTest is Test {
 
     function test_refusesEmptyTranches() public {
         vm.expectRevert(AnoraFacilityController.EmptyTranche.selector);
-        vm.prank(COMPLIANCE);
+        
         controller.openFacility(
             AnoraFacilityController.Terms({
                 seniorCap: 270_000_000,
@@ -135,7 +135,7 @@ contract FacilityTermsTest is Test {
 
     function test_refusesTargetAboveTheApprovedCeiling() public {
         vm.expectRevert(AnoraFacilityController.AboveApproved.selector);
-        vm.prank(COMPLIANCE);
+        
         controller.openFacility(
             AnoraFacilityController.Terms({
                 seniorCap: 400_000_000,
@@ -153,7 +153,7 @@ contract FacilityTermsTest is Test {
 
     function test_refusesRetentionWithoutASponsor() public {
         vm.expectRevert(AnoraFacilityController.SponsorRequired.selector);
-        vm.prank(COMPLIANCE);
+        
         controller.openFacility(
             AnoraFacilityController.Terms({
                 seniorCap: 270_000_000,
@@ -187,7 +187,7 @@ contract SubscriptionTest is Test {
 
     function setUp() public {
         vm.warp(1_000_000);
-        controller = new AnoraFacilityController(ORACLE, 1 hours);
+        controller = new AnoraFacilityController(ORACLE, address(this), 1 hours);
         controller.openFacility(
             AnoraFacilityController.Terms({
                 seniorCap: S_CAP,
@@ -268,7 +268,7 @@ contract ActivationTest is Test {
 
     function setUp() public {
         vm.warp(1_000_000);
-        controller = new AnoraFacilityController(ORACLE, 1 hours);
+        controller = new AnoraFacilityController(ORACLE, address(this), 1 hours);
         controller.openFacility(
             AnoraFacilityController.Terms({
                 seniorCap: S_CAP,
@@ -372,7 +372,7 @@ contract SettlementLifecycleTest is Test {
 
     function setUp() public {
         vm.warp(1_000_000);
-        controller = new AnoraFacilityController(ORACLE, 1 hours);
+        controller = new AnoraFacilityController(ORACLE, address(this), 1 hours);
         controller.openFacility(
             AnoraFacilityController.Terms({
                 seniorCap: S_CAP,
@@ -412,7 +412,7 @@ contract SettlementLifecycleTest is Test {
     }
 
     function test_refusesSettlementBeforeActivation() public {
-        AnoraFacilityController fresh = new AnoraFacilityController(ORACLE, 1 hours);
+        AnoraFacilityController fresh = new AnoraFacilityController(ORACLE, address(this), 1 hours);
         vm.expectRevert(AnoraFacilityController.NotActive.selector);
         fresh.settle(1, 0, keccak256("cash"));
     }
@@ -451,5 +451,54 @@ contract SettlementLifecycleTest is Test {
         vm.prank(FUND);
         uint256 b = controller.claim(AnoraFacilityController.Slice.Junior);
         assertTrue(a + b <= controller.payout(AnoraFacilityController.Slice.Junior));
+    }
+}
+
+contract RoleTest is Test {
+    AnoraFacilityController controller;
+
+    address constant ORACLE = address(0xA1);
+    address constant COMPLIANCE = address(0xC0);
+    address constant STRANGER = address(0xBEEF);
+
+    function setUp() public {
+        vm.warp(1_000_000);
+        controller = new AnoraFacilityController(ORACLE, COMPLIANCE, 1 hours);
+    }
+
+    function test_onlyComplianceOpensAFacility() public {
+        vm.expectRevert(AnoraFacilityController.NotCompliance.selector);
+        vm.prank(STRANGER);
+        controller.openFacility(
+            AnoraFacilityController.Terms({
+                seniorCap: 270_000_000,
+                juniorCap: 120_000_000,
+                approvedIdr: 420_000_000,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                maxLtvBp: 7_000,
+                retentionBp: 2_500,
+                sponsor: address(0x50)
+            })
+        );
+    }
+
+    function test_onlyComplianceConfirmsTheRegistry() public {
+        vm.expectRevert(AnoraFacilityController.NotCompliance.selector);
+        vm.prank(STRANGER);
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+    }
+
+    function test_onlyComplianceActivates() public {
+        vm.expectRevert(AnoraFacilityController.NotCompliance.selector);
+        vm.prank(STRANGER);
+        controller.activate();
+    }
+
+    function test_onlyComplianceSettles() public {
+        vm.expectRevert(AnoraFacilityController.NotCompliance.selector);
+        vm.prank(STRANGER);
+        controller.settle(1, 0, keccak256("cash"));
     }
 }
