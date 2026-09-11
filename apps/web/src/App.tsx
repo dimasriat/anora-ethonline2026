@@ -6,6 +6,7 @@ import Dashboard from "./Dashboard";
 import IntakePanel from "./IntakePanel";
 import BorrowerOnboarding from "./BorrowerOnboarding";
 import InstitutionOnboarding from "./InstitutionOnboarding";
+import { STACK_PORTS } from "./stack";
 import {
   api, rp,
   type Band, type Chain, type ESrg, type Flow, type IntakeAction, type IntakeOptions, type IntakeState, type Investor, type Mode,
@@ -1985,16 +1986,6 @@ function LandingPage({ onNavigate, onAccess }: { onNavigate: (view: View) => voi
 /* Every capability enters through a port in packages/core, so the same flow runs
    against a simulated or a live adapter. Two are genuinely on Hedera today; the
    rest are simulated for reasons worth stating rather than hiding. */
-/* SVG text does not wrap: `backend` and `detail` must fit 168px, which is
-   about 26 characters at their sizes. Longer strings run outside the box. */
-const STACK_PORTS = [
-  { port: "e-SRG", backend: "Synthetic documents", detail: "Not running in practice", mode: "simulated" },
-  { port: "Identity", backend: "Privy sign-in", detail: "World ID pending", mode: "simulated" },
-  { port: "Registry", backend: "Bappebti registry", detail: "No public API", mode: "simulated" },
-  { port: "Proof", backend: "Noir · nargo → bb", detail: "HonkVerifier 0xc90C…3115", mode: "live" },
-  { port: "Token", backend: "ATS v4.x factory", detail: "AnoraNote 0xA44C…4F22", mode: "live" },
-] as const;
-
 const SD = { x0: 40, w: 196, gap: 15 };
 const sdX = (i: number) => SD.x0 + i * (SD.w + SD.gap);
 const sdMid = (i: number) => sdX(i) + SD.w / 2;
