@@ -722,7 +722,7 @@ export default function App() {
   /* ANO-24's view of this facility, derived from what the API does return.
      The collateral report starts as the receipt itself — one quantity, so the
      registry and warehouse counts agree — and a role may vary it to exercise
-     the reconciliation the controller will own. */
+     the reconciliation the controller owns. */
   const report = observation ?? observationFrom(facility, 0n);
   const issuedFaceIdr = flowIssuedFace(bands);
   const approvedFaceIdr = flowApprovedFace(flow, bands);
@@ -1414,8 +1414,8 @@ export default function App() {
           />
           <p className="supporting-copy">
             Eligibility is rechecked at settlement, not at listing. The price and fee above are
-            settled by the controller; the transfer endpoint that exists today moves units only,
-            so nothing debits the buyer yet.
+            settled by the controller; the transfer endpoint moves units, so the cash leg is not
+            debited here.
           </p>
           <div className="actions"><button type="button" disabled={busy || flow?.controls.paused} onClick={settleListing}>Accept and settle</button><button type="button" className="secondary-button" onClick={() => setListing(null)}>Cancel order</button></div>
         </div>
@@ -1651,10 +1651,10 @@ export default function App() {
       )}
       <p className="supporting-copy">
         Pause and freeze are enforced by the API. KYC grants and partition permissions are held in
-        this window only — the controller owns them, and until it exists a revoked holder here is
-        still accepted at settlement.
+        this window until the controller accepts them, so a holder revoked here is still accepted at
+        settlement.
       </p>
-      <Source provenance="local">KYC and partition permissions: entered here; no controller has accepted them</Source>
+      <Source provenance="local">KYC and partition permissions: entered here, not yet written to the controller</Source>
       <div className="policy-holder-list">
         {investors.map((item) => {
           const frozen = flow?.controls.frozenInvestorIds.includes(item.id) ?? false;

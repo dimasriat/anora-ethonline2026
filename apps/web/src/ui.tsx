@@ -25,10 +25,10 @@ export function Badge({ tone, children }: { tone: "success" | "warning" | "dange
 /**
  * Where a number on this screen came from.
  *
- * The workspace derives a great deal that the Hedera controller will
- * eventually enforce. Both are useful; confusing them is not. This marker is
- * deliberately plain and always present rather than tucked into a tooltip —
- * a reader should never have to hunt for whether a figure is binding.
+ * The workspace derives a great deal that the Hedera controller enforces.
+ * Both are useful; confusing them is not. This marker is deliberately plain
+ * and always present rather than tucked into a tooltip, so a reader never has
+ * to hunt for whether a figure is binding.
  */
 export function Source({ provenance, children }: { provenance: Provenance; children?: React.ReactNode }) {
   return (
@@ -63,7 +63,7 @@ export function NumberField({ value, onValue, id, placeholder, ariaLabel }: {
   );
 }
 
-/** A control the controller will own, shown as unavailable rather than hidden. */
+/** A control the controller owns, shown as unavailable rather than hidden. */
 export function PendingAction({ label, because }: { label: string; because: string }) {
   return (
     <div className="pending-action">
