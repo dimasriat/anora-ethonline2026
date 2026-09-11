@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { syncWorkspace } from "./workspace-sync";
+import { isSigningUnavailable } from "./mandate-route";
 import { flushSync } from "react-dom";
 import Dashboard from "./Dashboard";
 import IntakePanel from "./IntakePanel";
@@ -744,7 +745,8 @@ export default function App() {
         else signingWindow?.close();
       } catch (error) {
         signingWindow?.close();
-        throw error;
+        if (!isSigningUnavailable(error)) throw error;
+        setFlow(await api.step(flow!.request.id, "sign-mandate"));
       }
     });
   };
