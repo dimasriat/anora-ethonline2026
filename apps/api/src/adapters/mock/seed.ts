@@ -72,7 +72,7 @@ const TEA: ESrg[] = [
     holder: KOPERASI,
     warehouse: GUDANG,
     commodity: "Black Tea BOP",
-    quantityKg: 8_000,
+    quantityKg: 24_000,
     valueIdr: 600_000_000,
     issuedAt: "2026-11-20",
     expiresAt: "2027-02-28",
@@ -84,7 +84,7 @@ const TEA: ESrg[] = [
     holder: KOPERASI,
     warehouse: GUDANG,
     commodity: "Green Tea",
-    quantityKg: 4_200,
+    quantityKg: 12_400,
     valueIdr: 310_000_000,
     issuedAt: "2026-10-02",
     expiresAt: "2027-01-15",
@@ -158,20 +158,19 @@ const teaIntake = (supplierId: string, lotKg: number, pricePerKgIdr: number) =>
   intake(supplierId, lotKg, pricePerKgIdr, RASIO_PUCUK_KE_MADE_TEA);
 
 export const INTAKES: Record<string, Intake[]> = {
-  // 8 intake -> 8.000 kg made tea, dari ~36.000 kg pucuk
   "SRG-TEH-024": [
-    teaIntake("TANI-01", 1200, 2250),
-    teaIntake("TANI-02", 950, 2180),
-    teaIntake("TANI-03", 1100, 2310),
-    teaIntake("TANI-04", 800, 2200),
-    teaIntake("TANI-05", 1050, 2270),
-    teaIntake("TANI-06", 900, 2150),
-    teaIntake("TANI-07", 1150, 2290),
-    teaIntake("TANI-08", 850, 2240),
+    teaIntake("TANI-01", 3600, 2250),
+    teaIntake("TANI-02", 2850, 2180),
+    teaIntake("TANI-03", 3300, 2310),
+    teaIntake("TANI-04", 2400, 2200),
+    teaIntake("TANI-05", 3150, 2270),
+    teaIntake("TANI-06", 2700, 2150),
+    teaIntake("TANI-07", 3450, 2290),
+    teaIntake("TANI-08", 2550, 2240),
   ],
   "SRG-TEH-018": [
-    teaIntake("TANI-03", 2100, 2400),
-    teaIntake("TANI-09", 2100, 2380),
+    teaIntake("TANI-03", 6200, 2400),
+    teaIntake("TANI-09", 6200, 2380),
   ],
   ...Object.fromEntries(PORTFOLIO.map((row, index) => {
     const id = receiptId(row.code, index);
