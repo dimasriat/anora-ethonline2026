@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { syncWorkspace } from "./workspace-sync";
 import { isSigningUnavailable } from "./mandate-route";
 import { flushSync } from "react-dom";
@@ -8,6 +8,7 @@ import BorrowerOnboarding from "./BorrowerOnboarding";
 import InstitutionOnboarding from "./InstitutionOnboarding";
 import { STACK_PORTS } from "./stack";
 import { noteDetail } from "./notes";
+import { caretAfterDigits, digitsBefore, digitsOf, formatIdr } from "./amount";
 import {
   api, rp,
   type Band, type Chain, type ESrg, type Flow, type IntakeAction, type IntakeOptions, type IntakeState, type Investor, type Mode,
@@ -519,6 +520,16 @@ export default function App() {
   const investorPicked = useRef(false);
   const [tranche, setTranche] = useState<TrancheName>("SENIOR");
   const [amount, setAmount] = useState("");
+  const amountRef = useRef<HTMLInputElement>(null);
+  const pendingCaret = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    const field = amountRef.current;
+    if (!field || pendingCaret.current === null) return;
+    const caret = caretAfterDigits(field.value, pendingCaret.current);
+    pendingCaret.current = null;
+    field.setSelectionRange(caret, caret);
+  }, [amount]);
   const [recipientId, setRecipientId] = useState("");
   const [startingNew, setStartingNew] = useState(false);
   const [esrgs, setEsrgs] = useState<ESrg[]>([]);
@@ -1038,8 +1049,15 @@ export default function App() {
         <label>
           <span>Maturity face value (IDR)</span>
           <input
-            type="text" inputMode="numeric" value={amount ? Number(amount).toLocaleString("id-ID") : ""}
-            onChange={(event) => setAmount(event.target.value.replace(/[^0-9]/g, ""))}
+            ref={amountRef}
+            type="text" inputMode="numeric" value={formatIdr(amount)}
+            onFocus={(event) => event.target.select()}
+            onChange={(event) => {
+              const typed = event.target.value;
+              const caret = event.target.selectionStart ?? typed.length;
+              pendingCaret.current = digitsBefore(typed, caret);
+              setAmount(digitsOf(typed));
+            }}
           />
         </label>
       </div>
@@ -1220,7 +1238,7 @@ export default function App() {
             </label>
             <label>
               <span>Token units</span>
-              <input type="number" inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value)} />
+              <input type="number" inputMode="numeric" value={amount} onChange={(event) => setAmount(digitsOf(event.target.value))} />
             </label>
             <label>
               <span>Sale price (IDR)</span>
