@@ -2,9 +2,27 @@
 pragma solidity ^0.8.28;
 
 import {Collateral} from "./Collateral.sol";
+import {Tranche} from "./Tranche.sol";
 
 contract AnoraFacilityController {
+    struct Terms {
+        uint256 seniorCap;
+        uint256 juniorCap;
+        uint256 approvedIdr;
+        uint256 seniorYieldBp;
+        uint256 juniorYieldBp;
+        uint256 termDays;
+        uint256 maxLtvBp;
+        uint256 retentionBp;
+        address sponsor;
+    }
+
     error NotOracle();
+    error AlreadyOpen();
+    error EmptyTranche();
+    error AboveApproved();
+    error SponsorRequired();
+    error EmptyTerm();
     error ReportTooOld();
     error ReportFromTheFuture();
     error NonceNotAdvanced();
@@ -12,11 +30,15 @@ contract AnoraFacilityController {
     error EvidenceMissing();
     error RecordsDisagree();
 
+    event FacilityOpened(uint256 seniorCap, uint256 juniorCap, uint256 termDays);
     event CollateralReported(uint256 eligibleValueIdr, uint256 observedAt, uint256 nonce, bytes32 evidence);
 
     address public immutable oracle;
     uint256 public immutable maxAge;
     uint256 public immutable reconciliationToleranceBp;
+
+    Terms public terms;
+    bool public open;
 
     uint256 public eligibleValueIdr;
     uint256 public observedAt;
@@ -55,5 +77,22 @@ contract AnoraFacilityController {
         evidence = reportEvidence;
 
         emit CollateralReported(eligibleValueIdr, reportedAt, reportNonce, reportEvidence);
+    }
+
+    function openFacility(Terms calldata proposed) external {
+        if (open) revert AlreadyOpen();
+        if (proposed.seniorCap == 0 || proposed.juniorCap == 0) revert EmptyTranche();
+        if (proposed.termDays == 0) revert EmptyTerm();
+        if (proposed.seniorCap + proposed.juniorCap > proposed.approvedIdr) revert AboveApproved();
+        if (proposed.retentionBp > 0 && proposed.sponsor == address(0)) revert SponsorRequired();
+
+        terms = proposed;
+        open = true;
+
+        emit FacilityOpened(proposed.seniorCap, proposed.juniorCap, proposed.termDays);
+    }
+
+    function retainedJuniorMinimum() external view returns (uint256) {
+        return Tranche.retainedMinimum(terms.juniorCap, terms.retentionBp);
     }
 }

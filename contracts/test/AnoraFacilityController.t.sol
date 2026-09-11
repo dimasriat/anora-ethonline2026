@@ -70,3 +70,107 @@ contract AnoraFacilityControllerTest is Test {
         _report(GRAMS, GRAMS / 2, block.timestamp, 1);
     }
 }
+
+contract FacilityTermsTest is Test {
+    AnoraFacilityController controller;
+
+    address constant ORACLE = address(0xA1);
+    address constant COMPLIANCE = address(0xC0);
+    address constant SPONSOR = address(0x50);
+    address constant STRANGER = address(0xBEEF);
+
+    function setUp() public {
+        vm.warp(1_000_000);
+        controller = new AnoraFacilityController(ORACLE, 1 hours);
+    }
+
+    function _open() internal {
+        vm.prank(COMPLIANCE);
+        controller.openFacility(
+            AnoraFacilityController.Terms({
+                seniorCap: 270_000_000,
+                juniorCap: 120_000_000,
+                approvedIdr: 420_000_000,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                maxLtvBp: 7_000,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            })
+        );
+    }
+
+    function test_opensWithTheApprovedTerms() public {
+        _open();
+        (uint256 seniorCap, uint256 juniorCap,,,,,,, ) = controller.terms();
+        assertEq(seniorCap, 270_000_000);
+        assertEq(juniorCap, 120_000_000);
+        assertTrue(controller.open());
+    }
+
+    function test_refusesASecondOpening() public {
+        _open();
+        vm.expectRevert(AnoraFacilityController.AlreadyOpen.selector);
+        _open();
+    }
+
+    function test_refusesEmptyTranches() public {
+        vm.expectRevert(AnoraFacilityController.EmptyTranche.selector);
+        vm.prank(COMPLIANCE);
+        controller.openFacility(
+            AnoraFacilityController.Terms({
+                seniorCap: 270_000_000,
+                juniorCap: 0,
+                approvedIdr: 420_000_000,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                maxLtvBp: 7_000,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            })
+        );
+    }
+
+    function test_refusesTargetAboveTheApprovedCeiling() public {
+        vm.expectRevert(AnoraFacilityController.AboveApproved.selector);
+        vm.prank(COMPLIANCE);
+        controller.openFacility(
+            AnoraFacilityController.Terms({
+                seniorCap: 400_000_000,
+                juniorCap: 120_000_000,
+                approvedIdr: 420_000_000,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                maxLtvBp: 7_000,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            })
+        );
+    }
+
+    function test_refusesRetentionWithoutASponsor() public {
+        vm.expectRevert(AnoraFacilityController.SponsorRequired.selector);
+        vm.prank(COMPLIANCE);
+        controller.openFacility(
+            AnoraFacilityController.Terms({
+                seniorCap: 270_000_000,
+                juniorCap: 120_000_000,
+                approvedIdr: 420_000_000,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                maxLtvBp: 7_000,
+                retentionBp: 2_500,
+                sponsor: address(0)
+            })
+        );
+    }
+
+    function test_derivesTheRetainedJuniorMinimum() public {
+        _open();
+        assertEq(controller.retainedJuniorMinimum(), 30_000_000);
+    }
+}
