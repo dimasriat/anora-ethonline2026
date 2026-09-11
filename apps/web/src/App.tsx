@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { syncWorkspace } from "./workspace-sync";
 import { flushSync } from "react-dom";
 import Dashboard from "./Dashboard";
 import IntakePanel from "./IntakePanel";
@@ -521,6 +522,7 @@ export default function App() {
   const [receiptId, setReceiptId] = useState("");
   const [intake, setIntake] = useState<IntakeState | null>(null);
   const [intakeOptions, setIntakeOptions] = useState<IntakeOptions | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const acceptedReceipts = esrgs.filter(receipt => intake?.receipts[receipt.id] === "accepted");
 
   const [flow, setFlow] = useState<Flow | null>(null);
@@ -579,13 +581,16 @@ export default function App() {
     let alive = true;
     const sync = async () => {
       if (busyRef.current) return;
-      try {
-        const [all, view] = await Promise.all([api.requests(), api.intake()]);
-        if (!alive) return;
-        setFlow(all.at(-1) ?? null);
-        setIntake(view.state);
-        setIntakeOptions(view.options);
-      } catch { /* keep the last known state rather than blanking the screen */ }
+      const result = await syncWorkspace(api);
+      if (!alive) return;
+      if (result.intake) {
+        setFlow(result.flow);
+        setIntake(result.intake.state);
+        setIntakeOptions(result.intake.options);
+        setLoadError(null);
+        return;
+      }
+      setLoadError((current) => current ?? result.error);
     };
     sync();
     const timer = setInterval(sync, 2000);
@@ -910,7 +915,10 @@ export default function App() {
   }
 
   if (!intake || !intakeOptions) {
-    return <div className="public-page"><main className="landing-main"><p className="supporting-copy">Loading the shared record…</p></main></div>;
+    return <div className="public-page"><main className="landing-main">
+      <p className="supporting-copy">{loadError ?? "Loading the shared record…"}</p>
+      {loadError ? <button className="access-submit" onClick={() => window.location.reload()}>Try again</button> : null}
+    </main></div>;
   }
 
   if (activeRole === "Borrower" && intake.borrower.status !== "confirmed") {
