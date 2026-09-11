@@ -10,7 +10,7 @@ import {
   type Band, type Chain, type ESrg, type Flow, type IntakeAction, type IntakeOptions, type IntakeState, type Investor, type Mode,
   type Note, type Position, type TrancheName,
 } from "./api";
-import { Badge, Card, PendingAction, RailRow, Row, Source } from "./ui";
+import { Badge, Card, groupDigits, NumberField, PendingAction, RailRow, Row, Source } from "./ui";
 import {
   CollateralPanel, DistributionPanel, FundingGatePanel, kg, pct, rpExact, SaleQuoteLines,
   SettlementPanel, StructuringPanel, type ScheduledDistribution,
@@ -1189,10 +1189,7 @@ export default function App() {
         </label>
         <label>
           <span>Maturity face value (IDR)</span>
-          <input
-            type="text" inputMode="numeric" value={amount ? Number(amount).toLocaleString("id-ID") : ""}
-            onChange={(event) => setAmount(event.target.value.replace(/[^0-9]/g, ""))}
-          />
+          <NumberField value={amount} onValue={setAmount} />
         </label>
       </div>
       {open && Number(amount) > 0 && <section className="commitment-comparison" aria-label="Commitment comparison">
@@ -1391,11 +1388,11 @@ export default function App() {
             </label>
             <label>
               <span>Token units</span>
-              <input type="number" inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value)} />
+              <NumberField value={amount} onValue={setAmount} />
             </label>
             <label>
               <span>Sale price (IDR)</span>
-              <input type="number" inputMode="numeric" value={askPrice} placeholder={amount || "0"} onChange={(event) => setAskPrice(event.target.value)} />
+              <NumberField value={askPrice} onValue={setAskPrice} placeholder={groupDigits(amount) || "0"} />
               <small>A discounted claim rarely trades at face. Leave blank to offer at par.</small>
             </label>
           </div>

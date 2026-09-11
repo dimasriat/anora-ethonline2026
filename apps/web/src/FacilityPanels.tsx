@@ -11,7 +11,7 @@
  */
 import { useMemo, useState } from "react";
 import type { Band, Investor, Position, TrancheName } from "./api";
-import { Badge, Card, PendingAction, Source } from "./ui";
+import { Badge, Card, NumberField, PendingAction, Source } from "./ui";
 import {
   COLLATERAL_STATE_COPY, distributionView, gateView, saleQuote, settlementView,
   type CollateralView, type FacilityProposal, type Provenance, type SettlementView,
@@ -56,23 +56,19 @@ export function CollateralPanel({ view, policy, onObserve, editable }: {
         <div className="subscribe-fields observation-fields">
           <label>
             <span>Registry quantity (g)</span>
-            <input inputMode="numeric" value={field(report.registryGrams)}
-              onChange={(e) => set({ registryGrams: parse(e.target.value) })} />
+            <NumberField value={field(report.registryGrams)} onValue={(digits) => set({ registryGrams: parse(digits) })} />
           </label>
           <label>
             <span>Warehouse quantity (g)</span>
-            <input inputMode="numeric" value={field(report.warehouseGrams)}
-              onChange={(e) => set({ warehouseGrams: parse(e.target.value) })} />
+            <NumberField value={field(report.warehouseGrams)} onValue={(digits) => set({ warehouseGrams: parse(digits) })} />
           </label>
           <label>
             <span>Unit price (IDR/kg)</span>
-            <input inputMode="numeric" value={field(report.priceIdrPerKg)}
-              onChange={(e) => set({ priceIdrPerKg: parse(e.target.value) })} />
+            <NumberField value={field(report.priceIdrPerKg)} onValue={(digits) => set({ priceIdrPerKg: parse(digits) })} />
           </label>
           <label>
             <span>Haircut (bp)</span>
-            <input inputMode="numeric" value={field(report.haircutBp)}
-              onChange={(e) => set({ haircutBp: parse(e.target.value) })} />
+            <NumberField value={field(report.haircutBp)} onValue={(digits) => set({ haircutBp: parse(digits) })} />
           </label>
         </div>
       )}
@@ -585,7 +581,7 @@ export function SettlementPanel({ bands, positions, investors, recoveredIdr, set
         <div className="subscribe-fields">
           <label>
             <span>Approved costs (IDR)</span>
-            <input inputMode="numeric" value={costsText} onChange={(event) => setCostsText(event.target.value)} />
+            <NumberField value={costsText} onValue={setCostsText} />
           </label>
         </div>
         <CashBridge view={view} />
@@ -767,7 +763,7 @@ export function DistributionPanel({ scheduled, positions, investors, feeBp, onSc
         </label>
         <label>
           <span>Gross amount (IDR)</span>
-          <input inputMode="numeric" value={grossText} onChange={(event) => setGrossText(event.target.value)} />
+          <NumberField value={grossText} onValue={setGrossText} />
         </label>
       </div>
 
