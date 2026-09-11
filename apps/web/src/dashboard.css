@@ -573,3 +573,6 @@
   font-size: 11px;
 }
 .lock-note .lock-icon { margin-right: 6px; }
+
+/* Your turn, not a warning: amber is what the page uses for waiting on someone else. */
+.handoff-banner.acting { background: var(--accent-soft); border-color: var(--fill); }
