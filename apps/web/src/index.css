@@ -1872,7 +1872,7 @@ stated before the data it qualifies. */
 
 .commitment-comparison {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 20px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1881,26 +1881,49 @@ stated before the data it qualifies. */
 .commitment-comparison > div { display: grid; gap: 6px; padding: 16px 18px; }
 .commitment-comparison > div + div { border-left: 1px solid var(--line); }
 .commitment-comparison span { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
-.commitment-comparison strong { font-size: 20px; }
-.commitment-comparison p { grid-column: 1 / -1; margin: 0; padding: 11px 18px; color: var(--muted); font-size: 12px; background: var(--bg); border-top: 1px solid var(--line); }
+.commitment-comparison strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.commitment-comparison small { color: var(--muted); font-size: 12px; }
 
-@media (max-width: 620px) {
+/* Three tiles need real width before the 20px figures start wrapping. */
+@media (max-width: 820px) {
   .commitment-comparison { grid-template-columns: 1fr; }
   .commitment-comparison > div + div { border-top: 1px solid var(--line); border-left: 0; }
 }
 
-.ticket-range {
+.ticket-gauge {
   margin: 16px 0 0;
   padding: 13px 15px;
-  color: var(--muted);
-  font-size: 12.5px;
-  line-height: 1.55;
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 8px;
 }
+.ticket-gauge.is-blocked { border-color: var(--danger); background: var(--danger-soft); }
+.ticket-gauge-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.ticket-gauge-head span { color: var(--muted); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
+.ticket-gauge-head strong { font-size: 12.5px; font-weight: 600; }
+.ticket-scale { position: relative; display: block; height: 18px; margin-top: 8px; }
+.ticket-track { position: absolute; top: 8px; left: 0; right: 0; height: 2px; background: var(--line-strong); }
+/* End caps, so the floor and ceiling read as the ends of a range. */
+.ticket-track::before,
+.ticket-track::after { content: ""; position: absolute; top: -4px; width: 2px; height: 10px; background: var(--line-strong); }
+.ticket-track::before { left: 0; }
+.ticket-track::after { right: 0; }
+.ticket-marker {
+  position: absolute;
+  top: 3px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  background: var(--ink);
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+}
+.is-blocked .ticket-marker { background: var(--danger); }
+.ticket-bounds { display: flex; justify-content: space-between; color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.ticket-gauge-note { margin: 8px 0 0; color: var(--danger); font-size: 12.5px; line-height: 1.55; }
 
-.subscribe-fields + .ticket-range + .actions { margin-top: 12px; }
+.subscribe-fields + .ticket-gauge + .actions,
+.commitment-comparison + .ticket-gauge + .actions { margin-top: 12px; }
 
 .funding-progress {
   display: flex;
@@ -2019,25 +2042,33 @@ next to the field that fills it. */
   border: 1px solid var(--line);
   border-radius: 8px;
 }
-.book-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
-.book-head strong { font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
-.book-head span { font-size: 12.5px; font-weight: 700; }
-.book-state progress { display: block; width: 100%; height: 8px; appearance: none; border: 0; }
-.book-state progress::-webkit-progress-bar { background: var(--line); border-radius: 999px; }
-.book-state progress::-webkit-progress-value { background: var(--accent); border-radius: 999px; }
-.book-state progress::-moz-progress-bar { background: var(--accent); border-radius: 999px; }
-.book-room { color: var(--muted); font-size: 11.5px; }
-.book-line { display: grid; gap: 6px; }
-.book-line + .book-line { padding-top: 11px; border-top: 1px solid var(--line); }
+/* Name, track and figure share one grid, so Senior and Junior line up column
+   for column instead of each stacking its own heading and footnote. */
+.book-row {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+.book-row + .book-row { padding-top: 10px; border-top: 1px solid var(--line); }
+.book-name { color: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; }
+.book-track { position: relative; display: block; height: 8px; background: var(--line); border-radius: 999px; }
+.book-fill { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; }
+/* The point on the Senior track that Junior commitment has released. */
+.book-gate { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); border-radius: 1px; }
+.book-figure { font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.book-figure strong { font-weight: 700; }
+.book-figure small { color: var(--muted); font-size: 12px; }
 .book-close {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
   margin: 3px 0 0;
   padding-top: 11px;
   border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.55;
 }
-.book-close strong { color: var(--ink); }
+.book-close dt { color: var(--muted); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
+.book-close dd { margin: 3px 0 0; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
 
 .landing-page .public-header { min-height: clamp(64px, 9vh, 98px); padding: 0 48px; background: transparent; }
 .landing-page .hero-copy h1 { font-weight: 700; }
@@ -2058,4 +2089,248 @@ next to the field that fills it. */
   .access-page .role-option small { margin-top: 3px; font-size: 11px; line-height: 1.45; }
   .access-page .access-submit { margin-top: 14px; }
   .access-page .access-note { margin-top: 10px; font-size: 11px; line-height: 1.5; }
+}
+
+/* ── Facility panels ───────────────────────────────────────────────────────
+   The structuring, collateral and settlement screens. They reuse the card,
+   order-book and metric shapes above; what is new here is the provenance
+   marker, the scenario table, and the emphasis and breach states that let a
+   reader find the one line that decides something. */
+
+/* Where a number came from. Quiet by default — it is on almost every panel —
+   but never hidden, because a derived figure and an enforced one look
+   identical and are not the same promise. */
+.source-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.source-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.source-controller .source-dot { background: var(--success); }
+.source-server .source-dot { background: var(--accent-dark); }
+.source-derived .source-dot { background: var(--line-strong); }
+.source-local .source-dot {
+  background: var(--warning);
+  box-shadow: 0 0 0 3px var(--warning-soft);
+}
+.source-local { color: var(--warning); }
+
+/* An action the controller will own. Shown disabled with its reason rather
+   than hidden, so the screen reports the whole target state. */
+.pending-action {
+  display: grid;
+  gap: 7px;
+  margin-top: 18px;
+  padding: 15px 17px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  background: var(--bg);
+}
+.pending-action button {
+  justify-self: start;
+  padding: 9px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+.pending-action button:disabled { cursor: not-allowed; opacity: .75; }
+.pending-action small { color: var(--muted); font-size: 11.5px; line-height: 1.55; }
+
+.observation-fields small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* Why a structure was refused. Deliberately plain and listed in full: the
+   spec forbids clamping a breach away, so the screen must not summarise it
+   away either. */
+.reason-list {
+  margin: 18px 0;
+  padding: 15px 17px;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  background: var(--danger-soft);
+}
+.reason-list > strong { display: block; margin-bottom: 10px; font-size: 13px; }
+.reason-list ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.reason-list li { display: grid; gap: 3px; }
+.reason-list code {
+  justify-self: start;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface);
+  font-size: 11px;
+}
+.reason-list span { color: var(--ink); font-size: 12.5px; line-height: 1.5; }
+
+.scenario-table {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.scenario-head,
+.scenario-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  align-items: center;
+  padding: 12px 15px;
+}
+.scenario-head {
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 10.5px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.scenario-row { border-top: 1px solid var(--line); background: var(--surface); font-size: 12.5px; }
+.scenario-row > span { display: grid; gap: 2px; min-width: 0; }
+.scenario-row small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.scenario-row.worst { background: var(--warning-soft); }
+.scenario-row.worst small { color: var(--warning); font-weight: 600; }
+.scenario-row > span:not(:first-child) { justify-items: end; text-align: right; white-space: nowrap; }
+.scenario-head > span:not(:first-child) { text-align: right; }
+
+/* The line that decides the structure, and the line that breaks it. */
+.order-row.emphasis { background: var(--accent-soft); }
+.order-row.emphasis > strong { font-size: 15px; }
+.order-row.breach { background: var(--danger-soft); }
+.order-row.breach strong { color: var(--danger); }
+
+.cap-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--line);
+}
+.cap-split > div { display: grid; gap: 5px; padding: 17px 19px; background: var(--surface); }
+.cap-split span { color: var(--muted); font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; }
+.cap-split strong { font-size: 20px; }
+.cap-split small { color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+
+.spread-schedule {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 18px 0;
+}
+.spread-schedule > div {
+  padding: 15px 17px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.spread-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.spread-head span { font-variant-numeric: tabular-nums; font-weight: 650; }
+.spread-schedule ul { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.spread-schedule li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.spread-schedule li span:last-child { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.gate-meter { display: grid; gap: 16px; margin: 18px 0; }
+.gate-line { display: grid; gap: 7px; }
+.gate-head { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; }
+.gate-head span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.gate-line progress {
+  width: 100%;
+  height: 7px;
+  border: 0;
+  border-radius: 99px;
+  background: var(--line);
+  appearance: none;
+}
+.gate-line progress::-webkit-progress-bar { border-radius: 99px; background: var(--line); }
+.gate-line progress::-webkit-progress-value { border-radius: 99px; background: var(--fill); }
+.gate-line progress::-moz-progress-bar { border-radius: 99px; background: var(--fill); }
+
+@media (max-width: 900px) {
+  .scenario-head { display: none; }
+  .scenario-row { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .scenario-row > span:not(:first-child) { justify-items: start; text-align: left; }
+  .cap-split,
+  .spread-schedule { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── Settlement charts ─────────────────────────────────────────────────── */
+/* Hand-drawn SVG on the same tokens as the rest of the workspace, so a chart
+   and the rows beneath it read as one object rather than two systems. */
+.chart { margin: 20px 0 0; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; height: auto; }
+.chart-grid { stroke: var(--line); stroke-width: 1; }
+.chart-base { stroke: var(--line-strong); stroke-width: 1; }
+/* Flat, because the balance that closes one step opens the next. */
+.chart-conn { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart-axis { font-size: 10.5px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.chart-name { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; fill: var(--muted); }
+.chart-cap { font-size: 11px; font-weight: 700; fill: var(--ink); font-variant-numeric: tabular-nums; }
+.chart-cap.loss { fill: var(--danger); }
+.chart-bar { stroke-width: 1; }
+/* Senior pale and Junior bright: --accent against --accent-dark reads as one
+   colour at this size, which loses the distinction the chart exists to make. */
+.chart-bar.total { fill: var(--accent); stroke: var(--accent-dark); }
+.chart-bar.senior { fill: var(--accent-soft); stroke: var(--accent-dark); }
+.chart-bar.junior { fill: var(--accent); stroke: var(--accent-dark); }
+.chart-bar.deduct { fill: var(--danger); stroke: var(--danger); }
+.chart-bar.open { fill: var(--bg); stroke: var(--line-strong); }
+.chart-band { font-size: 10.5px; font-weight: 600; letter-spacing: .1em; fill: var(--accent-ink); }
+.chart-band-sub { font-size: 10.5px; fill: var(--accent-ink); font-variant-numeric: tabular-nums; }
+.chart-attach { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 3; }
+.chart-ann { font-size: 11.5px; font-weight: 600; fill: var(--ink); }
+.chart-ann.loss { fill: var(--danger); }
+.chart-ann-sub { font-size: 10.5px; fill: var(--muted); }
+
+.chart-legend {
+  display: flex; flex-wrap: wrap; gap: 8px 22px;
+  margin-top: 18px; padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted); font-size: 12px;
+}
+.chart-legend span { display: inline-flex; align-items: center; gap: 8px; }
+.chart-key { width: 12px; height: 12px; flex: none; border-radius: 2px; border: 1px solid var(--accent-dark); }
+.chart-key.senior { background: var(--accent-soft); }
+.chart-key.junior { background: var(--accent); }
+.chart-key.deduct { background: var(--danger); border-color: var(--danger); }
+.chart-key.open { background: var(--bg); border-color: var(--line-strong); }
+
+.loss-stack { display: grid; grid-template-columns: minmax(0, 460px) minmax(0, 1fr); gap: 30px; align-items: center; }
+.loss-stack .chart { margin: 0; }
+.loss-facts dt { color: var(--muted); font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.loss-facts dd { margin: 4px 0 18px; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.loss-facts dd small { display: block; margin-top: 2px; color: var(--muted); font-size: 11.5px; font-weight: 400; }
+.loss-facts div:last-child dd { margin-bottom: 0; }
+.loss-facts dd.warn { color: var(--danger); }
+
+@media (max-width: 860px) {
+  .loss-stack { grid-template-columns: 1fr; }
 }

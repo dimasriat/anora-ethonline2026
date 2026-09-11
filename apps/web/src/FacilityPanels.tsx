@@ -14,7 +14,7 @@ import type { Band, Investor, Position, TrancheName } from "./api";
 import { Badge, Card, PendingAction, Source } from "./ui";
 import {
   COLLATERAL_STATE_COPY, distributionView, gateView, saleQuote, settlementView,
-  type CollateralView, type FacilityProposal, type Provenance,
+  type CollateralView, type FacilityProposal, type Provenance, type SettlementView,
 } from "./facility-view";
 import type { CollateralReport, Policy } from "./structuring";
 
@@ -388,6 +388,175 @@ export function FundingGatePanel({ bands, policy }: { bands: Band[]; policy: Pol
 
 /* ── Settlement ────────────────────────────────────────────────────────── */
 
+/* ── Settlement charts ─────────────────────────────────────────────────── */
+
+const mn = (value: bigint) => `${(Number(value) / 1e6).toFixed(1)}M`;
+const share = (part: bigint, whole: bigint) => (whole <= 0n ? 0 : Number(part) / Number(whole));
+
+/**
+ * The cash bridge. Every bar opens where the running total closed, so the drop
+ * across a bar is exactly what that step consumed, and the connector between
+ * two bars is flat because the closing balance and the opening one are the
+ * same number.
+ *
+ * Frozen face is deliberately absent here. Junior's face can sit below zero on
+ * a cash axis once costs bite, and a bar drawn through the baseline states
+ * something untrue; `FaceAgainstPaid` carries that comparison instead.
+ */
+function CashBridge({ view }: { view: SettlementView }) {
+  const { result } = view;
+  const totalFace = view.seniorFaceIdr + view.juniorFaceIdr;
+  const peak = view.recoveredIdr > totalFace ? view.recoveredIdr : totalFace;
+  if (peak <= 0n) return null;
+
+  const LEFT = 82, RIGHT = 864, TOP = 30, BASE = 310;
+  const SPAN = (RIGHT - LEFT) / 5, BAR = SPAN * 0.5;
+  const y = (value: bigint) => BASE - share(value, peak) * (BASE - TOP);
+  const cx = (index: number) => LEFT + SPAN * index + SPAN / 2;
+  const afterSenior = result.availableIdr - result.seniorPaidIdr;
+
+  const steps = [
+    { name: "RECOVERED", hi: view.recoveredIdr, lo: 0n, to: view.recoveredIdr, tone: "total", cap: mn(view.recoveredIdr) },
+    { name: "COSTS", hi: view.recoveredIdr, lo: result.availableIdr, to: result.availableIdr, tone: "deduct", cap: result.costsPaidIdr > 0n ? `less ${mn(result.costsPaidIdr)}` : "none" },
+    { name: "AVAILABLE", hi: result.availableIdr, lo: 0n, to: result.availableIdr, tone: "total", cap: mn(result.availableIdr) },
+    { name: "SENIOR", hi: result.availableIdr, lo: afterSenior, to: afterSenior, tone: "senior", cap: mn(result.seniorPaidIdr) },
+    { name: "JUNIOR", hi: afterSenior, lo: result.surplusIdr, to: result.surplusIdr, tone: "junior", cap: mn(result.juniorPaidIdr) },
+  ];
+
+  return (
+    <figure className="chart">
+      <svg viewBox="0 0 880 376" role="img" aria-label={`Cash bridge. ${rp(view.recoveredIdr)} recovered, ${rp(result.costsPaidIdr)} of costs charged first, leaving ${rp(result.availableIdr)} allocated Senior before Junior.`}>
+        {[0, 1, 2, 3, 4].map((tick) => {
+          const gy = BASE - (tick / 4) * (BASE - TOP);
+          return (
+            <g key={tick}>
+              <line className="chart-grid" x1={LEFT} y1={gy} x2={RIGHT} y2={gy} />
+              <text className="chart-axis" x={LEFT - 10} y={gy + 4} textAnchor="end">{((Number(peak) * tick) / 4 / 1e6).toFixed(1)}M</text>
+            </g>
+          );
+        })}
+        <line className="chart-base" x1={LEFT} y1={BASE} x2={RIGHT} y2={BASE} />
+        {steps.map((step, index) => {
+          const top = y(step.hi);
+          const height = Math.max(y(step.lo) - top, step.hi === step.lo ? 0 : 2);
+          return (
+            <g key={step.name}>
+              {height > 0 && <rect className={`chart-bar ${step.tone}`} x={cx(index) - BAR / 2} y={top} width={BAR} height={height} rx="2" />}
+              <text className="chart-cap" x={cx(index)} y={top - 9} textAnchor="middle">{step.cap}</text>
+              <text className="chart-name" x={cx(index)} y={BASE + 22} textAnchor="middle">{step.name}</text>
+              {index < steps.length - 1 && (
+                <line className="chart-conn" x1={cx(index) + BAR / 2} y1={y(step.to)} x2={cx(index + 1) - BAR / 2} y2={y(step.to)} />
+              )}
+            </g>
+          );
+        })}
+        {result.surplusIdr > 0n && (
+          <text className="chart-cap" x={RIGHT} y={BASE + 48} textAnchor="end">Surplus above total face {mn(result.surplusIdr)}</text>
+        )}
+      </svg>
+    </figure>
+  );
+}
+
+/** Frozen face as the track, cash that reached it as the fill. A shortfall is
+ *  the part of the track the fill never covers, which is where it reads. */
+function FaceAgainstPaid({ view }: { view: SettlementView }) {
+  const { result } = view;
+  const peak = view.seniorFaceIdr > view.juniorFaceIdr ? view.seniorFaceIdr : view.juniorFaceIdr;
+  if (peak <= 0n) return null;
+
+  const LEFT = 82, RIGHT = 640, ROW = 46;
+  const width = (value: bigint) => share(value, peak) * (RIGHT - LEFT);
+  const rows = [
+    { name: "SENIOR", face: view.seniorFaceIdr, paid: result.seniorPaidIdr, loss: result.seniorLossIdr, tone: "senior" },
+    { name: "JUNIOR", face: view.juniorFaceIdr, paid: result.juniorPaidIdr, loss: result.juniorLossIdr, tone: "junior" },
+  ];
+
+  return (
+    <figure className="chart">
+      <svg viewBox="0 0 880 118" role="img" aria-label={`Frozen face against cash paid. Senior ${rp(result.seniorPaidIdr)} of ${rp(view.seniorFaceIdr)}. Junior ${rp(result.juniorPaidIdr)} of ${rp(view.juniorFaceIdr)}.`}>
+        {rows.map((row, index) => {
+          const top = 20 + index * ROW;
+          return (
+            <g key={row.name}>
+              <text className="chart-name" x={LEFT - 10} y={top + 17} textAnchor="end">{row.name}</text>
+              <rect className="chart-bar open" x={LEFT} y={top} width={width(row.face)} height="26" rx="2" />
+              {row.paid > 0n && <rect className={`chart-bar ${row.tone}`} x={LEFT} y={top} width={width(row.paid)} height="26" rx="2" />}
+              {row.loss > 0n && <rect className="chart-bar deduct" x={LEFT + width(row.paid)} y={top} width={width(row.loss)} height="26" />}
+              <text className={`chart-cap${row.loss > 0n ? " loss" : ""}`} x="870" y={top + 17} textAnchor="end">
+                {mn(row.paid)} of {mn(row.face)}{row.loss > 0n ? `, ${mn(row.loss)} short` : " · whole"}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </figure>
+  );
+}
+
+/** Percent of frozen face. Loss fills from the bottom because Junior is the
+ *  first loss piece, so Senior is touched only once the fill passes its
+ *  attachment line. */
+function FirstLossStack({ view }: { view: SettlementView }) {
+  const { result } = view;
+  const totalFace = view.seniorFaceIdr + view.juniorFaceIdr;
+  if (!view.attachments || totalFace <= 0n) return null;
+
+  const BX = 96, BW = 140, TOP = 46, BASE = 292, TRACK = BASE - TOP, AX = BX + BW + 18;
+  const detach = Number(view.attachments.juniorDetachBp) / 10_000;
+  const lossShare = share(result.totalLossIdr, totalFace);
+  const yOf = (fraction: number) => BASE - Math.min(Math.max(fraction, 0), 1) * TRACK;
+  const yDetach = yOf(detach);
+  const yLoss = result.totalLossIdr > 0n ? Math.min(yOf(lossShare), BASE - 5) : BASE;
+  const past = result.seniorLossIdr > 0n;
+  const seniorRoom = yDetach - TOP, juniorRoom = BASE - yDetach;
+
+  return (
+    <figure className="chart">
+      <svg viewBox="0 0 470 352" role="img" aria-label={`First loss stack. Junior runs from zero to ${pct(view.attachments.juniorDetachBp)} of frozen face and Senior from there to 100 percent. Realised loss reaches ${(lossShare * 100).toFixed(2)} percent, ${past ? "past attachment, so Senior is impaired" : "leaving Senior untouched"}.`}>
+        <text className="chart-axis" x={BX - 10} y={TOP + 4} textAnchor="end">100%</text>
+        <text className="chart-axis" x={BX - 10} y={yDetach + 4} textAnchor="end">{pct(view.attachments.juniorDetachBp)}</text>
+        <text className="chart-axis" x={BX - 10} y={BASE + 4} textAnchor="end">0%</text>
+
+        <rect className="chart-bar senior" x={BX} y={TOP} width={BW} height={seniorRoom} />
+        <rect className="chart-bar junior" x={BX} y={yDetach} width={BW} height={juniorRoom} />
+        {result.totalLossIdr > 0n && <rect className="chart-bar deduct" x={BX} y={yLoss} width={BW} height={BASE - yLoss} />}
+
+        {seniorRoom > 34 && (
+          <>
+            <text className="chart-band" x={BX + BW / 2} y={(TOP + yDetach) / 2 - 2} textAnchor="middle">SENIOR</text>
+            <text className="chart-band-sub" x={BX + BW / 2} y={(TOP + yDetach) / 2 + 14} textAnchor="middle">{mn(view.seniorFaceIdr)} · {past ? "impaired" : "untouched"}</text>
+          </>
+        )}
+        {juniorRoom > 34 && (
+          <>
+            <text className="chart-band" x={BX + BW / 2} y={(yDetach + BASE) / 2 - 2} textAnchor="middle">JUNIOR</text>
+            <text className="chart-band-sub" x={BX + BW / 2} y={(yDetach + BASE) / 2 + 14} textAnchor="middle">{mn(view.juniorFaceIdr)} first loss</text>
+          </>
+        )}
+
+        <line className="chart-attach" x1={BX - 8} y1={yDetach} x2={AX + 180} y2={yDetach} />
+        <text className="chart-ann" x={AX} y={yDetach - 9}>Senior attaches</text>
+        <text className="chart-ann-sub" x={AX} y={yDetach + 16}>{past ? "Loss has passed this line" : "A loss must climb this far"}</text>
+        <text className="chart-ann-sub" x={AX} y={yDetach + 30}>{past ? "and is eating Senior" : "before Senior is touched"}</text>
+
+        <line className="chart-base" x1={BX} y1={BASE} x2={BX + BW} y2={BASE} />
+        {result.totalLossIdr > 0n ? (
+          <>
+            <text className="chart-ann loss" x={BX} y={BASE + 34}>{rp(result.totalLossIdr)} realised</text>
+            <text className="chart-ann-sub" x={BX} y={BASE + 50}>{(lossShare * 100).toFixed(2)}% of frozen face</text>
+          </>
+        ) : (
+          <>
+            <text className="chart-ann" x={BX} y={BASE + 34}>No loss realised</text>
+            <text className="chart-ann-sub" x={BX} y={BASE + 50}>Every tranche paid to face</text>
+          </>
+        )}
+      </svg>
+    </figure>
+  );
+}
+
 export function SettlementPanel({ bands, positions, investors, recoveredIdr, settled, provenance }: {
   bands: Band[];
   positions: Position[];
@@ -416,6 +585,14 @@ export function SettlementPanel({ bands, positions, investors, recoveredIdr, set
             <span>Approved costs (IDR)</span>
             <input inputMode="numeric" value={costsText} onChange={(event) => setCostsText(event.target.value)} />
           </label>
+        </div>
+        <CashBridge view={view} />
+        <FaceAgainstPaid view={view} />
+        <div className="chart-legend">
+          <span><i className="chart-key senior" /> Senior, paid first</span>
+          <span><i className="chart-key junior" /> Junior, absorbs loss first</span>
+          <span><i className="chart-key deduct" /> Costs and shortfall</span>
+          <span><i className="chart-key open" /> Frozen face not reached</span>
         </div>
         <div className="order-book">
           <div className="order-row">
@@ -457,15 +634,42 @@ export function SettlementPanel({ bands, positions, investors, recoveredIdr, set
           )}
         </div>
 
-        {view.attachments && (
-          <p className="supporting-copy">
-            Junior attaches at 0 and detaches at {pct(view.attachments.juniorDetachBp)} of frozen
-            face; Senior runs from there to 100%. These points come from the face actually
-            outstanding, not from a prescribed split.
-          </p>
-        )}
         <Source provenance={view.provenance} />
       </Card>
+
+      {view.attachments && (
+        <Card title="First loss and attachment">
+          <p className="supporting-copy">
+            How far a loss has to climb before it reaches Senior. Junior attaches at 0 and detaches
+            at {pct(view.attachments.juniorDetachBp)} of frozen face; Senior runs from there to
+            100%. These points come from the face actually outstanding, not from a prescribed split.
+          </p>
+          <div className="loss-stack">
+            <FirstLossStack view={view} />
+            <dl className="loss-facts">
+              <div>
+                <dt>Junior detachment</dt>
+                <dd>{pct(view.attachments.juniorDetachBp)}<small>{rp(view.juniorFaceIdr)} of {rp(view.seniorFaceIdr + view.juniorFaceIdr)} frozen face</small></dd>
+              </div>
+              <div>
+                <dt>Realised loss</dt>
+                <dd className={result.totalLossIdr > 0n ? "warn" : ""}>
+                  {rp(result.totalLossIdr)}
+                  <small>{result.totalLossIdr > 0n ? `${pct(view.attachments.juniorDetachBp === 0n ? 0n : BigInt(Math.round(share(result.totalLossIdr, view.juniorFaceIdr) * 10_000)))} of the Junior buffer` : "Every tranche paid to face"}</small>
+                </dd>
+              </div>
+              <div>
+                <dt>{result.seniorLossIdr > 0n ? "Senior impaired by" : "Headroom before Senior"}</dt>
+                <dd className={result.seniorLossIdr > 0n ? "warn" : ""}>
+                  {rp(result.seniorLossIdr > 0n ? result.seniorLossIdr : view.juniorFaceIdr - result.juniorLossIdr)}
+                  <small>{result.seniorLossIdr > 0n ? "The Junior buffer is exhausted" : "Subordination still standing under the attachment"}</small>
+                </dd>
+              </div>
+            </dl>
+          </div>
+          <Source provenance={view.provenance} />
+        </Card>
+      )}
 
       <Card title="Holder claims">
         <p className="supporting-copy">
