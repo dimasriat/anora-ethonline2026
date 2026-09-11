@@ -3,8 +3,14 @@ pragma solidity ^0.8.28;
 
 import {Collateral} from "./Collateral.sol";
 import {Tranche} from "./Tranche.sol";
+import {Pricing} from "./Pricing.sol";
 
 contract AnoraFacilityController {
+    enum Slice {
+        Senior,
+        Junior
+    }
+
     struct Terms {
         uint256 seniorCap;
         uint256 juniorCap;
@@ -23,6 +29,9 @@ contract AnoraFacilityController {
     error AboveApproved();
     error SponsorRequired();
     error EmptyTerm();
+    error NotOpen();
+    error SeniorNotUnlocked();
+    error ExceedsCap();
     error ReportTooOld();
     error ReportFromTheFuture();
     error NonceNotAdvanced();
@@ -31,6 +40,7 @@ contract AnoraFacilityController {
     error RecordsDisagree();
 
     event FacilityOpened(uint256 seniorCap, uint256 juniorCap, uint256 termDays);
+    event Subscribed(Slice indexed slice, address indexed holder, uint256 face, uint256 price);
     event CollateralReported(uint256 eligibleValueIdr, uint256 observedAt, uint256 nonce, bytes32 evidence);
 
     address public immutable oracle;
@@ -39,6 +49,10 @@ contract AnoraFacilityController {
 
     Terms public terms;
     bool public open;
+
+    mapping(Slice => uint256) public committed;
+    mapping(Slice => mapping(address => uint256)) public face;
+    mapping(Slice => mapping(address => uint256)) public paid;
 
     uint256 public eligibleValueIdr;
     uint256 public observedAt;
@@ -94,5 +108,27 @@ contract AnoraFacilityController {
 
     function retainedJuniorMinimum() external view returns (uint256) {
         return Tranche.retainedMinimum(terms.juniorCap, terms.retentionBp);
+    }
+
+    function subscribe(Slice slice, uint256 amount) external {
+        if (!open) revert NotOpen();
+
+        uint256 already = committed[slice];
+        uint256 next = already + amount;
+
+        if (slice == Slice.Junior) {
+            if (next > terms.juniorCap) revert ExceedsCap();
+        } else if (!Tranche.seniorFits(next, committed[Slice.Junior], terms.seniorCap, terms.juniorCap)) {
+            revert SeniorNotUnlocked();
+        }
+
+        uint256 yieldBp = slice == Slice.Junior ? terms.juniorYieldBp : terms.seniorYieldBp;
+        uint256 price = Pricing.charge(face[slice][msg.sender], amount, yieldBp, terms.termDays);
+
+        committed[slice] = next;
+        face[slice][msg.sender] += amount;
+        paid[slice][msg.sender] += price;
+
+        emit Subscribed(slice, msg.sender, amount, price);
     }
 }

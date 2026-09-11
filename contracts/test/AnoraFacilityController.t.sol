@@ -174,3 +174,83 @@ contract FacilityTermsTest is Test {
         assertEq(controller.retainedJuniorMinimum(), 30_000_000);
     }
 }
+
+contract SubscriptionTest is Test {
+    AnoraFacilityController controller;
+
+    address constant ORACLE = address(0xA1);
+    address constant SPONSOR = address(0x50);
+    address constant BANK = address(0xB0);
+
+    uint256 constant S_CAP = 270_000_000;
+    uint256 constant J_CAP = 120_000_000;
+
+    function setUp() public {
+        vm.warp(1_000_000);
+        controller = new AnoraFacilityController(ORACLE, 1 hours);
+        controller.openFacility(
+            AnoraFacilityController.Terms({
+                seniorCap: S_CAP,
+                juniorCap: J_CAP,
+                approvedIdr: 420_000_000,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                maxLtvBp: 7_000,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            })
+        );
+    }
+
+    function _junior(address who, uint256 face) internal {
+        vm.prank(who);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, face);
+    }
+
+    function _senior(address who, uint256 face) internal {
+        vm.prank(who);
+        controller.subscribe(AnoraFacilityController.Slice.Senior, face);
+    }
+
+    function test_refusesSeniorBeforeAnyJunior() public {
+        vm.expectRevert(AnoraFacilityController.SeniorNotUnlocked.selector);
+        _senior(BANK, 1);
+    }
+
+    function test_juniorOpensSeniorInProportion() public {
+        _junior(SPONSOR, 30_000_000);
+        _senior(BANK, 67_500_000);
+        assertEq(controller.committed(AnoraFacilityController.Slice.Senior), 67_500_000);
+    }
+
+    function test_refusesOneRupiahAboveTheUnlock() public {
+        _junior(SPONSOR, 30_000_000);
+        vm.expectRevert(AnoraFacilityController.SeniorNotUnlocked.selector);
+        _senior(BANK, 67_500_001);
+    }
+
+    function test_refusesJuniorBeyondItsCap() public {
+        vm.expectRevert(AnoraFacilityController.ExceedsCap.selector);
+        _junior(SPONSOR, J_CAP + 1);
+    }
+
+    function test_chargesTheDiscountedPrice() public {
+        _junior(SPONSOR, J_CAP);
+        assertEq(controller.paid(AnoraFacilityController.Slice.Junior, SPONSOR), 118_683_105);
+    }
+
+    function test_fullJuniorUnlocksAllSenior() public {
+        _junior(SPONSOR, J_CAP);
+        _senior(BANK, S_CAP);
+        assertEq(controller.committed(AnoraFacilityController.Slice.Senior), S_CAP);
+        assertEq(controller.paid(AnoraFacilityController.Slice.Senior, BANK), 268_675_027);
+    }
+
+    function test_splittingASeniorOrderCostsTheSame() public {
+        _junior(SPONSOR, J_CAP);
+        _senior(BANK, 100_000_000);
+        _senior(BANK, 170_000_000);
+        assertEq(controller.paid(AnoraFacilityController.Slice.Senior, BANK), 268_675_027);
+    }
+}
