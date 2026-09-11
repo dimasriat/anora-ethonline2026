@@ -12,8 +12,8 @@ import {
 } from "./api";
 import { Badge, Card, PendingAction, RailRow, Row, Source } from "./ui";
 import {
-  CollateralPanel, DistributionPanel, FundingGatePanel, SaleQuoteLines, SettlementPanel,
-  StructuringPanel, type ScheduledDistribution,
+  CollateralPanel, DistributionPanel, FundingGatePanel, kg, pct, rpExact, SaleQuoteLines,
+  SettlementPanel, StructuringPanel, type ScheduledDistribution,
 } from "./FacilityPanels";
 import {
   collateralView, flowApprovedFace, flowIssuedFace, observationFrom, proposalFor,
@@ -1581,7 +1581,30 @@ export default function App() {
     </Card>
   </>;
 
+  /* What the four cards below conclude, in the order they conclude it. */
+  const undrawn = "Not derived";
+  const structuringChain: [string, string, string][] = [
+    ["Effective quantity", kg(collateral.reconciliation.effectiveGrams), "Lower of registry and warehouse"],
+    ["Eligible collateral", rpExact(collateral.collateralIdr), `After a ${pct(collateral.report.haircutBp)} haircut`],
+    ["Collateral ceiling", rpExact(collateral.faceCeilingIdr), `At the ${pct(DEMONSTRATION_POLICY.maxLtvBp)} policy LTV`],
+    ["Target face", proposal.structure ? rpExact(proposal.structure.targetFaceIdr) : undrawn, "What this facility would issue"],
+    ["Required Junior", proposal.structure ? rpExact(proposal.structure.juniorRequiredIdr) : undrawn, "Worst scenario plus buffer"],
+    ["Senior cap", proposal.structure ? rpExact(proposal.structure.seniorCapIdr) : undrawn, "What is left, paid first"],
+  ];
+
   const complianceStructuringPanel = <>
+    <Card title="Observation to locked terms">
+      <div className="status-strip">
+        <span>Derivation</span>
+        <Badge tone={proposal.feasible ? "success" : "danger"}>{proposal.feasible ? "Feasible" : "Infeasible"}</Badge>
+        <small>Each step consumes the one before it. Only the observation is typed; everything after is policy applied to it.</small>
+      </div>
+      <div className="finance-metrics derivation">
+        {structuringChain.map(([label, value, note]) => (
+          <div key={label}><span>{label}</span><strong>{value}</strong><small>{note}</small></div>
+        ))}
+      </div>
+    </Card>
     <CollateralPanel view={collateral} policy={DEMONSTRATION_POLICY} editable onObserve={setObservation} />
     <StructuringPanel proposal={proposal} policy={DEMONSTRATION_POLICY} canApprove />
   </>;

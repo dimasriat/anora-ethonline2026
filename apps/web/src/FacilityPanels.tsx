@@ -21,8 +21,10 @@ import type { CollateralReport, Policy } from "./structuring";
 const idr = new Intl.NumberFormat("id-ID");
 /** Rupiah from an exact integer. Never via Number — face values overflow it. */
 const rp = (value: bigint) => `Rp ${idr.format(value)}`;
-const pct = (bp: bigint | null) => (bp === null ? "—" : `${(Number(bp) / 100).toFixed(2)}%`);
-const kg = (grams: bigint) => `${idr.format(grams / 1_000n)} kg`;
+/** For callers outside this module: `rp` in api.ts takes a number. */
+export const rpExact = rp;
+export const pct = (bp: bigint | null) => (bp === null ? "—" : `${(Number(bp) / 100).toFixed(2)}%`);
+export const kg = (grams: bigint) => `${idr.format(grams / 1_000n)} kg`;
 
 /* ── Collateral ────────────────────────────────────────────────────────── */
 
