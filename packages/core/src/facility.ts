@@ -1,11 +1,22 @@
 import type { Investor, Subscription, TrancheName, TrancheTerms } from "./domain";
 
-const ISSUED_SHARE: { name: TrancheName; numerator: number; returnBp: number }[] = [
-  { name: "SENIOR", numerator: 270, returnBp: 200 },
-  { name: "JUNIOR", numerator: 120, returnBp: 450 },
-];
+export type Fraction = { numerator: number; denominator: number };
 
-const CEILING_DENOMINATOR = 420;
+export type FacilityPolicy = {
+  maxLtvBp: number;
+  issued: Fraction;
+  juniorShare: Fraction;
+  seniorReturnBp: number;
+  juniorReturnBp: number;
+};
+
+export const ANORA_POLICY: FacilityPolicy = {
+  maxLtvBp: 7_000,
+  issued: { numerator: 13, denominator: 14 },
+  juniorShare: { numerator: 4, denominator: 13 },
+  seniorReturnBp: 200,
+  juniorReturnBp: 450,
+};
 
 export type Facility = {
   ceilingIdr: number;
@@ -21,13 +32,19 @@ export type Refusal =
 
 export type Screening = { ok: true } | { ok: false; refusal: Refusal };
 
-export function facilityFrom(collateralValueIdr: number, maxLtvBp: number): Facility {
-  const ceilingIdr = Math.floor((collateralValueIdr * maxLtvBp) / 10_000);
+export function facilityFrom(collateralValueIdr: number, policy: FacilityPolicy): Facility {
+  const ceilingIdr = Math.floor((collateralValueIdr * policy.maxLtvBp) / 10_000);
+  const issuedIdr = Math.floor((ceilingIdr * policy.issued.numerator) / policy.issued.denominator);
+  const juniorIdr = Math.ceil((issuedIdr * policy.juniorShare.numerator) / policy.juniorShare.denominator);
+
+  const bands: { name: TrancheName; capacityIdr: number; returnBp: number }[] = [
+    { name: "JUNIOR", capacityIdr: juniorIdr, returnBp: policy.juniorReturnBp },
+    { name: "SENIOR", capacityIdr: issuedIdr - juniorIdr, returnBp: policy.seniorReturnBp },
+  ];
 
   let attachmentIdr = 0;
   const tranches: TrancheTerms[] = [];
-  for (const { name, numerator, returnBp } of [...ISSUED_SHARE].reverse()) {
-    const capacityIdr = Math.floor((ceilingIdr * numerator) / CEILING_DENOMINATOR);
+  for (const { name, capacityIdr, returnBp } of bands) {
     tranches.unshift({
       name,
       capacityIdr,

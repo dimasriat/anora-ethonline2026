@@ -1,5 +1,5 @@
 import {
-  facilityFrom, isReversible, previousStep, splitRecovery,
+  ANORA_POLICY, facilityFrom, isReversible, previousStep, splitRecovery,
   remainingCapacityIdr, requireStep, screenSubscription,
 } from "@anora/core";
 import type {
@@ -61,7 +61,6 @@ const whatFailed = (cause: unknown): string => {
   return printed ? printed : (cause as Error).message;
 };
 
-const MAX_LTV_BP = 7_000;
 const MATURITY_DAYS = 90;
 
 /* Each facility deploys a contract and creates a Privy wallet. Unbounded
@@ -157,7 +156,7 @@ export function makeFlow(ports: Ports) {
         throw new FlowError("receipt_encumbered", `${esrgId} is already pledged`, { esrgId });
       }
 
-      const facility = facilityFrom(esrg.valueIdr, MAX_LTV_BP);
+      const facility = facilityFrom(esrg.valueIdr, ANORA_POLICY);
       const id = `REQ-${++sequence}`;
       const state: FlowState = {
         ownerId,
@@ -166,7 +165,7 @@ export function makeFlow(ports: Ports) {
           esrgId,
           requestedIdr: facility.ceilingIdr,
           maturityDays: MATURITY_DAYS,
-          maxLtvBp: MAX_LTV_BP,
+          maxLtvBp: ANORA_POLICY.maxLtvBp,
           epoch: 1,
           status: "draft",
         },

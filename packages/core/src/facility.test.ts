@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { facilityFrom, remainingCapacityIdr, screenSubscription } from "./facility";
+import { ANORA_POLICY, facilityFrom, remainingCapacityIdr, screenSubscription } from "./facility";
 import type { Investor, Subscription } from "./domain";
 
-const facility = facilityFrom(600_000_000, 7_000);
+const facility = facilityFrom(600_000_000, ANORA_POLICY);
 const senior = facility.tranches.find((t) => t.name === "SENIOR")!;
 const junior = facility.tranches.find((t) => t.name === "JUNIOR")!;
 
@@ -28,9 +28,26 @@ const subscription = (tranche: "SENIOR" | "JUNIOR", unitsIdr: number): Subscript
 });
 
 describe("facilityFrom", () => {
+  test("sizes a different policy without touching the arithmetic", () => {
+    const conservative = facilityFrom(600_000_000, {
+      maxLtvBp: 6_000,
+      issued: { numerator: 1, denominator: 1 },
+      juniorShare: { numerator: 1, denominator: 4 },
+      seniorReturnBp: 300,
+      juniorReturnBp: 600,
+    });
+    const senior = conservative.tranches.find((t) => t.name === "SENIOR")!;
+    const junior = conservative.tranches.find((t) => t.name === "JUNIOR")!;
+
+    expect(conservative.ceilingIdr).toBe(360_000_000);
+    expect(junior.capacityIdr).toBe(90_000_000);
+    expect(senior.capacityIdr).toBe(270_000_000);
+    expect(junior.returnBp).toBe(600);
+  });
+
   test("derives the ceiling from the receipt, not a fixed number", () => {
     expect(facility.ceilingIdr).toBe(420_000_000);
-    expect(facilityFrom(226_800_000, 7_000).ceilingIdr).toBe(158_760_000);
+    expect(facilityFrom(226_800_000, ANORA_POLICY).ceilingIdr).toBe(158_760_000);
   });
 
   test("issues Senior and Junior, leaving capacity unissued", () => {
