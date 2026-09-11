@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { setAccessToken } from "./session";
 import { needsSession } from "./session-gate";
+import { IdentityContext, privyStanding } from "./identity";
 
 export function PrivySession({ children }: { children: ReactNode }) {
   const { ready, authenticated, login, getAccessToken } = usePrivy();
@@ -30,7 +31,11 @@ export function PrivySession({ children }: { children: ReactNode }) {
     return () => { alive = false; };
   }, [ready, authenticated, getAccessToken]);
 
-  if (!needsSession(hash) || (ready && authenticated && carrying)) return <>{children}</>;
+  const standing = privyStanding({ simulated: false, ready, authenticated, carrying });
+
+  if (!needsSession(hash) || (ready && authenticated && carrying)) {
+    return <IdentityContext.Provider value={standing}>{children}</IdentityContext.Provider>;
+  }
 
   return (
     <div className="public-page">

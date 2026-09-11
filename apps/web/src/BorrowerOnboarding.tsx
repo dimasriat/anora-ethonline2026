@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { BorrowerProfile, IntakeAction, IntakeOptions, IntakeState } from "./api";
+import { useIdentityStanding } from "./identity";
 
 const fieldsFor = (options: IntakeOptions): [keyof BorrowerProfile, string, string[]?][] => [["entityType", "Entity type", options.entityTypes], ["entityName", "Legal entity name"], ["registrationRef", "Business registration / NIB"], ["taxRef", "Tax registration reference"], ["representativeRole", "Representative capacity", options.representativeRoles], ["authorityRef", "Board mandate / authority reference"], ["commodity", "Goods intended for SRG storage", options.commodities], ["quantityKg", "Intended quantity (kg)"], ["warehouse", "Proposed SRG warehouse", options.warehouses]];
 const documents = ["Entity registration", "Tax registration", "Representative authority", "Goods declaration"];
@@ -8,6 +9,7 @@ export default function BorrowerOnboarding({ state, options, error, onAction, on
   state: IntakeState; options: IntakeOptions; error: string | null; onAction: (action: IntakeAction) => void; onComplete: (profile: BorrowerProfile) => void; onSwitch: () => void; onReset: () => void; onHome: () => void;
 }) {
   const [profile, setProfile] = useState(state.borrower.profile);
+  const standing = useIdentityStanding();
   const fields = fieldsFor(options);
   return <div className="public-page onboarding-page">
     <header className="public-header compact-header"><button className="wordmark-button" onClick={onHome}>Anora</button><div className="onboarding-header-actions"><button type="button" className="reset-demo" onClick={onReset}>Reset</button><button className="sign-in-button" onClick={onSwitch}>Switch workspace</button></div></header>
@@ -16,7 +18,7 @@ export default function BorrowerOnboarding({ state, options, error, onAction, on
       <div className="onboarding-layout"><section className="onboarding-form">
         {error && <div className="error-banner" role="alert">{error}</div>}
         <form onSubmit={event => { event.preventDefault(); onComplete(profile); }}>
-          <div className="analytics-panel onboarding-section"><div className="status-strip onboarding-privy"><span>Privy account</span><strong>Connected</strong></div><h2>Entity, authority, and goods</h2>
+          <div className="analytics-panel onboarding-section"><div className="status-strip onboarding-privy" data-tone={standing.tone}><span>Privy account</span><strong>{standing.label}</strong></div><h2>Entity, authority, and goods</h2>
           <fieldset className="onboarding-fields">{fields.map(([key, label, choices]) => <label key={key}>{label}{choices
             ? <select value={String(profile[key])} onChange={event => setProfile({ ...profile, [key]: event.target.value })}>{choices.map(choice => <option key={choice}>{choice}</option>)}</select>
             : <input required maxLength={200} type={key === "quantityKg" ? "number" : "text"} min={key === "quantityKg" ? 1 : undefined} step={key === "quantityKg" ? 1 : undefined} value={profile[key]} onChange={event => setProfile({ ...profile, [key]: key === "quantityKg" ? Number(event.target.value) : event.target.value })} />}</label>)}</fieldset></div>

@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { PrivyProvider } from "@privy-io/react-auth";
 import App from "./App";
 import { PrivySession } from "./PrivySession";
+import { IdentityContext, privyStanding } from "./identity";
 import "./index.css";
 import "./dashboard.css";
 
@@ -25,7 +26,9 @@ createRoot(document.getElementById("root")!).render(
         </PrivySession>
       </PrivyProvider>
     ) : (
-      <App />
+      <IdentityContext.Provider value={privyStanding({ simulated: true, ready: false, authenticated: false, carrying: false })}>
+        <App />
+      </IdentityContext.Provider>
     )}
   </React.StrictMode>,
 );

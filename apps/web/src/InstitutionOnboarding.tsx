@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useIdentityStanding } from "./identity";
 
 type InstitutionRole = "Capital Provider" | "Compliance";
 
@@ -25,6 +26,7 @@ export default function InstitutionOnboarding({ role, onComplete, onSwitch, onRe
   role: InstitutionRole; onComplete: () => void; onSwitch: () => void; onReset: () => void; onHome: () => void;
 }) {
   const [profile, setProfile] = useState(PRESET[role]);
+  const standing = useIdentityStanding();
   const [worldIdVerified, setWorldIdVerified] = useState(false);
   const fields: [keyof typeof profile, string][] = [
     ["entityName", "Legal entity name"], ["registrationRef", "Registration / licence reference"],
@@ -40,7 +42,7 @@ export default function InstitutionOnboarding({ role, onComplete, onSwitch, onRe
       <header className="onboarding-heading"><div><span className="section-kicker">{role} registration</span><h1>{role === "Capital Provider" ? "Register and verify eligibility." : "Register and attest your authority."}</h1></div></header>
       <div className="onboarding-layout"><section className="onboarding-form">
         <form onSubmit={event => { event.preventDefault(); if (role !== "Compliance" || worldIdVerified) onComplete(); }}>
-          <div className="analytics-panel onboarding-section"><div className="status-strip onboarding-privy"><span>Privy account</span><strong>Connected</strong></div><h2>Organization and authority</h2>
+          <div className="analytics-panel onboarding-section"><div className="status-strip onboarding-privy" data-tone={standing.tone}><span>Privy account</span><strong>{standing.label}</strong></div><h2>Organization and authority</h2>
           <fieldset className="onboarding-fields">{fields.map(([key, label]) => <label key={key}>{label}<input required maxLength={200} value={profile[key]} onChange={event => setProfile({ ...profile, [key]: event.target.value })} /></label>)}</fieldset></div>
           {role === "Compliance" && <div className="analytics-panel onboarding-section onboarding-verification"><h3>World ID Selfie Check</h3><p>Confirms the operator is a unique human participant. Organizational authority remains covered by the private credential below.</p>
             {/* # WORLD_ID_BACKEND_INTEGRATION: render the backend QR payload here, then enable registration after server verification. */}
