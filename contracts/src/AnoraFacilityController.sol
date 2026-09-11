@@ -5,11 +5,23 @@ import {Collateral} from "./Collateral.sol";
 import {Tranche} from "./Tranche.sol";
 import {Pricing} from "./Pricing.sol";
 import {Settlement} from "./Settlement.sol";
+import {Sizing} from "./Sizing.sol";
 
 contract AnoraFacilityController {
     enum Slice {
         Senior,
         Junior
+    }
+
+    struct Policy {
+        uint256 maxLtvBp;
+        uint256 juniorNumerator;
+        uint256 juniorDenominator;
+        uint256 seniorYieldBp;
+        uint256 juniorYieldBp;
+        uint256 termDays;
+        uint256 retentionBp;
+        address sponsor;
     }
 
     struct Terms {
@@ -49,6 +61,7 @@ contract AnoraFacilityController {
     error ObservationWentBackwards();
     error EvidenceMissing();
     error RecordsDisagree();
+    error NoCollateralYet();
 
     event FacilityOpened(uint256 seniorCap, uint256 juniorCap, uint256 termDays);
     event Subscribed(Slice indexed slice, address indexed holder, uint256 face, uint256 price);
@@ -63,6 +76,7 @@ contract AnoraFacilityController {
     uint256 public immutable maxAge;
     uint256 public immutable reconciliationToleranceBp;
 
+    Policy public policy;
     Terms public terms;
     bool public open;
 
@@ -92,11 +106,14 @@ contract AnoraFacilityController {
         _;
     }
 
-    constructor(address reporter, address reviewer, uint256 freshness) {
+    constructor(address reporter, address reviewer, uint256 freshness, Policy memory facilityPolicy) {
         oracle = reporter;
         compliance = reviewer;
         maxAge = freshness;
         reconciliationToleranceBp = 100;
+        if (facilityPolicy.retentionBp > 0 && facilityPolicy.sponsor == address(0)) revert SponsorRequired();
+        if (facilityPolicy.termDays == 0) revert EmptyTerm();
+        policy = facilityPolicy;
     }
 
     function reportCollateral(
@@ -127,17 +144,31 @@ contract AnoraFacilityController {
         emit CollateralReported(eligibleValueIdr, reportedAt, reportNonce, reportEvidence);
     }
 
-    function openFacility(Terms calldata proposed) external onlyCompliance {
+    function openFacility(uint256 requestedFaceIdr) external {
         if (open) revert AlreadyOpen();
-        if (proposed.seniorCap == 0 || proposed.juniorCap == 0) revert EmptyTranche();
-        if (proposed.termDays == 0) revert EmptyTerm();
-        if (proposed.seniorCap + proposed.juniorCap > proposed.approvedIdr) revert AboveApproved();
-        if (proposed.retentionBp > 0 && proposed.sponsor == address(0)) revert SponsorRequired();
+        if (observedAt == 0) revert NoCollateralYet();
+        if (block.timestamp - observedAt > maxAge) revert ReportTooOld();
 
-        terms = proposed;
+        uint256 approved = Collateral.ceiling(eligibleValueIdr, policy.maxLtvBp);
+        uint256 target = requestedFaceIdr < approved ? requestedFaceIdr : approved;
+        if (target == 0) revert EmptyTranche();
+
+        Sizing.Caps memory caps = Sizing.fromTarget(target, policy.juniorNumerator, policy.juniorDenominator);
+
+        terms = Terms({
+            seniorCap: caps.senior,
+            juniorCap: caps.junior,
+            approvedIdr: approved,
+            seniorYieldBp: policy.seniorYieldBp,
+            juniorYieldBp: policy.juniorYieldBp,
+            termDays: policy.termDays,
+            maxLtvBp: policy.maxLtvBp,
+            retentionBp: policy.retentionBp,
+            sponsor: policy.sponsor
+        });
         open = true;
 
-        emit FacilityOpened(proposed.seniorCap, proposed.juniorCap, proposed.termDays);
+        emit FacilityOpened(caps.senior, caps.junior, policy.termDays);
     }
 
     function retainedJuniorMinimum() external view returns (uint256) {
