@@ -39,6 +39,30 @@ export function Source({ provenance, children }: { provenance: Provenance; child
   );
 }
 
+/** Groups a digit string without going through Number, so long values stay exact. */
+export const groupDigits = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+
+/** Digits in, grouped digits shown. The value stays a plain integer string. */
+export function NumberField({ value, onValue, id, placeholder, ariaLabel }: {
+  value: string;
+  onValue: (digits: string) => void;
+  id?: string;
+  placeholder?: string;
+  ariaLabel?: string;
+}) {
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      id={id}
+      aria-label={ariaLabel}
+      placeholder={placeholder}
+      value={groupDigits(value)}
+      onChange={(event) => onValue(event.target.value.replace(/[^0-9]/g, ""))}
+    />
+  );
+}
+
 /** A control the controller will own, shown as unavailable rather than hidden. */
 export function PendingAction({ label, because }: { label: string; because: string }) {
   return (

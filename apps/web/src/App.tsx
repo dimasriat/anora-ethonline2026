@@ -10,10 +10,10 @@ import {
   type Band, type Chain, type ESrg, type Flow, type IntakeAction, type IntakeOptions, type IntakeState, type Investor, type Mode,
   type Note, type Position, type TrancheName,
 } from "./api";
-import { Badge, Card, PendingAction, RailRow, Row, Source } from "./ui";
+import { Badge, Card, groupDigits, NumberField, PendingAction, RailRow, Row, Source } from "./ui";
 import {
-  CollateralPanel, DistributionPanel, FundingGatePanel, SaleQuoteLines, SettlementPanel,
-  StructuringPanel, type ScheduledDistribution,
+  CollateralPanel, DistributionPanel, FundingGatePanel, kg, pct, rpExact, SaleQuoteLines,
+  SettlementPanel, StructuringPanel, type ScheduledDistribution,
 } from "./FacilityPanels";
 import {
   collateralView, flowApprovedFace, flowIssuedFace, observationFrom, proposalFor,
@@ -156,6 +156,17 @@ const NAV_ICONS: Record<string, string> = {
  *  hand-off moves the user between workspaces rather than out of the product. */
 /** Where a borrower proposes a receipt for intake review. */
 const INTAKE_SECTION = "My e-SRGs";
+
+/** What the owning workspace does next. STEP_OWNER gives each step one owner. */
+const NEXT_ACTION: Record<string, string> = {
+  draft: "Prepare the mandate and sign it. Size, Junior coverage, and price are derived from the receipt and policy, so nothing is typed.",
+  mandate_signed: "Document review and the private eligibility proof run on this page. They take a few seconds.",
+  approved: "Document review and the private eligibility proof run on this page. They take a few seconds.",
+  proven: "Issue the note. This mints a real ATS token on Hedera and fixes both partitions for good.",
+  tokenized: "Subscribe to a partition. Junior absorbs first loss and fills first; Senior opens once Junior is covered.",
+  subscribed: "The book is full. Registry confirmation and funding run on their own, and the position lands in My notes.",
+  funded: "Units are active. They move between allowlisted holders through Transfers, and Cashflows carries the schedule to maturity.",
+};
 
 const FLOW_SECTION: Record<Role, string> = {
   Borrower: "Financing requests",
@@ -1178,10 +1189,7 @@ export default function App() {
         </label>
         <label>
           <span>Maturity face value (IDR)</span>
-          <input
-            type="text" inputMode="numeric" value={amount ? Number(amount).toLocaleString("id-ID") : ""}
-            onChange={(event) => setAmount(event.target.value.replace(/[^0-9]/g, ""))}
-          />
+          <NumberField value={amount} onValue={setAmount} />
         </label>
       </div>
       {open && Number(amount) > 0 && <section className="commitment-comparison" aria-label="Commitment comparison">
@@ -1380,11 +1388,11 @@ export default function App() {
             </label>
             <label>
               <span>Token units</span>
-              <input type="number" inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value)} />
+              <NumberField value={amount} onValue={setAmount} />
             </label>
             <label>
               <span>Sale price (IDR)</span>
-              <input type="number" inputMode="numeric" value={askPrice} placeholder={amount || "0"} onChange={(event) => setAskPrice(event.target.value)} />
+              <NumberField value={askPrice} onValue={setAskPrice} placeholder={groupDigits(amount) || "0"} />
               <small>A discounted claim rarely trades at face. Leave blank to offer at par.</small>
             </label>
           </div>
@@ -1570,7 +1578,30 @@ export default function App() {
     </Card>
   </>;
 
+  /* What the four cards below conclude, in the order they conclude it. */
+  const undrawn = "Not derived";
+  const structuringChain: [string, string, string][] = [
+    ["Effective quantity", kg(collateral.reconciliation.effectiveGrams), "Lower of registry and warehouse"],
+    ["Eligible collateral", rpExact(collateral.collateralIdr), `After a ${pct(collateral.report.haircutBp)} haircut`],
+    ["Collateral ceiling", rpExact(collateral.faceCeilingIdr), `At the ${pct(DEMONSTRATION_POLICY.maxLtvBp)} policy LTV`],
+    ["Target face", proposal.structure ? rpExact(proposal.structure.targetFaceIdr) : undrawn, "What this facility would issue"],
+    ["Required Junior", proposal.structure ? rpExact(proposal.structure.juniorRequiredIdr) : undrawn, "Worst scenario plus buffer"],
+    ["Senior cap", proposal.structure ? rpExact(proposal.structure.seniorCapIdr) : undrawn, "What is left, paid first"],
+  ];
+
   const complianceStructuringPanel = <>
+    <Card title="Observation to locked terms">
+      <div className="status-strip">
+        <span>Derivation</span>
+        <Badge tone={proposal.feasible ? "success" : "danger"}>{proposal.feasible ? "Feasible" : "Infeasible"}</Badge>
+        <small>Each step consumes the one before it. Only the observation is typed; everything after is policy applied to it.</small>
+      </div>
+      <div className="finance-metrics derivation">
+        {structuringChain.map(([label, value, note]) => (
+          <div key={label}><span>{label}</span><strong>{value}</strong><small>{note}</small></div>
+        ))}
+      </div>
+    </Card>
     <CollateralPanel view={collateral} policy={DEMONSTRATION_POLICY} editable onObserve={setObservation} />
     <StructuringPanel proposal={proposal} policy={DEMONSTRATION_POLICY} canApprove />
   </>;
@@ -2050,6 +2081,13 @@ export default function App() {
     </Card>
   );
 
+  /* One notice, always first. Precedence: owned step, issuance strip, handoff line. */
+  const nextAction = flow && !startingNew && ownsStep ? NEXT_ACTION[flow.step] : undefined;
+  const notice = nextAction
+    ? <div className="handoff-banner acting" role="status"><div><strong>Your turn</strong><span>{nextAction}</span></div></div>
+    : issuanceStatus
+    || (!ownsStep && !borrowerAwaitingRelease && <div className="handoff-banner"><div><strong>Waiting on {stepOwner}</strong><span>You can review this record. The next action belongs to {stepOwner}.</span></div></div>);
+
   const flowPanel = (
     <div className="flow-layout">
       {/* Spans both columns. Inside the left one it pushed that card down while
@@ -2065,13 +2103,12 @@ export default function App() {
 
       <div className="flow-main" aria-busy={busy}>
         {err && <div className="error-banner" role="alert">{err}</div>}
+        {notice}
 
         {activeRole === "Capital Provider" && opportunitiesPanel}
 
         {(activeRole === "Borrower" && choosingReceipt || activeRole === "Compliance") && intakePanel}
-        {!ownsStep && !borrowerAwaitingRelease && <div className="handoff-banner"><div><strong>Waiting on {stepOwner.toLowerCase()}</strong><span>You can review this record. The next action belongs to the {stepOwner.toLowerCase()}.</span></div></div>}
         {fundedCard}
-        {issuanceStatus}
         <fieldset className="flow-fieldset" disabled={!ownsStep}>
           {stepCard}
         {activeRole !== "Capital Provider" && facilitySummary}
@@ -2466,7 +2503,7 @@ function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onRes
             breadcrumb and sidebar already say which section this is — so in the
             flow the page heading was the section name twice over. */}
         {!inFlow && <header className="workspace-heading"><div><span className="eyebrow">{section === "Overview" ? meta.eyebrow : role}</span><h1>{section === "Overview" ? meta.title : section}</h1><p>{section === "Overview" ? meta.summary : `Review ${section.toLowerCase()} available to this workspace.`}</p>{lock && <p className="lock-note">{lockIcon}{lock}</p>}</div><button type="button" ref={headingAction} className={lock ? "locked-action" : undefined} disabled={!!lock} title={lock ?? undefined} onClick={onAction}>{lock && lockIcon}{meta.action}</button></header>}
-        {inFlow ? flowPanel : panels[section] ?? analytics}
+        {inFlow ? flowPanel : <div className="section-panel">{panels[section] ?? analytics}</div>}
       </main>
     </div>
   );

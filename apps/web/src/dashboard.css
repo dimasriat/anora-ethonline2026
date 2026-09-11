@@ -573,3 +573,12 @@
   font-size: 11px;
 }
 .lock-note .lock-icon { margin-right: 6px; }
+
+/* Your turn, not a warning: amber is what the page uses for waiting on someone else. */
+.handoff-banner.acting { background: var(--accent-soft); border-color: var(--fill); }
+
+/* Layout from .finance-metrics so this lines up with the panels below. Only the number is new. */
+.derivation { counter-reset: derivation; margin-top: 14px; }
+.derivation > div { counter-increment: derivation; position: relative; padding-top: 26px; }
+.derivation > div::before { content: counter(derivation); position: absolute; top: 13px; left: 17px; font-size: 9.5px; font-weight: 600; letter-spacing: .09em; color: var(--muted); }
+.derivation strong { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
