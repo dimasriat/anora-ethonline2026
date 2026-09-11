@@ -31,8 +31,61 @@
         "transaction": "0x7aaecf3b368982978989606e5a55df7bd919b6c769777d02be3a5f59dfb8c06b",
         "gasUsed": 28915,
         "status": "reverted",
-        "error": "NotAllowlisted(0x\u2026dEaD)"
+        "error": "NotAllowlisted(0x…dEaD)"
       }
+    }
+  },
+  "AnoraFacilityController": {
+    "address": "0x35cC9aEa1dbd90CF1D31cc3EeF3B3437D37a1808",
+    "deployedAt": "2026-09-11",
+    "deployment": "0xdec421e98f0ad393b9c14a61ad12fc9107da05c59069ab680872d1028dff4f87",
+    "oracle": "0xDB46DCbC36a9BB3fcaAd59EBce638f209Bf2629A",
+    "compliance": "0xDB46DCbC36a9BB3fcaAd59EBce638f209Bf2629A",
+    "collateralMaxAgeSeconds": 86400,
+    "lifecycle": {
+      "openFacility": {
+        "transaction": "0x45158b047b0df05d0fe68b70f4767681da9b117fc33d21f25b5b7f89d5a8c925",
+        "gasUsed": 246177
+      },
+      "reportCollateral": {
+        "transaction": "0xa8464efe5e63f94db0",
+        "gasUsed": 114504,
+        "eligibleValueIdr": 600000000
+      },
+      "subscribeJunior": {
+        "transaction": "0xd5c98e8420eea26f15",
+        "gasUsed": 101943,
+        "faceIdr": 120000000
+      },
+      "subscribeSenior": {
+        "transaction": "0xecfe70c4026e7a7d9208a5425d560d5362e4a69785f426eae8658548a3e60509",
+        "gasUsed": 106485,
+        "faceIdr": 270000000
+      },
+      "confirmRegistry": {
+        "transaction": "0xbdfb19347c1d4424db",
+        "gasUsed": 45089
+      },
+      "activate": {
+        "transaction": "0x789cb1981147dcd4dcd980b7322ce8fad0b753f55149007ef556e96c63558b04",
+        "gasUsed": 53046,
+        "issuedFaceIdr": 390000000
+      },
+      "settle": {
+        "transaction": "0xd94b5f1f8e355932b6ea513ba09d95acffd8777fa9d7b57e6a1d20f706bf9250",
+        "gasUsed": 147395,
+        "recoveredIdr": 330000000
+      },
+      "claimJunior": {
+        "transaction": "0x7d0903376e9d21945287970ef44a563a7a4ef43b34249f21d63e074bf8025873",
+        "gasUsed": 77635
+      }
+    },
+    "result": {
+      "payoutSeniorIdr": 270000000,
+      "payoutJuniorIdr": 60000000,
+      "surplusIdr": 0,
+      "dustIdr": 0
     }
   }
 }
