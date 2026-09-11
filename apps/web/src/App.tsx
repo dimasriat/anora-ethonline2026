@@ -1808,7 +1808,7 @@ export default function App() {
                     const settled = index < proofCursor;
                     return (
                       <div className="result-row" key={check.label} data-state={settled ? "done" : index === proofCursor ? "running" : "queued"}>
-                        <span>{PROOF_COPY[check.label] ?? "Eligibility policy check"}</span>
+                        <span>{check.label}</span>
                         {settled ? (
                           <Badge tone={check.pass ? "success" : "danger"}>{check.pass ? "Passed" : "Failed"}</Badge>
                         ) : (
