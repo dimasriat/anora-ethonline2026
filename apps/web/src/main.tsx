@@ -6,7 +6,8 @@ import { PrivySession } from "./PrivySession";
 import "./index.css";
 import "./dashboard.css";
 
-const APP_ID = import.meta.env.VITE_PRIVY_APP_ID as string | undefined;
+const SIMULATED = import.meta.env.VITE_ADAPTER_IDENTITY === "demo";
+const APP_ID = SIMULATED ? undefined : (import.meta.env.VITE_PRIVY_APP_ID as string | undefined);
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
