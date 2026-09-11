@@ -56,6 +56,11 @@ export type FlowState = {
   history: HistoryEntry[];
 };
 
+const whatFailed = (cause: unknown): string => {
+  const printed = (cause as { stderr?: Buffer | string }).stderr?.toString().trim();
+  return printed ? printed : (cause as Error).message;
+};
+
 const MAX_LTV_BP = 7_000;
 const MATURITY_DAYS = 90;
 
@@ -250,7 +255,7 @@ export function makeFlow(ports: Ports) {
         throw new FlowError(
           "capability_not_available",
           "Eligibility proving is not available yet",
-          { capability: "proof", because: (cause as Error).message },
+          { capability: "proof", because: whatFailed(cause) },
         );
       }
       if (!state.onChain.ok) {
