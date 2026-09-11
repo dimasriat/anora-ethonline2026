@@ -39,8 +39,8 @@ describe("settlement at repayment", () => {
     const settlement = s.settlement!;
 
     expect(settlement.conserved).toBe(true);
-    expect(settlement.paid.seniorPrincipalIdr).toBe(270_000_000);
-    expect(settlement.paid.juniorPrincipalIdr).toBe(120_000_000);
+    expect(settlement.paid.seniorIdr).toBe(270_000_000);
+    expect(settlement.paid.juniorIdr).toBe(120_000_000);
     expect(settlement.loss.every((l) => l.lossIdr === 0)).toBe(true);
   });
 
@@ -51,7 +51,7 @@ describe("settlement at repayment", () => {
 
     expect(senior.lossIdr).toBe(0);
     expect(junior.lossIdr).toBeGreaterThan(0);
-    expect(s.settlement!.paid.seniorPrincipalIdr).toBe(270_000_000);
+    expect(s.settlement!.paid.seniorIdr).toBe(270_000_000);
   });
 
   test("Senior is only impaired once Junior is exhausted", async () => {
@@ -82,8 +82,7 @@ describe("settlement at repayment", () => {
   test("junior is never paid while senior principal is outstanding", async () => {
     const id = await funded();
     const s = await flow.repay(id, 250_000_000);
-    expect(s.settlement!.paid.juniorReturnIdr).toBe(0);
-    expect(s.settlement!.paid.juniorPrincipalIdr).toBe(0);
+    expect(s.settlement!.paid.juniorIdr).toBe(0);
   });
 });
 

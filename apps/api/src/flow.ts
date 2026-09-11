@@ -1,9 +1,9 @@
 import {
-  allocateLoss, distribute, facilityFrom, isReversible, previousStep,
+  facilityFrom, isReversible, previousStep, splitRecovery,
   remainingCapacityIdr, requireStep, screenSubscription,
 } from "@anora/core";
 import type {
-  Distribution, ESrg, EligibilityProof, Facility, FinancingRequest, NoteToken,
+  ESrg, EligibilityProof, Facility, FinancingRequest, NoteToken, RecoverySplit,
   OrgWallet, Ports, RequestStatus, Subscription, TrancheName, TrancheTerms,
 } from "@anora/core";
 import { FlowError } from "./errors";
@@ -58,7 +58,6 @@ export type FlowState = {
 
 const MAX_LTV_BP = 7_000;
 const MATURITY_DAYS = 90;
-const DAYS_IN_YEAR = 365;
 
 /* Each facility deploys a contract and creates a Privy wallet. Unbounded
    creation drains testnet gas, so a caller gets a fixed allowance. */
@@ -66,39 +65,29 @@ export const FACILITIES_PER_OWNER = 5;
 
 export type Settlement = {
   cashReceivedIdr: number;
-  paid: Distribution;
+  paid: RecoverySplit;
   loss: { tranche: TrancheName; lossIdr: number }[];
   conserved: boolean;
 };
 
-function claimsOf(state: FlowState) {
+function facesOf(state: FlowState) {
   const of = (name: TrancheName) => state.facility.tranches.find((t) => t.name === name)!;
-  const interest = (terms: TrancheTerms) =>
-    Math.floor((terms.capacityIdr * terms.returnBp * state.request.maturityDays)
-      / (10_000 * DAYS_IN_YEAR));
   return {
-    seniorPrincipalIdr: of("SENIOR").capacityIdr,
-    juniorPrincipalIdr: of("JUNIOR").capacityIdr,
-    seniorReturnIdr: interest(of("SENIOR")),
-    juniorReturnIdr: interest(of("JUNIOR")),
+    seniorFaceIdr: of("SENIOR").capacityIdr,
+    juniorFaceIdr: of("JUNIOR").capacityIdr,
   };
 }
 
-export function settle(state: FlowState, cashReceivedIdr: number): Settlement {
-  const claims = claimsOf(state);
-  const paid = distribute(cashReceivedIdr, claims);
+export function settle(state: FlowState, cashReceivedIdr: number, costsIdr = 0): Settlement {
+  const { seniorFaceIdr, juniorFaceIdr } = facesOf(state);
+  const paid = splitRecovery(cashReceivedIdr, costsIdr, seniorFaceIdr, juniorFaceIdr);
 
-  const issued = claims.seniorPrincipalIdr + claims.juniorPrincipalIdr;
-  const principalPaid = paid.seniorPrincipalIdr + paid.juniorPrincipalIdr;
-  const realisedLoss = Math.max(issued - principalPaid, 0);
+  const loss: { tranche: TrancheName; lossIdr: number }[] = [
+    { tranche: "SENIOR", lossIdr: paid.seniorLossIdr },
+    { tranche: "JUNIOR", lossIdr: paid.juniorLossIdr },
+  ];
 
-  const loss = state.facility.tranches.map((t) => ({
-    tranche: t.name,
-    lossIdr: allocateLoss(realisedLoss, t),
-  }));
-
-  const out = paid.seniorReturnIdr + paid.seniorPrincipalIdr
-    + paid.juniorReturnIdr + paid.juniorPrincipalIdr + paid.residualIdr;
+  const out = paid.costsPaidIdr + paid.seniorIdr + paid.juniorIdr + paid.surplusIdr;
 
   return { cashReceivedIdr, paid, loss, conserved: out === cashReceivedIdr };
 }
@@ -352,9 +341,8 @@ export function makeFlow(ports: Ports) {
       const state = must(id);
       gate(state, "funded", "Repayment");
 
-      const claims = claimsOf(state);
-      const dueInFull = claims.seniorPrincipalIdr + claims.juniorPrincipalIdr
-        + claims.seniorReturnIdr + claims.juniorReturnIdr;
+      const { seniorFaceIdr, juniorFaceIdr } = facesOf(state);
+      const dueInFull = seniorFaceIdr + juniorFaceIdr;
 
       state.settlement = settle(state, cashReceivedIdr ?? dueInFull);
       if (state.note) state.note = await ports.token.redeem(state.note.series);
