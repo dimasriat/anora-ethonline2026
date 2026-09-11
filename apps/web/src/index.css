@@ -2281,3 +2281,56 @@ next to the field that fills it. */
   .cap-split,
   .spread-schedule { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── Settlement charts ─────────────────────────────────────────────────── */
+/* Hand-drawn SVG on the same tokens as the rest of the workspace, so a chart
+   and the rows beneath it read as one object rather than two systems. */
+.chart { margin: 20px 0 0; overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 520px; height: auto; }
+.chart-grid { stroke: var(--line); stroke-width: 1; }
+.chart-base { stroke: var(--line-strong); stroke-width: 1; }
+/* Flat, because the balance that closes one step opens the next. */
+.chart-conn { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart-axis { font-size: 10.5px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.chart-name { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; fill: var(--muted); }
+.chart-cap { font-size: 11px; font-weight: 700; fill: var(--ink); font-variant-numeric: tabular-nums; }
+.chart-cap.loss { fill: var(--danger); }
+.chart-bar { stroke-width: 1; }
+/* Senior pale and Junior bright: --accent against --accent-dark reads as one
+   colour at this size, which loses the distinction the chart exists to make. */
+.chart-bar.total { fill: var(--accent); stroke: var(--accent-dark); }
+.chart-bar.senior { fill: var(--accent-soft); stroke: var(--accent-dark); }
+.chart-bar.junior { fill: var(--accent); stroke: var(--accent-dark); }
+.chart-bar.deduct { fill: var(--danger); stroke: var(--danger); }
+.chart-bar.open { fill: var(--bg); stroke: var(--line-strong); }
+.chart-band { font-size: 10.5px; font-weight: 600; letter-spacing: .1em; fill: var(--accent-ink); }
+.chart-band-sub { font-size: 10.5px; fill: var(--accent-ink); font-variant-numeric: tabular-nums; }
+.chart-attach { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 4 3; }
+.chart-ann { font-size: 11.5px; font-weight: 600; fill: var(--ink); }
+.chart-ann.loss { fill: var(--danger); }
+.chart-ann-sub { font-size: 10.5px; fill: var(--muted); }
+
+.chart-legend {
+  display: flex; flex-wrap: wrap; gap: 8px 22px;
+  margin-top: 18px; padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted); font-size: 12px;
+}
+.chart-legend span { display: inline-flex; align-items: center; gap: 8px; }
+.chart-key { width: 12px; height: 12px; flex: none; border-radius: 2px; border: 1px solid var(--accent-dark); }
+.chart-key.senior { background: var(--accent-soft); }
+.chart-key.junior { background: var(--accent); }
+.chart-key.deduct { background: var(--danger); border-color: var(--danger); }
+.chart-key.open { background: var(--bg); border-color: var(--line-strong); }
+
+.loss-stack { display: grid; grid-template-columns: minmax(0, 460px) minmax(0, 1fr); gap: 30px; align-items: center; }
+.loss-stack .chart { margin: 0; }
+.loss-facts dt { color: var(--muted); font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.loss-facts dd { margin: 4px 0 18px; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.loss-facts dd small { display: block; margin-top: 2px; color: var(--muted); font-size: 11.5px; font-weight: 400; }
+.loss-facts div:last-child dd { margin-bottom: 0; }
+.loss-facts dd.warn { color: var(--danger); }
+
+@media (max-width: 860px) {
+  .loss-stack { grid-template-columns: 1fr; }
+}
