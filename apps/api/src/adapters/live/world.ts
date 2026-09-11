@@ -106,6 +106,39 @@ export function worldChecker(config: WorldConfig): EligibilityChecker {
   };
 }
 
+/**
+ * Local demo only: stands in for a completed check so the lifecycle is
+ * walkable without World ID credentials.
+ *
+ * Reached only from `demo.ts`, which is the entry point that already stubs
+ * proving. `dev:api` and `start` keep the real gate, so nothing ships with a
+ * check that always passes. The nullifier says what it is, because anything
+ * that displays it should read as a demo.
+ */
+export function demoChecker(): EligibilityChecker {
+  const credential: Credential = {
+    nullifierHash: "0xdemo-eligibility-not-verified",
+    verifiedAt: new Date().toISOString(),
+    method: "selfie-check",
+  };
+  const sessions = new Map<string, CheckSession>();
+  return {
+    async open(ownerId) {
+      const session: CheckSession = {
+        id: `demo-${ownerId}`,
+        ownerId,
+        connectorURI: "",
+        state: "verified",
+        credential,
+      };
+      sessions.set(session.id, session);
+      return session;
+    },
+    read: (id) => sessions.get(id) ?? null,
+    credentialOf: () => credential,
+  };
+}
+
 /** Used when World is not configured, so the API stays runnable offline. */
 export function unavailableChecker(): EligibilityChecker {
   return {
