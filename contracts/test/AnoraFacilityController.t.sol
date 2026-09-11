@@ -358,3 +358,98 @@ contract ActivationTest is Test {
         controller.activate();
     }
 }
+
+contract SettlementLifecycleTest is Test {
+    AnoraFacilityController controller;
+
+    address constant ORACLE = address(0xA1);
+    address constant SPONSOR = address(0x50);
+    address constant BANK = address(0xB0);
+    address constant FUND = address(0xF0);
+
+    uint256 constant S_CAP = 270_000_000;
+    uint256 constant J_CAP = 120_000_000;
+
+    function setUp() public {
+        vm.warp(1_000_000);
+        controller = new AnoraFacilityController(ORACLE, 1 hours);
+        controller.openFacility(
+            AnoraFacilityController.Terms({
+                seniorCap: S_CAP,
+                juniorCap: J_CAP,
+                approvedIdr: 420_000_000,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                maxLtvBp: 7_000,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            })
+        );
+        vm.prank(ORACLE);
+        controller.reportCollateral(24_000_000, 24_000_000, 25_000, 0, block.timestamp, 1, keccak256("e"));
+        vm.prank(SPONSOR);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, 30_000_000);
+        vm.prank(FUND);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, 90_000_000);
+        vm.prank(BANK);
+        controller.subscribe(AnoraFacilityController.Slice.Senior, S_CAP);
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        controller.activate();
+    }
+
+    function test_recordsTheSplitOnce() public {
+        controller.settle(420_000_000, 0, keccak256("cash"));
+        assertEq(controller.payout(AnoraFacilityController.Slice.Senior), S_CAP);
+        assertEq(controller.payout(AnoraFacilityController.Slice.Junior), J_CAP);
+        assertEq(controller.surplus(), 30_000_000);
+    }
+
+    function test_refusesASecondSettlement() public {
+        controller.settle(420_000_000, 0, keccak256("cash"));
+        vm.expectRevert(AnoraFacilityController.AlreadySettled.selector);
+        controller.settle(420_000_000, 0, keccak256("cash"));
+    }
+
+    function test_refusesSettlementBeforeActivation() public {
+        AnoraFacilityController fresh = new AnoraFacilityController(ORACLE, 1 hours);
+        vm.expectRevert(AnoraFacilityController.NotActive.selector);
+        fresh.settle(1, 0, keccak256("cash"));
+    }
+
+    function test_juniorHoldersShareWhatIsLeftProRata() public {
+        controller.settle(330_000_000, 0, keccak256("cash"));
+        assertEq(controller.payout(AnoraFacilityController.Slice.Junior), 60_000_000);
+
+        vm.prank(SPONSOR);
+        assertEq(controller.claim(AnoraFacilityController.Slice.Junior), 15_000_000);
+        vm.prank(FUND);
+        assertEq(controller.claim(AnoraFacilityController.Slice.Junior), 45_000_000);
+    }
+
+    function test_seniorIsWholeWhileJuniorIsWipedOut() public {
+        controller.settle(S_CAP, 0, keccak256("cash"));
+        vm.prank(BANK);
+        assertEq(controller.claim(AnoraFacilityController.Slice.Senior), S_CAP);
+        vm.prank(SPONSOR);
+        assertEq(controller.claim(AnoraFacilityController.Slice.Junior), 0);
+    }
+
+    function test_refusesASecondClaim() public {
+        controller.settle(420_000_000, 0, keccak256("cash"));
+        vm.prank(BANK);
+        controller.claim(AnoraFacilityController.Slice.Senior);
+        vm.expectRevert(AnoraFacilityController.AlreadyClaimed.selector);
+        vm.prank(BANK);
+        controller.claim(AnoraFacilityController.Slice.Senior);
+    }
+
+    function test_claimsNeverExceedWhatWasSetAside() public {
+        controller.settle(330_000_000, 0, keccak256("cash"));
+        vm.prank(SPONSOR);
+        uint256 a = controller.claim(AnoraFacilityController.Slice.Junior);
+        vm.prank(FUND);
+        uint256 b = controller.claim(AnoraFacilityController.Slice.Junior);
+        assertTrue(a + b <= controller.payout(AnoraFacilityController.Slice.Junior));
+    }
+}

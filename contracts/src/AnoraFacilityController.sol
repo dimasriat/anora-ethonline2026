@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import {Collateral} from "./Collateral.sol";
 import {Tranche} from "./Tranche.sol";
 import {Pricing} from "./Pricing.sol";
+import {Settlement} from "./Settlement.sol";
 
 contract AnoraFacilityController {
     enum Slice {
@@ -37,6 +38,10 @@ contract AnoraFacilityController {
     error RegistryNotConfirmed();
     error RetentionNotMet();
     error CoverageBreached();
+    error NotActive();
+    error AlreadySettled();
+    error NotSettled();
+    error AlreadyClaimed();
     error ReportTooOld();
     error ReportFromTheFuture();
     error NonceNotAdvanced();
@@ -48,6 +53,8 @@ contract AnoraFacilityController {
     event Subscribed(Slice indexed slice, address indexed holder, uint256 face, uint256 price);
     event RegistryConfirmed(bytes32 security);
     event Activated(uint256 issuedFace, uint256 eligibleValueIdr);
+    event Settled(uint256 senior, uint256 junior, uint256 surplus, bytes32 cashEvidence);
+    event Claimed(Slice indexed slice, address indexed holder, uint256 amount);
     event CollateralReported(uint256 eligibleValueIdr, uint256 observedAt, uint256 nonce, bytes32 evidence);
 
     address public immutable oracle;
@@ -58,6 +65,15 @@ contract AnoraFacilityController {
     bool public open;
 
     bool public active;
+    bool public settled;
+    uint256 public surplus;
+    bytes32 public cashEvidence;
+
+    mapping(Slice => uint256) public payout;
+    mapping(Slice => uint256) public frozenFace;
+    mapping(Slice => uint256) public claimedTotal;
+    mapping(Slice => mapping(address => bool)) public claimedBy;
+
     bytes32 public registrySecurity;
 
     mapping(Slice => uint256) public committed;
@@ -167,5 +183,46 @@ contract AnoraFacilityController {
 
         active = true;
         emit Activated(issuedFace(), eligibleValueIdr);
+    }
+
+    function settle(uint256 recovered, uint256 costs, bytes32 evidenceOfCash) external {
+        if (!active) revert NotActive();
+        if (settled) revert AlreadySettled();
+        if (evidenceOfCash == bytes32(0)) revert EvidenceMissing();
+
+        frozenFace[Slice.Senior] = committed[Slice.Senior];
+        frozenFace[Slice.Junior] = committed[Slice.Junior];
+
+        Settlement.Split memory split =
+            Settlement.split(recovered, costs, frozenFace[Slice.Senior], frozenFace[Slice.Junior]);
+
+        payout[Slice.Senior] = split.senior;
+        payout[Slice.Junior] = split.junior;
+        surplus = split.surplus;
+        cashEvidence = evidenceOfCash;
+        settled = true;
+
+        emit Settled(split.senior, split.junior, split.surplus, evidenceOfCash);
+    }
+
+    function entitlement(Slice slice, address holder) public view returns (uint256) {
+        uint256 total = frozenFace[slice];
+        if (total == 0) return 0;
+        return (payout[slice] * face[slice][holder]) / total;
+    }
+
+    function claim(Slice slice) external returns (uint256 amount) {
+        if (!settled) revert NotSettled();
+        if (claimedBy[slice][msg.sender]) revert AlreadyClaimed();
+
+        amount = entitlement(slice, msg.sender);
+        claimedBy[slice][msg.sender] = true;
+        claimedTotal[slice] += amount;
+
+        emit Claimed(slice, msg.sender, amount);
+    }
+
+    function dust(Slice slice) external view returns (uint256) {
+        return payout[slice] - claimedTotal[slice];
     }
 }
