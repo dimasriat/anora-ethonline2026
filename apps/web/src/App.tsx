@@ -8,7 +8,7 @@ import BorrowerOnboarding from "./BorrowerOnboarding";
 import InstitutionOnboarding from "./InstitutionOnboarding";
 import { STACK_PORTS } from "./stack";
 import { noteDetail } from "./notes";
-import { caretAfterDigits, digitsBefore, digitsOf, formatIdr } from "./amount";
+import { caretAfterDigits, digitsBefore, digitsOf, formatIdr, suggestionFor } from "./amount";
 import {
   api, rp,
   type Band, type Chain, type ESrg, type Flow, type IntakeAction, type IntakeOptions, type IntakeState, type Investor, type Mode,
@@ -723,7 +723,12 @@ export default function App() {
      proposal is computed once, wiped on entry, and never offered again. */
   useEffect(() => {
     if (!me || !open) return;
-    setAmount(suggested >= me.ticketIdr.min ? String(suggested) : "");
+    const proposal = suggestionFor({
+      suggestedIdr: suggested,
+      minimumTicketIdr: me.ticketIdr.min,
+      editing: document.activeElement === amountRef.current,
+    });
+    if (proposal !== null) setAmount(proposal);
   }, [investorId, tranche, activeRole, open?.subscribedIdr, open?.capacityIdr]);
 
   /* Replays whenever a different proof lands; the nullifier is stable across polls. */

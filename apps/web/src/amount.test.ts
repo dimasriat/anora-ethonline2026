@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { digitsOf, formatIdr, caretAfterDigits, digitsBefore } from "./amount";
+import { digitsOf, formatIdr, caretAfterDigits, digitsBefore, suggestionFor } from "./amount";
 
 describe("the formatted amount field", () => {
   test("keeps only digits, whatever the browser put in the box", () => {
@@ -34,5 +34,22 @@ describe("the formatted amount field", () => {
     const digits = digitsOf(raw);
     expect(formatIdr(digits)).toBe("1.205.000.000");
     expect(caretAfterDigits(formatIdr(digits), digitsBefore(raw, typedAt + 1))).toBe(5);
+  });
+});
+
+describe("the suggested ticket", () => {
+  test("offers the proposal when the field is idle", () => {
+    expect(suggestionFor({ suggestedIdr: 270_000_000, minimumTicketIdr: 50_000_000, editing: false }))
+      .toBe("270000000");
+  });
+
+  test("clears the field when the proposal is below the investor's floor", () => {
+    expect(suggestionFor({ suggestedIdr: 10_000_000, minimumTicketIdr: 50_000_000, editing: false }))
+      .toBe("");
+  });
+
+  test("never overwrites what someone is in the middle of typing", () => {
+    expect(suggestionFor({ suggestedIdr: 270_000_000, minimumTicketIdr: 50_000_000, editing: true }))
+      .toBeNull();
   });
 });

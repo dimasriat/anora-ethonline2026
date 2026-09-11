@@ -15,3 +15,11 @@ export const caretAfterDigits = (formatted: string, count: number) => {
   }
   return formatted.length;
 };
+
+export const suggestionFor = (
+  { suggestedIdr, minimumTicketIdr, editing }:
+  { suggestedIdr: number; minimumTicketIdr: number; editing: boolean },
+): string | null => {
+  if (editing) return null;
+  return suggestedIdr >= minimumTicketIdr ? String(suggestedIdr) : "";
+};
