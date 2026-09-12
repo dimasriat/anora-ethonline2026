@@ -2225,7 +2225,7 @@ function LandingPage({ onNavigate, onAccess }: { onNavigate: (view: View) => voi
             <div className="hero-copy">
               <div className="hero-wordmark">Anora</div>
               <h1 id="landing-title">Turn verified inventory<br />into investable credit.</h1>
-              <p>Anora connects holders of Indonesian electronic warehouse receipts (e-SRG) with capital providers through structured, permissioned notes.</p>
+              <p>Anora connects holders of warehouse receipts (Indonesia - SRG) with capital providers through structured, permissioned notes.</p>
               <div className="hero-actions">
                 <button type="button" onClick={() => onAccess()}>Get started</button>
                 <button type="button" className="secondary-button" onClick={() => onNavigate("how")}>How it works</button>

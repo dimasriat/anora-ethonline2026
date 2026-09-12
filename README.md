@@ -1,7 +1,10 @@
 # Anora
 
-Anora turns verified Indonesian electronic warehouse receipts into structured,
-permissioned credit facilities without exposing sensitive commercial data.
+Anora connects holders of warehouse receipts (Indonesia - SRG) with capital
+providers. It proves the financing conditions in zero-knowledge and issues the
+claim as a permissioned note in Senior and Junior tranches, so a receipt holder
+raises working capital without opening its books, and institutions subscribe
+only to the risk their mandate allows.
 
 Built for ETHOnline 2026, Classic / From Scratch track.
 
@@ -24,26 +27,39 @@ of what the technology can prove.
 
 ## What this builds
 
-A financing facility backed by one verified e-SRG, issued as a permissioned
-security token with facility-specific Senior and Junior tranches whose terms are
-fixed before subscription, where selective traceability and eligibility are
-proven without disclosing confidential commercial records.
+**Collateral.** One or more verified e-SRGs, across any commodity the registry
+covers, accepted into a single financing facility.
 
-1. The **warehouse and regulated registry remain legally authoritative.** Anora
-   does not transfer ownership of the receipt on-chain; the token represents a
-   financing claim, while the security interest is recorded through the
-   existing SRG framework.
-2. **Zero-knowledge is applied.** It proves that committed warehouse and field
-   records satisfy defined financing conditions without revealing supplier
-   identities, purchase prices, or underlying documents.
-3. **Permissioning is demonstrated through enforcement.** Participation and
-   transfers are restricted to eligible capital providers, and transactions
-   that fail the allowlist or tranche mandate are explicitly refused.
-4. **Technology supports institutional trust.** Accredited inspectors and
-   warehouse operators attest to the physical goods, while Compliance reviews
-   that evidence and makes financing conditional on verified records.
-   Cryptography protects and selectively proves those records; it does not
-   establish physical truth by itself.
+**Instrument.** A permissioned security token carrying that facility's own
+Senior and Junior tranches, sized from the collateral and the policy.
+
+**Terms.** Caps, yields, term, and asset mapping are fixed before anyone
+subscribes, so no position is taken against a moving structure.
+
+**Disclosure.** Eligibility is proven against committed records without
+revealing them.
+
+Four boundaries hold that together.
+
+**The warehouse and the regulated registry stay legally authoritative.** Anora
+does not move ownership of the receipt on-chain. The token is a financing claim
+against the receipt; the security interest is recorded through the existing SRG
+framework, where it is already enforceable.
+
+**Zero-knowledge proves conditions, not documents.** A proof shows that
+committed warehouse and field records satisfy the financing conditions. It
+reveals no supplier identity, no purchase price, and none of the underlying
+documents.
+
+**Permissioning is enforced, not described.** Participation and transfers are
+restricted to eligible capital providers. A subscription or transfer that fails
+the allowlist or the tranche mandate is refused, and the refusal names which
+rule stopped it.
+
+**Cryptography carries evidence; people establish it.** Accredited inspectors
+and warehouse operators attest to the physical goods, and Compliance makes
+financing conditional on that evidence. The proofs protect those records and
+disclose them selectively. They do not establish physical truth on their own.
 
 ## Design process
 
