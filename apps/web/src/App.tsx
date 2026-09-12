@@ -1870,16 +1870,16 @@ export default function App() {
                     );
                   })}
                 </div>
-                {activeRole === "Compliance" && flow && facility && (
+                {activeRole === "Compliance" && flow && facility && proposal.structure && (
                   <section className="issuance-review" aria-label="Issuance review">
                     <header><div><span className="section-kicker">Issuance review</span><h3>Ready to tokenize</h3></div><Badge tone="success">Within policy</Badge></header>
                     <div className="finance-metrics">
-                      <div><span>Eligible collateral</span><strong>{rp(facility.valueIdr)}</strong><small>{facility.quantityKg.toLocaleString("en-US")} kg reconciled</small></div>
-                      <div><span>Facility ceiling</span><strong>{rp(flow.request.requestedIdr)}</strong><small>{(flow.request.maxLtvBp / 100).toFixed(0)}% maximum LTV</small></div>
-                      <div><span>Planned issued face</span><strong>{rp(Math.floor(flow.request.requestedIdr * 390 / 420))}</strong><small>Senior and Junior combined</small></div>
-                      <div><span>Senior partition</span><strong>{rp(Math.floor(flow.request.requestedIdr * 270 / 420))}</strong><small>Paid first</small></div>
-                      <div><span>Junior partition</span><strong>{rp(Math.floor(flow.request.requestedIdr * 120 / 420))}</strong><small>First loss layer</small></div>
-                      <div><span>Junior share</span><strong>30.8%</strong><small>Of the issued note</small></div>
+                      <div><span>Eligible collateral</span><strong>{rpExact(proposal.structure.collateralIdr)}</strong><small>{kg(proposal.structure.effectiveQuantityGrams)} reconciled</small></div>
+                      <div><span>Facility ceiling</span><strong>{rpExact(proposal.structure.faceCeilingIdr)}</strong><small>{pct(DEMONSTRATION_POLICY.maxLtvBp)} maximum LTV</small></div>
+                      <div><span>Planned issued face</span><strong>{rpExact(proposal.structure.targetFaceIdr)}</strong><small>Senior and Junior combined</small></div>
+                      <div><span>Senior partition</span><strong>{rpExact(proposal.structure.seniorCapIdr)}</strong><small>Paid first</small></div>
+                      <div><span>Junior partition</span><strong>{rpExact(proposal.structure.juniorCapIdr)}</strong><small>First loss layer</small></div>
+                      <div><span>Junior share</span><strong>{pct(proposal.structure.juniorCapIdr * 10_000n / proposal.structure.targetFaceIdr)}</strong><small>Of the issued note</small></div>
                     </div>
                   </section>
                 )}
