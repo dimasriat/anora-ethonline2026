@@ -1,65 +1,49 @@
 # Anora
 
-Anora connects holders of warehouse receipts (Indonesia - SRG) with capital
-providers. It proves the financing conditions in zero-knowledge and issues the
-claim as a permissioned note in Senior and Junior tranches, so a receipt holder
-raises working capital without opening its books, and institutions subscribe
-only to the risk their mandate allows.
+Anora connects warehouse-receipt owners with institutional capital through
+private verification and permissioned tranches.
+
+In Indonesia, Anora works with the Warehouse Receipt System (Sistem Resi
+Gudang, or SRG). It helps commodity owners finance stored goods without selling
+early, while investors take only the risk their mandates allow.
 
 Built for ETHOnline 2026, Classic / From Scratch track.
 
-## The problem
+## Why Anora
 
-Commodity producers and businesses frequently possess valuable inventories yet
-remain constrained by inadequate liquidity, as their capital is locked in
-storage until the goods are sold. Although Indonesia's Sistem Resi Gudang (SRG)
-was designed to make stored commodities viable collateral, participation
-remains limited because the evidence required for financing is fragmented
-across physical supply chains and difficult to share without exposing
-commercially sensitive information. Anora introduces selective traceability by
-linking warehouse and field attestations to cryptographic commitments, then
-using zero-knowledge proofs to verify specific financing conditions without
-revealing the underlying records. It makes financing conditional on a defined
-set of verifiable claims. A verified e-SRG can then support a tokenized
-financing claim divided into structured positions for eligible capital
-providers, giving institutions clearer evidence while preserving the boundaries
-of what the technology can prove.
+Commodity owners often need capital before their goods are sold. Without formal
+financing, they may have to sell early through
+[informal middlemen (*tengkulak*)](https://www.thejakartapost.com/longform/2020/08/13/a-land-without-farmers-indonesias-agricultural-conundrum),
+reducing their ability to negotiate a fair price.
 
-## What this builds
+Warehouse receipts make stored commodities usable as collateral. Yet financing
+remains difficult because the evidence is fragmented and each participant must
+verify the same facility separately.
 
-**Collateral.** One or more verified e-SRGs, across any commodity the registry
-covers, accepted into a single financing facility.
+Anora brings the process into one traceable workflow. Private records can be
+verified without being disclosed, and permissioned tranches let investors take
+exposure that fits their mandates. This helps attract suitable capital while
+the commodity owner retains control over when the goods are sold.
 
-**Instrument.** A permissioned security token carrying that facility's own
-Senior and Junior tranches, sized from the collateral and the policy.
+The shared financing record also makes oversight more efficient for regulated
+participants and Bappebti, Indonesia's Commodity Futures Trading Regulatory
+Agency. Anora supports the existing SRG framework; it does not replace its
+registry or legal processes.
 
-**Terms.** Caps, yields, term, and asset mapping are fixed before anyone
-subscribes, so no position is taken against a moving structure.
+## How it works
 
-**Disclosure.** Eligibility is proven against committed records without
-revealing them.
+1. **Select** — The commodity owner chooses a warehouse receipt to finance.
+2. **Verify** — Anora proves that the receipt meets the facility's requirements
+   without publishing the underlying records.
+3. **Structure** — The facility is divided into permissioned tranches with
+   different levels of risk.
+4. **Fund** — Eligible investors subscribe to a tranche that fits their mandate.
+   The commodity owner receives capital without selling the goods early.
+5. **Settle** — Repayment follows the facility terms and is recorded in a shared
+   audit trail.
 
-Four boundaries hold that together.
-
-**The warehouse and the regulated registry stay legally authoritative.** Anora
-does not move ownership of the receipt on-chain. The token is a financing claim
-against the receipt; the security interest is recorded through the existing SRG
-framework, where it is already enforceable.
-
-**Zero-knowledge proves conditions, not documents.** A proof shows that
-committed warehouse and field records satisfy the financing conditions. It
-reveals no supplier identity, no purchase price, and none of the underlying
-documents.
-
-**Permissioning is enforced, not described.** Participation and transfers are
-restricted to eligible capital providers. A subscription or transfer that fails
-the allowlist or the tranche mandate is refused, and the refusal names which
-rule stopped it.
-
-**Cryptography carries evidence; people establish it.** Accredited inspectors
-and warehouse operators attest to the physical goods, and Compliance makes
-financing conditional on that evidence. The proofs protect those records and
-disclose them selectively. They do not establish physical truth on their own.
+Anora does not replace the warehouse, the official registry, or the legal
+security interest. It provides a verifiable financing layer around them.
 
 ## Design process
 
