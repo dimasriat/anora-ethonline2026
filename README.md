@@ -28,7 +28,7 @@ the commodity owner retains control over when the goods are sold.
 
 The shared financing record also makes oversight more efficient for regulated
 participants and
-[Bappebti, Indonesia's Commodity Futures Trading Regulatory Agency](https://bappebti.go.id/Annual_report_bappebti/download/annual_2016-06-13_08-26-58_Bappebti_Annual_Report_2015_Final_Artwork.pdf).
+[Bappebti, Indonesia's Commodity Futures Trading Regulatory Agency](https://ojk.go.id/en/berita-dan-kegiatan/siaran-pers/Pages/Bappebti-Transfers-Regulation-and-Supervision-Duties-on-Digital-Financial-Assets-Crypto-Assets-and-Derivatives-to-OJK-BI.aspx).
 Anora supports the existing SRG framework; it does not replace its registry or
 legal processes.
 
@@ -73,25 +73,6 @@ bun run dev:web -- --port 3334
 Open `http://127.0.0.1:3334/`. The demo API runs the complete role workflow
 without Hedera or identity credentials. The normal `start` and `dev:api`
 commands continue to use the repository's configured adapters.
-
-## DocuSeal signing
-
-Copy `.env.example` to `.env`, add the DocuSeal Cloud API key, verified template
-ID, and webhook secret, then configure DocuSeal to send `submission.completed`
-to the public `/api/webhooks/docuseal` endpoint. The backend creates an
-individual `/s/{slug}` signing session and only unlocks Compliance review after
-the signed webhook passes `X-Docuseal-Signature` verification. The existing
-shared `/d/Awg1hAT1aLHFsQ` URL identifies the form, not its numeric template ID.
-
-## Provenance
-
-This repository was started on 6 September 2026 and all code in it is written
-during the hackathon.
-
-The team's domain research predates it: the Indonesian warehouse-receipt system,
-tea sector price data, and the product framing come from notes and conversations
-that are not code and are not in this repository. Where a figure comes from an
-outside source, the source is named at the point it is used.
 
 ## Team
 
