@@ -155,17 +155,12 @@ export type LiveTerms = {
   seniorBp: bigint; juniorBp: bigint;
 };
 
-export function StructuringPanel({ proposal, policy, canApprove, live }: {
+export function StructuringPanel({ proposal, policy, live }: {
   proposal: FacilityProposal;
   policy: Policy;
-  canApprove: boolean;
   live?: LiveTerms | null;
 }) {
   const { structure, pricing, reasons, feasible } = proposal;
-
-  /* The server derives the live facility from this same policy, so these should
-     agree line for line. Comparing rather than trusting is what catches it if
-     the two ever drift apart again. */
   const comparison = live && structure && pricing
     ? ([
       ["Face", structure.targetFaceIdr, live.faceIdr, rp],
@@ -173,211 +168,101 @@ export function StructuringPanel({ proposal, policy, canApprove, live }: {
       ["Junior cap", structure.juniorCapIdr, live.juniorCapIdr, rp],
       ["Senior yield", pricing.seniorYieldBp, live.seniorBp, pct],
       ["Junior yield", pricing.juniorYieldBp, live.juniorBp, pct],
-    ] as [string, bigint, bigint, (v: bigint) => string][])
+    ] as [string, bigint, bigint, (value: bigint) => string][])
     : null;
   const diverged = comparison?.some(([, derived, actual]) => derived !== actual) ?? false;
+  const juniorShareBp = structure && structure.targetFaceIdr > 0n
+    ? structure.juniorCapIdr * 10_000n / structure.targetFaceIdr
+    : null;
 
   return (
-    <>
-      <Card title="Proposed structure">
-        <div className="status-strip">
-          <span>Proposal</span>
-          <Badge tone={feasible ? "success" : "danger"}>{feasible ? "Feasible" : "Infeasible"}</Badge>
-          {diverged && <Badge tone="warning">Not the live terms</Badge>}
-          <small>
-            Derived from the policy and the current report. A preview is not approved, funded or issued.
-            {diverged && " The facility on sale does not match this derivation, and neither is adjusted to fit the other."}
-          </small>
+    <Card title="Structuring summary" className="structuring-card">
+      <div className="status-strip">
+        <span>Policy result</span>
+        <Badge tone={feasible ? "success" : "danger"}>{feasible ? "Within policy" : "Infeasible"}</Badge>
+        {diverged && <Badge tone="warning">Terms differ</Badge>}
+        <small>{diverged ? "The live note no longer matches this proposal." : "Current collateral and policy produce these terms."}</small>
+      </div>
+
+      {!feasible && (
+        <div className="reason-list" role="status">
+          <strong>This structure was refused, not adjusted.</strong>
+          <ul>{reasons.map((reason) => <li key={reason.code}><code>{reason.code}</code><span>{reason.detail}</span></li>)}</ul>
         </div>
+      )}
 
-        {!feasible && (
-          <div className="reason-list" role="status">
-            <strong>This structure was refused, not adjusted.</strong>
-            <ul>
-              {reasons.map((reason) => (
-                <li key={reason.code}><code>{reason.code}</code><span>{reason.detail}</span></li>
-              ))}
-            </ul>
+      {structure && (
+        <>
+          <div className="structure-equation" aria-label="Facility structure derivation">
+            <div><span>Eligible collateral</span><strong>{rp(structure.collateralIdr)}</strong><small>{kg(structure.effectiveQuantityGrams)}</small></div>
+            <b aria-hidden="true">×</b>
+            <div><span>Policy LTV</span><strong>{pct(policy.maxLtvBp)}</strong><small>Maximum</small></div>
+            <b aria-hidden="true">=</b>
+            <div><span>Collateral ceiling</span><strong>{rp(structure.faceCeilingIdr)}</strong><small>Maximum supported</small></div>
+            <b aria-hidden="true">→</b>
+            <div><span>Target face</span><strong>{rp(structure.targetFaceIdr)}</strong><small>Issued at maturity</small></div>
+            <b aria-hidden="true">→</b>
+            <div><span>Senior</span><strong>{rp(structure.seniorCapIdr)}</strong><small>Paid first</small></div>
+            <b aria-hidden="true">+</b>
+            <div><span>Junior</span><strong>{rp(structure.juniorCapIdr)}</strong><small>First-loss · {pct(juniorShareBp)}</small></div>
           </div>
-        )}
 
-        {structure && (
-          <>
-            <div className="finance-metrics">
-              <div><span>Requested face</span><strong>{rp(proposal.input.requestedFaceIdr)}</strong><small>What the borrower asked for</small></div>
-              <div><span>Derived ceiling</span><strong>{rp(structure.approvedFaceIdr)}</strong><small>Lowest of authority, policy limit and collateral ceiling</small></div>
-              <div><span>Target face</span><strong>{rp(structure.targetFaceIdr)}</strong><small>What this facility would actually issue</small></div>
-            </div>
-
-            <div className="section-heading"><h3>Stress scenarios</h3></div>
-            <p className="supporting-copy">
-              Underwriting assumptions, not probabilities. Quantity, price, haircut and recovery each
-              describe a different loss; the worst outcome sizes Junior.
-            </p>
+          <details className="structure-disclosure">
+            <summary>Stress assumptions and first-loss sizing</summary>
             <div className="scenario-table" role="table" aria-label="Stress scenarios">
               <div className="scenario-head" role="row">
-                <span role="columnheader">Scenario</span>
-                <span role="columnheader">Quantity</span>
-                <span role="columnheader">Price</span>
-                <span role="columnheader">Stressed collateral</span>
-                <span role="columnheader">Cash to holders</span>
+                <span role="columnheader">Scenario</span><span role="columnheader">Quantity</span><span role="columnheader">Price</span><span role="columnheader">Stressed collateral</span><span role="columnheader">Cash to holders</span>
               </div>
               {structure.scenarios.map((result) => (
                 <div className={`scenario-row${result.worst ? " worst" : ""}`} role="row" key={result.scenario.id}>
-                  <span role="cell">
-                    <strong>{result.scenario.id}</strong>
-                    <small>{result.scenario.evidenceRef}</small>
-                  </span>
+                  <span role="cell"><strong>{result.scenario.id}</strong><small>{result.scenario.evidenceRef}</small></span>
                   <span role="cell">{kg(result.stressedQuantityGrams)}</span>
                   <span role="cell">{rp(result.stressedPriceIdrPerKg)}/kg</span>
                   <span role="cell">{rp(result.stressedCollateralIdr)}</span>
-                  <span role="cell">
-                    <strong>{rp(result.availableIdr)}</strong>
-                    {result.worst && <small>Worst case · sizes Junior</small>}
-                  </span>
+                  <span role="cell"><strong>{rp(result.availableIdr)}</strong>{result.worst && <small>Worst case · sizes Junior</small>}</span>
                 </div>
               ))}
             </div>
-
-            <div className="section-heading"><h3>Required first loss</h3></div>
-            <div className="order-book">
-              <div className="order-row">
-                <span><strong>Worst-case cash</strong><small>Lowest available across every scenario</small></span>
-                <strong>{rp(structure.stressAvailableIdr)}</strong>
-              </div>
-              <div className="order-row">
-                <span><strong>Stress loss</strong><small>Target face less worst-case cash</small></span>
-                <strong>{rp(structure.stressLossIdr)}</strong>
-              </div>
-              <div className="order-row">
-                <span><strong>Policy floor</strong><small>{pct(policy.minJuniorBp)} of target face, rounded up</small></span>
-                <strong>{rp(structure.juniorFloorIdr)}</strong>
-              </div>
-              <div className="order-row">
-                <span><strong>Structural buffer</strong><small>Held above the stress loss</small></span>
-                <strong>{rp(policy.structuralBufferIdr)}</strong>
-              </div>
-              <div className={`order-row emphasis${structure.juniorRequiredIdr > structure.juniorMaximumIdr ? " breach" : ""}`}>
-                <span><strong>Required Junior</strong><small>Greater of the floor and stress loss plus buffer · maximum {rp(structure.juniorMaximumIdr)}</small></span>
-                <strong>{rp(structure.juniorRequiredIdr)}</strong>
-              </div>
+            <div className="order-book compact-book">
+              <div className="order-row"><span><strong>Worst-case cash</strong><small>Lowest scenario result</small></span><strong>{rp(structure.stressAvailableIdr)}</strong></div>
+              <div className="order-row"><span><strong>Stress loss</strong><small>Target face less worst-case cash</small></span><strong>{rp(structure.stressLossIdr)}</strong></div>
+              <div className="order-row"><span><strong>Policy floor</strong><small>{pct(policy.minJuniorBp)} of target face</small></span><strong>{rp(structure.juniorFloorIdr)}</strong></div>
+              <div className="order-row emphasis"><span><strong>Required Junior</strong><small>Stress loss plus buffer · maximum {rp(structure.juniorMaximumIdr)}</small></span><strong>{rp(structure.juniorRequiredIdr)}</strong></div>
             </div>
+          </details>
 
-            <div className="cap-split" aria-label="Derived tranche caps">
-              <div>
-                <span>Senior cap</span>
-                <strong>{rp(structure.seniorCapIdr)}</strong>
-                <small>Target face less required Junior. Paid first</small>
+          {pricing && (
+            <details className="structure-disclosure">
+              <summary>Pricing and borrower proceeds</summary>
+              <div className="spread-schedule">
+                {(["senior", "junior"] as const).map((tranche) => (
+                  <div key={tranche}>
+                    <div className="spread-head"><strong>{tranche === "senior" ? "Senior" : "Junior"}</strong><span>{pct(tranche === "senior" ? pricing.seniorYieldBp : pricing.juniorYieldBp)} p.a.</span></div>
+                    <ul>{pricing.components.filter((component) => tranche === "junior" || component.tranche === "senior").map((component) => <li key={`${tranche}-${component.label}`}><span>{component.label}</span><span>{pct(component.bp)}</span></li>)}</ul>
+                  </div>
+                ))}
               </div>
-              <div>
-                <span>Junior cap</span>
-                <strong>{rp(structure.juniorCapIdr)}</strong>
-                <small>Absorbs first loss. Funded before Senior unlocks</small>
+              <div className="order-book compact-book">
+                <div className="order-row"><span><strong>Investors pay</strong><small>Discounted subscription cash</small></span><strong>{rp(pricing.grossSubscriptionCashIdr)}</strong></div>
+                <div className="order-row"><span><strong>Upfront costs</strong><small>Charged once</small></span><strong>−{rp(pricing.upfrontCostsIdr)}</strong></div>
+                <div className="order-row emphasis"><span><strong>Borrower receives</strong><small>Net proceeds</small></span><strong>{rp(pricing.netBorrowerProceedsIdr)}</strong></div>
               </div>
+            </details>
+          )}
+
+          <details className="structure-disclosure">
+            <summary>Policy record and locked terms</summary>
+            <div className="order-book compact-book">
+              <div className="order-row"><span><strong>Policy</strong><small>{policy.modelVersion} · valid to {policy.validUntil}</small></span><strong className="mono">{policy.policyHash}</strong></div>
+              <div className="order-row"><span><strong>Collateral report</strong><small>Observation used by this proposal</small></span><strong className="mono">{proposal.input.report.reportHash || "—"}</strong></div>
+              <div className="order-row"><span><strong>Locked terms</strong><small>Caps, yields, term and asset mapping</small></span><Badge tone={proposal.locked ? "success" : "neutral"}>{proposal.locked ? "Locked" : "Not locked"}</Badge></div>
+              {comparison?.map(([label, derived, actual, show]) => <div className={`order-row${derived === actual ? "" : " breach"}`} key={label}><span><strong>{label}</strong><small>Proposal {show(derived)}</small></span><strong>{show(actual)}</strong></div>)}
             </div>
-            {comparison && (
-              <>
-                <div className="section-heading"><h3>Against the terms on sale</h3></div>
-                <div className="order-book">
-                  {comparison.map(([label, derived, actual, show]) => (
-                    <div className={`order-row${derived === actual ? "" : " breach"}`} key={label}>
-                      <span><strong>{label}</strong><small>This proposal derives {show(derived)}</small></span>
-                      <strong>{show(actual)}</strong>
-                    </div>
-                  ))}
-                </div>
-                <p className="supporting-copy">
-                  {diverged
-                    ? "The right column is what capital providers subscribe to. A row marked as a breach means the derivation and the live facility disagree; neither is adjusted to match."
-                    : "The right column is what capital providers subscribe to. It is derived from this same policy, so every line agrees."}
-                </p>
-              </>
-            )}
             <Source provenance={proposal.provenance} />
-          </>
-        )}
-      </Card>
-
-      {pricing && structure && (
-        <Card title="Proposed pricing">
-          <p className="supporting-copy">
-            Rule-based quotes from an explicit spread schedule — not observed market prices. Both
-            tranches are zero-coupon: the return is the difference between what is paid now and the
-            face repaid at maturity, and there is no coupon on top of it.
-          </p>
-
-          <div className="spread-schedule">
-            {(["senior", "junior"] as const).map((tranche) => (
-              <div key={tranche}>
-                <div className="spread-head">
-                  <strong>{tranche === "senior" ? "Senior" : "Junior"}</strong>
-                  <span>{pct(tranche === "senior" ? pricing.seniorYieldBp : pricing.juniorYieldBp)} p.a.</span>
-                </div>
-                <ul>
-                  {pricing.components
-                    .filter((component) => tranche === "junior" || component.tranche === "senior")
-                    .map((component) => (
-                      <li key={`${tranche}-${component.label}`}>
-                        <span>{component.label}</span><span>{pct(component.bp)}</span>
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          <div className="order-book">
-            <div className="order-row">
-              <span><strong>Senior subscription cash</strong><small>{rp(structure.seniorCapIdr)} face at {pct(pricing.seniorYieldBp)} over {String(pricing.termDays)} days</small></span>
-              <strong>{rp(pricing.seniorCashIdr)}</strong>
-            </div>
-            <div className="order-row">
-              <span><strong>Junior subscription cash</strong><small>{rp(structure.juniorCapIdr)} face at {pct(pricing.juniorYieldBp)} over {String(pricing.termDays)} days</small></span>
-              <strong>{rp(pricing.juniorCashIdr)}</strong>
-            </div>
-            <div className="order-row emphasis">
-              <span><strong>Gross subscription cash</strong><small>What investors pay in. Face remains {rp(structure.targetFaceIdr)}</small></span>
-              <strong>{rp(pricing.grossSubscriptionCashIdr)}</strong>
-            </div>
-            <div className="order-row">
-              <span><strong>Approved upfront costs</strong><small>Identified once, never charged twice</small></span>
-              <strong>−{rp(pricing.upfrontCostsIdr)}</strong>
-            </div>
-            <div className="order-row emphasis">
-              <span><strong>Net borrower proceeds</strong><small>What actually reaches the cooperative</small></span>
-              <strong>{rp(pricing.netBorrowerProceedsIdr)}</strong>
-            </div>
-          </div>
-
-          <p className="supporting-copy">
-            {String(pricing.termDays)} days is the documented issue-price tenor, not any individual
-            subscriber's holding period, and the quoted yield is not a guaranteed realised return.
-          </p>
-        </Card>
+          </details>
+        </>
       )}
-
-      <Card title="Approval and lock">
-        <div className="order-book">
-          <div className="order-row">
-            <span><strong>Policy</strong><small>{policy.modelVersion} · valid to {policy.validUntil}</small></span>
-            <strong className="mono">{policy.policyHash}</strong>
-          </div>
-          <div className="order-row">
-            <span><strong>Collateral report</strong><small>Authorised observation this proposal rests on</small></span>
-            <strong className="mono">{proposal.input.report.reportHash || "—"}</strong>
-          </div>
-          <div className="order-row">
-            <span><strong>Locked terms</strong><small>Caps, yields, term and asset mapping, fixed before any money moves</small></span>
-            <Badge tone={proposal.locked ? "success" : "neutral"}>{proposal.locked ? "Locked" : "Not locked"}</Badge>
-          </div>
-        </div>
-        {canApprove
-          ? <PendingAction
-              label={feasible ? "Approve and lock terms" : "Cannot lock an infeasible structure"}
-              because="Locking writes caps, yields and hashes to the Hedera controller. Nothing may be subscribed against a preview." />
-          : <p className="supporting-copy">Compliance approves the exact proposal, or asks for revised evidence. There is no override.</p>}
-      </Card>
-    </>
+    </Card>
   );
 }
 

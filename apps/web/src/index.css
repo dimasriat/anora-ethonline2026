@@ -2348,3 +2348,33 @@ next to the field that fills it. */
 
 /* Section panels are a bare run of sibling cards. Same rhythm as .flow-main. */
 .section-panel { display: grid; gap: 20px; min-width: 0; }
+
+.structuring-card { max-width: none; }
+.structure-equation { display: grid; grid-template-columns: minmax(130px,1.2fr) auto minmax(80px,.65fr) auto minmax(130px,1.2fr) auto minmax(130px,1.2fr) auto minmax(125px,1fr) auto minmax(125px,1fr); align-items: stretch; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+.structure-equation > div { display: grid; align-content: center; gap: 5px; min-height: 104px; padding: 15px 16px; }
+.structure-equation > b { align-self: center; color: var(--muted); font-size: 18px; font-weight: 400; }
+.structure-equation span { color: var(--muted); font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; }
+.structure-equation strong { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.structure-equation small { color: var(--muted); font-size: 10.5px; line-height: 1.4; }
+.structure-disclosure { max-width: none; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.structuring-card .structure-disclosure { margin-top: 12px; }
+.structure-disclosure > summary { min-height: 44px; padding: 14px 17px; color: var(--ink); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.structure-disclosure[open] > summary { border-bottom: 1px solid var(--line); }
+.structure-disclosure > :not(summary) { margin: 16px; }
+.structure-disclosure .scenario-table, .structure-disclosure .order-book, .structure-disclosure .spread-schedule { margin: 16px; }
+.compact-book { margin-top: 12px; }
+.collateral-disclosure > .card { max-width: none; margin: 0; border: 0; border-radius: 0; }
+
+@media (max-width: 1050px) {
+  .structure-equation { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .structure-equation > b { display: none; }
+  .structure-equation > div { min-height: 82px; border-top: 1px solid var(--line); }
+  .structure-equation > div:nth-of-type(-n + 2) { border-top: 0; }
+  .structure-equation > div:nth-of-type(even) { border-left: 1px solid var(--line); }
+}
+
+@media (max-width: 620px) {
+  .structure-equation { grid-template-columns: 1fr; }
+  .structure-equation > div, .structure-equation > div:nth-of-type(even) { border-top: 1px solid var(--line); border-left: 0; }
+  .structure-equation > div:first-of-type { border-top: 0; }
+}

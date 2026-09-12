@@ -1567,17 +1567,6 @@ export default function App() {
     </Card>
   </>;
 
-  /* What the four cards below conclude, in the order they conclude it. */
-  const undrawn = "Not derived";
-  const structuringChain: [string, string, string][] = [
-    ["Effective quantity", kg(collateral.reconciliation.effectiveGrams), "Lower of registry and warehouse"],
-    ["Eligible collateral", rpExact(collateral.collateralIdr), `After a ${pct(collateral.report.haircutBp)} haircut`],
-    ["Collateral ceiling", rpExact(collateral.faceCeilingIdr), `At the ${pct(DEMONSTRATION_POLICY.maxLtvBp)} policy LTV`],
-    ["Target face", proposal.structure ? rpExact(proposal.structure.targetFaceIdr) : undrawn, "What this facility would issue"],
-    ["Required Junior", proposal.structure ? rpExact(proposal.structure.juniorRequiredIdr) : undrawn, "Worst scenario plus buffer"],
-    ["Senior cap", proposal.structure ? rpExact(proposal.structure.seniorCapIdr) : undrawn, "What is left, paid first"],
-  ];
-
   /* What the bands actually say, so the proposal can be read against them
      instead of in place of them. Null until the note exists. */
   const liveTerms = (() => {
@@ -1594,20 +1583,11 @@ export default function App() {
   })();
 
   const complianceStructuringPanel = <>
-    <Card title="Observation to locked terms">
-      <div className="status-strip">
-        <span>Derivation</span>
-        <Badge tone={proposal.feasible ? "success" : "danger"}>{proposal.feasible ? "Feasible" : "Infeasible"}</Badge>
-        <small>Each step consumes the one before it. Only the observation is typed; everything after is policy applied to it.</small>
-      </div>
-      <div className="finance-metrics derivation">
-        {structuringChain.map(([label, value, note]) => (
-          <div key={label}><span>{label}</span><strong>{value}</strong><small>{note}</small></div>
-        ))}
-      </div>
-    </Card>
-    <CollateralPanel view={collateral} policy={DEMONSTRATION_POLICY} editable onObserve={setObservation} />
-    <StructuringPanel proposal={proposal} policy={DEMONSTRATION_POLICY} canApprove live={liveTerms} />
+    <StructuringPanel proposal={proposal} policy={DEMONSTRATION_POLICY} live={liveTerms} />
+    <details className="structure-disclosure collateral-disclosure">
+      <summary>Collateral observation and reconciliation</summary>
+      <CollateralPanel view={collateral} policy={DEMONSTRATION_POLICY} editable onObserve={setObservation} />
+    </details>
   </>;
 
   const complianceServicingPanel = <>
@@ -2504,7 +2484,7 @@ function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onRes
         {/* The flow states its own step and receipt directly below, and the
             breadcrumb and sidebar already say which section this is — so in the
             flow the page heading was the section name twice over. */}
-        {!inFlow && <header className="workspace-heading"><div><span className="eyebrow">{section === "Overview" ? meta.eyebrow : role}</span><h1>{section === "Overview" ? meta.title : section}</h1><p>{section === "Overview" ? meta.summary : `Review ${section.toLowerCase()} available to this workspace.`}</p>{lock && <p className="lock-note">{lockIcon}{lock}</p>}</div><button type="button" ref={headingAction} className={lock ? "locked-action" : undefined} disabled={!!lock} title={lock ?? undefined} onClick={onAction}>{lock && lockIcon}{meta.action}</button></header>}
+        {!inFlow && <header className="workspace-heading"><div><span className="eyebrow">{section === "Overview" ? meta.eyebrow : role}</span><h1>{section === "Overview" ? meta.title : section}</h1><p>{section === "Overview" ? meta.summary : section === "Structuring" ? "See how collateral and policy determine the note." : `Review ${section.toLowerCase()} available to this workspace.`}</p>{lock && <p className="lock-note">{lockIcon}{lock}</p>}</div><button type="button" ref={headingAction} className={lock ? "locked-action" : undefined} disabled={!!lock} title={lock ?? undefined} onClick={onAction}>{lock && lockIcon}{meta.action}</button></header>}
         {inFlow ? flowPanel : <div className="section-panel">{panels[section] ?? analytics}</div>}
       </main>
     </div>
