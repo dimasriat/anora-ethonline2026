@@ -319,6 +319,7 @@ const PROOF_COPY: Record<string, string> = {
  *  falls back to the generic sentence — a raw server string never reaches a user. */
 const GATE_COPY: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^receipt intake incomplete$/, () => "Complete the human check and obtain compliance receipt acceptance before starting financing."],
+  [/^(.+) needs a completed eligibility check$/, (m) => `${m[1]} needs a completed eligibility check. Verify with World ID first.`],
   [/^(.+) belum lolos allowlist: (.+)$/, (m) => `${m[1]} is not allowlisted — ${m[2]}.`],
   [/^mandat (.+) tidak mencakup tranche (.+)$/, (m) => `${m[1]}'s mandate does not cover the ${m[2] === "SENIOR" ? "Senior" : "Junior"} tranche.`],
   [/^di bawah tiket minimum (.+)$/, (m) => `That amount is below ${m[1]}'s minimum ticket.`],
@@ -1389,24 +1390,24 @@ export default function App() {
             Recipient eligibility was verified at registration and is enforced automatically at settlement. 1 unit represents Rp 1 of face value.
           </p>
           <div className="actions">
-            <button type="submit" disabled={busy || !recipientId || !amount || flow.controls.paused}>Create sale order</button>
+            <button type="submit" disabled={busy || !recipientId || !amount || flow.controls.paused}>Review transfer</button>
           </div>
         </form>
       )}
       {listing && (
         <div className="transaction-review" role="status">
-          <div><span className="section-kicker">Sale order ready</span><h3>{tokenUnits(listing.unitsIdr)} · {listing.tranche === "SENIOR" ? "Senior" : "Junior"} position</h3><p>{investorName(listing.sellerId)} → {investorName(listing.buyerId)}</p></div>
+          <div><span className="section-kicker">Review transfer</span><h3>{tokenUnits(listing.unitsIdr)} · {listing.tranche === "SENIOR" ? "Senior" : "Junior"} position</h3><p>To {investorName(listing.buyerId)}</p></div>
           <SaleQuoteLines
             unitsIdr={BigInt(Math.trunc(listing.unitsIdr))}
             grossPriceIdr={BigInt(Math.trunc(listing.priceIdr))}
             feeBp={DEMONSTRATION_FEES.transferFeeBp}
           />
           <p className="supporting-copy">
-            Eligibility is rechecked at settlement, not at listing. The price and fee above are
-            settled by the controller; the transfer endpoint moves units, so the cash leg is not
-            debited here.
+            The recipient's eligibility is checked when this settles, not while you compose it.
+            The price and fee above are settled by the controller; the transfer endpoint moves
+            units, so the cash leg is not debited here.
           </p>
-          <div className="actions"><button type="button" disabled={busy || flow?.controls.paused} onClick={settleListing}>Accept and settle</button><button type="button" className="secondary-button" onClick={() => setListing(null)}>Cancel order</button></div>
+          <div className="actions"><button type="button" disabled={busy || flow?.controls.paused} onClick={settleListing}>Confirm transfer</button><button type="button" className="secondary-button" onClick={() => setListing(null)}>Discard</button></div>
         </div>
       )}
       {flow && flow.transfers.length > 0 && (
