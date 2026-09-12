@@ -47,6 +47,14 @@ legal processes.
 Anora does not replace the warehouse, the official registry, or the legal
 security interest. It provides a verifiable financing layer around them.
 
+## Product highlights
+
+| Facility dashboard | Receipt financing | Private verification |
+|:---:|:---:|:---:|
+| ![Facility dashboard](docs/img/screenshots/facility-dashboard.png) | ![Receipt financing](docs/img/screenshots/receipt-financing.png) | ![Private verification](docs/img/screenshots/private-verification.png) |
+| **Facility structuring** | **Tranche subscription** | **Settlement waterfall** |
+| ![Facility structuring](docs/img/screenshots/facility-structuring.png) | ![Tranche subscription](docs/img/screenshots/tranche-subscription.png) | ![Settlement waterfall](docs/img/screenshots/settlement-waterfall.png) |
+
 ## Design process
 
 The [Anora design process and tools](https://www.figma.com/board/He6V3rae674n4I8J1yJpmA/Anora-Design-Process-and-Tools?node-id=0-1&t=IBzqKLMS2LnwF2S4-1)
