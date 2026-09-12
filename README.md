@@ -1,7 +1,7 @@
 # Anora
 
 Anora connects warehouse-receipt owners with institutional capital through
-private verification and permissioned tranches.
+zero-knowledge proofs and permissioned tranches.
 
 In Indonesia, Anora works with the
 [Warehouse Receipt System (Sistem Resi Gudang, or SRG)](https://en.antaranews.com/news/273924/warehouse-receipt-system-empowers-farmers-trade-ministry).
@@ -21,10 +21,11 @@ Warehouse receipts make stored commodities usable as collateral. Yet financing
 remains difficult because the evidence is fragmented and each participant must
 verify the same facility separately.
 
-Anora brings the process into one traceable workflow. Private records can be
-verified without being disclosed, and permissioned tranches let investors take
-exposure that fits their mandates. This helps attract suitable capital while
-the commodity owner retains control over when the goods are sold.
+Anora brings the process into one traceable workflow. Zero-knowledge proofs
+verify financing conditions without disclosing the underlying records, while
+permissioned tranches let investors take exposure that fits their mandates.
+This helps attract suitable capital while the commodity owner retains control
+over when the goods are sold.
 
 The shared financing record also makes oversight more efficient for regulated
 participants and
@@ -44,14 +45,13 @@ legal processes.
 5. **Settle** — Repayment follows the facility terms and is recorded in a shared
    audit trail.
 
-Anora does not replace the warehouse, the official registry, or the legal
-security interest. It provides a verifiable financing layer around them.
+Anora provides a verifiable financing layer around them.
 
 ## Product highlights
 
-| Facility dashboard | Receipt financing | Private verification |
+| Facility dashboard | Receipt financing | ZKP private verification |
 |:---:|:---:|:---:|
-| ![Facility dashboard](docs/img/screenshots/facility-dashboard.png) | ![Receipt financing](docs/img/screenshots/receipt-financing.png) | ![Private verification](docs/img/screenshots/private-verification.png) |
+| ![Facility dashboard](docs/img/screenshots/facility-dashboard.png) | ![Receipt financing](docs/img/screenshots/receipt-financing.png) | ![ZKP private verification](docs/img/screenshots/private-verification.png) |
 | **Facility structuring** | **Tranche subscription** | **Settlement waterfall** |
 | ![Facility structuring](docs/img/screenshots/facility-structuring.png) | ![Tranche subscription](docs/img/screenshots/tranche-subscription.png) | ![Settlement waterfall](docs/img/screenshots/settlement-waterfall.png) |
 
