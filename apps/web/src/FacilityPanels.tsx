@@ -178,7 +178,7 @@ export function StructuringPanel({ proposal, policy, canApprove }: {
           <>
             <div className="finance-metrics">
               <div><span>Requested face</span><strong>{rp(proposal.input.requestedFaceIdr)}</strong><small>What the borrower asked for</small></div>
-              <div><span>Approved face</span><strong>{rp(structure.approvedFaceIdr)}</strong><small>Lowest of authority, policy limit and ceiling</small></div>
+              <div><span>Derived ceiling</span><strong>{rp(structure.approvedFaceIdr)}</strong><small>Lowest of authority, policy limit and collateral ceiling</small></div>
               <div><span>Target face</span><strong>{rp(structure.targetFaceIdr)}</strong><small>What this facility would actually issue</small></div>
             </div>
 
