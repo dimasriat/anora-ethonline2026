@@ -3,9 +3,10 @@
 Anora connects warehouse-receipt owners with institutional capital through
 private verification and permissioned tranches.
 
-In Indonesia, Anora works with the Warehouse Receipt System (Sistem Resi
-Gudang, or SRG). It helps commodity owners finance stored goods without selling
-early, while investors take only the risk their mandates allow.
+In Indonesia, Anora works with the
+[Warehouse Receipt System (Sistem Resi Gudang, or SRG)](https://en.antaranews.com/news/273924/warehouse-receipt-system-empowers-farmers-trade-ministry).
+It helps commodity owners finance stored goods without selling early, while
+investors take only the risk their mandates allow.
 
 Built for ETHOnline 2026, Classic / From Scratch track.
 
@@ -26,9 +27,10 @@ exposure that fits their mandates. This helps attract suitable capital while
 the commodity owner retains control over when the goods are sold.
 
 The shared financing record also makes oversight more efficient for regulated
-participants and Bappebti, Indonesia's Commodity Futures Trading Regulatory
-Agency. Anora supports the existing SRG framework; it does not replace its
-registry or legal processes.
+participants and
+[Bappebti, Indonesia's Commodity Futures Trading Regulatory Agency](https://bappebti.go.id/Annual_report_bappebti/download/annual_2016-06-13_08-26-58_Bappebti_Annual_Report_2015_Final_Artwork.pdf).
+Anora supports the existing SRG framework; it does not replace its registry or
+legal processes.
 
 ## How it works
 
