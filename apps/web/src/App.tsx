@@ -1578,6 +1578,21 @@ export default function App() {
     ["Senior cap", proposal.structure ? rpExact(proposal.structure.seniorCapIdr) : undrawn, "What is left, paid first"],
   ];
 
+  /* What the bands actually say, so the proposal can be read against them
+     instead of in place of them. Null until the note exists. */
+  const liveTerms = (() => {
+    const senior = bands.find((band) => band.name === "SENIOR");
+    const junior = bands.find((band) => band.name === "JUNIOR");
+    if (!senior || !junior) return null;
+    return {
+      faceIdr: BigInt(Math.trunc(senior.capacityIdr + junior.capacityIdr)),
+      seniorCapIdr: BigInt(Math.trunc(senior.capacityIdr)),
+      juniorCapIdr: BigInt(Math.trunc(junior.capacityIdr)),
+      seniorBp: BigInt(Math.trunc(senior.returnBp)),
+      juniorBp: BigInt(Math.trunc(junior.returnBp)),
+    };
+  })();
+
   const complianceStructuringPanel = <>
     <Card title="Observation to locked terms">
       <div className="status-strip">
@@ -1592,7 +1607,7 @@ export default function App() {
       </div>
     </Card>
     <CollateralPanel view={collateral} policy={DEMONSTRATION_POLICY} editable onObserve={setObservation} />
-    <StructuringPanel proposal={proposal} policy={DEMONSTRATION_POLICY} canApprove />
+    <StructuringPanel proposal={proposal} policy={DEMONSTRATION_POLICY} canApprove live={liveTerms} />
   </>;
 
   const complianceServicingPanel = <>
