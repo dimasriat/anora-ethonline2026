@@ -243,6 +243,8 @@ button[aria-pressed="true"] { outline: 1.5px solid var(--fill); outline-offset: 
 .truth-labels { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
 
 .tranche-card {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   padding: 18px;
   background: var(--surface);
@@ -251,7 +253,10 @@ button[aria-pressed="true"] { outline: 1.5px solid var(--fill); outline-offset: 
 }
 .tranche-card.senior { background: var(--accent-soft); border-color: var(--fill); }
 .tranche-card > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
-.tranche-card p { margin: 12px 0 0; color: var(--muted); font-size: 12px; }
+/* The grid equalises the two cards, but the footnote runs one line under Senior
+   and two under Junior. Held to the bottom, the slack falls above the note and
+   reads as separation from the rows instead of a ragged edge. */
+.tranche-card p { margin: auto 0 0; padding-top: 12px; color: var(--muted); font-size: 12px; }
 
 .result-list { display: grid; gap: 1px; overflow: hidden; background: var(--line); border: 1px solid var(--line); border-radius: 8px; }
 .result-row {
@@ -1742,7 +1747,10 @@ stated before the data it qualifies. */
   padding: 14px 18px;
   border-bottom: 1px solid var(--line);
 }
-.structure-summary > div { display: grid; gap: 5px; padding: 16px 18px; border-left: 1px solid var(--line); }
+/* Not the grid default. The row stretches every cell to the tallest, and stretch
+   hands that slack to the rows inside — a cell whose note wraps dropped its
+   figure ~6px below the cell beside it. Start keeps every figure on one baseline. */
+.structure-summary > div { display: grid; align-content: start; gap: 5px; padding: 16px 18px; border-left: 1px solid var(--line); }
 .structure-summary > div:nth-of-type(3n + 1) { border-left: 0; }
 .structure-summary > div:nth-of-type(n + 4) { border-top: 1px solid var(--line); }
 .structure-summary span { color: var(--muted); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; }
