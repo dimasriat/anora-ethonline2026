@@ -1,8 +1,28 @@
 import { describe, expect, test } from "bun:test";
 import { facilityFrom, remainingCapacityIdr, screenSubscription } from "./facility";
-import type { Investor, Subscription } from "./domain";
+import { DEMONSTRATION_POLICY } from "./policy-input";
+import type { ESrg, Investor, Subscription } from "./domain";
 
-const facility = facilityFrom(600_000_000, 7_000);
+/** 8.000 kg at Rp 75.000/kg — the worked example, stated as a receipt. */
+const receipt = (quantityKg: number, valueIdr: number): ESrg => ({
+  id: "SRG-TEST",
+  holder: "Koperasi Test",
+  warehouse: "Gudang Test",
+  commodity: "Tea",
+  quantityKg,
+  valueIdr,
+  issuedAt: "2026-01-01T00:00:00.000Z",
+  expiresAt: "2027-01-01T00:00:00.000Z",
+  documentHash: "0xtest",
+  encumbrance: "none",
+});
+
+const derive = (quantityKg: number, valueIdr: number) =>
+  facilityFrom(receipt(quantityKg, valueIdr), DEMONSTRATION_POLICY, 90n, 3_000_000n);
+
+const derived = derive(8_000, 600_000_000);
+if (!derived.ok) throw new Error("the worked example must be feasible");
+const facility = derived.facility;
 const senior = facility.tranches.find((t) => t.name === "SENIOR")!;
 const junior = facility.tranches.find((t) => t.name === "JUNIOR")!;
 
@@ -30,28 +50,47 @@ const subscription = (tranche: "SENIOR" | "JUNIOR", unitsIdr: number): Subscript
 describe("facilityFrom", () => {
   test("derives the ceiling from the receipt, not a fixed number", () => {
     expect(facility.ceilingIdr).toBe(420_000_000);
-    expect(facilityFrom(226_800_000, 7_000).ceilingIdr).toBe(158_760_000);
+    const smaller = derive(3_024, 226_800_000);
+    if (!smaller.ok) throw new Error("expected a feasible structure");
+    expect(smaller.facility.ceilingIdr).toBe(158_760_000);
   });
 
-  test("issues Senior and Junior, leaving capacity unissued", () => {
-    expect(senior.capacityIdr).toBe(270_000_000);
-    expect(junior.capacityIdr).toBe(120_000_000);
-    expect(facility.ceilingIdr - senior.capacityIdr - junior.capacityIdr).toBe(30_000_000);
+  test("writes the face below the ceiling, leaving authority unissued", () => {
+    expect(facility.faceIdr).toBe(390_000_000);
+    expect(facility.ceilingIdr - facility.faceIdr).toBe(30_000_000);
+    expect(senior.capacityIdr + junior.capacityIdr).toBe(facility.faceIdr);
+  });
+
+  test("sizes Junior from the worst scenario, not a fixed share", () => {
+    expect(junior.capacityIdr).toBe(88_960_000);
+    expect(senior.capacityIdr).toBe(301_040_000);
+  });
+
+  test("prices both tranches off the policy's spread schedule", () => {
+    expect(senior.returnBp).toBe(850);
+    expect(junior.returnBp).toBe(1_400);
   });
 
   test("stores loss bands rather than implying them from the name", () => {
     expect(junior.attachmentIdr).toBe(0);
-    expect(junior.detachmentIdr).toBe(120_000_000);
-    expect(senior.attachmentIdr).toBe(120_000_000);
+    expect(junior.detachmentIdr).toBe(88_960_000);
+    expect(senior.attachmentIdr).toBe(88_960_000);
     expect(senior.detachmentIdr).toBe(390_000_000);
+  });
+
+  test("refuses rather than sizing a structure the policy will not carry", () => {
+    const tiny = derive(1, 1);
+    expect(tiny.ok).toBe(false);
+    if (tiny.ok) throw new Error("expected a refusal");
+    expect(tiny.reasons.length).toBeGreaterThan(0);
   });
 });
 
 describe("remainingCapacityIdr", () => {
   test("counts only subscriptions in the same tranche", () => {
     const subs = [subscription("SENIOR", 100_000_000), subscription("JUNIOR", 20_000_000)];
-    expect(remainingCapacityIdr(senior, subs)).toBe(170_000_000);
-    expect(remainingCapacityIdr(junior, subs)).toBe(100_000_000);
+    expect(remainingCapacityIdr(senior, subs)).toBe(201_040_000);
+    expect(remainingCapacityIdr(junior, subs)).toBe(68_960_000);
   });
 });
 
@@ -91,11 +130,11 @@ describe("screenSubscription", () => {
   });
 
   test("refuses more than the tranche has left", () => {
-    const r = screenSubscription(investor(), junior, 40_000_000, [subscription("JUNIOR", 100_000_000)]);
+    const r = screenSubscription(investor(), junior, 40_000_000, [subscription("JUNIOR", 60_000_000)]);
     if (r.ok) throw new Error("expected refusal");
     expect(r.refusal.code).toBe("exceeds_remaining_capacity");
     if (r.refusal.code !== "exceeds_remaining_capacity") throw new Error("narrowing");
-    expect(r.refusal.remainingIdr).toBe(20_000_000);
+    expect(r.refusal.remainingIdr).toBe(28_960_000);
   });
 
   test("checks the allowlist before the mandate", () => {

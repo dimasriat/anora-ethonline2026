@@ -20,6 +20,7 @@ const POLICY: Policy = {
   policyHash: "0xpolicy-one",
   validUntil: "2026-12-31",
   maxLtvBp: 7_000n,
+  targetLtvBp: 6_500n,
   reconciliationToleranceBp: 50n,
   sponsorRetentionBp: 2_500n,
   maxObservationAgeSeconds: 86_400n,
