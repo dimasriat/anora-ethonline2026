@@ -3,8 +3,21 @@
  * panels can use the same card, row and badge rather than growing a second
  * visual language beside them.
  */
-import type React from "react";
+import React from "react";
 import { PROVENANCE_COPY, type Provenance } from "./facility-view";
+
+/**
+ * Errors render above the step cards, so on a scrolled page the banner lands
+ * off-screen and a refused action reads as a dead button. It scrolls itself
+ * into view rather than leaving every call site to remember.
+ */
+export function ErrorBanner({ children }: { children: React.ReactNode }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [children]);
+  return <div className="error-banner" role="alert" ref={ref}>{children}</div>;
+}
 
 export function Card({ title, className = "", children }: { title: string; className?: string; children: React.ReactNode }) {
   return <section className={`card ${className}`}><h2>{title}</h2>{children}</section>;

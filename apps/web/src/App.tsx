@@ -10,7 +10,7 @@ import {
   type Band, type Chain, type ESrg, type Flow, type IntakeAction, type IntakeOptions, type IntakeState, type Investor, type Mode,
   type Note, type Position, type TrancheName,
 } from "./api";
-import { Badge, Card, groupDigits, NumberField, PendingAction, RailRow, Row, Source } from "./ui";
+import { Badge, Card, ErrorBanner, groupDigits, NumberField, PendingAction, RailRow, Row, Source } from "./ui";
 import {
   CollateralPanel, DistributionPanel, FundingGatePanel, kg, pct, rpExact, SaleQuoteLines,
   SettlementPanel, StructuringPanel, type ScheduledDistribution,
@@ -18,9 +18,8 @@ import {
 import {
   collateralView, flowApprovedFace, flowIssuedFace, observationFrom, proposalFor,
 } from "./facility-view";
-import { purchase } from "./tranche-math";
-import { DEMONSTRATION_FEES, DEMONSTRATION_POLICY } from "./policy-input";
-import type { CollateralReport } from "./structuring";
+import { purchase, DEMONSTRATION_FEES, DEMONSTRATION_POLICY } from "@anora/core";
+import type { CollateralReport } from "@anora/core";
 
 type Role = "Borrower" | "Capital Provider" | "Compliance";
 type Screen = "pick" | "mandate" | "review" | "proof" | "note" | "fund" | "done";
@@ -156,17 +155,6 @@ const NAV_ICONS: Record<string, string> = {
  *  hand-off moves the user between workspaces rather than out of the product. */
 /** Where a borrower proposes a receipt for intake review. */
 const INTAKE_SECTION = "My e-SRGs";
-
-/** What the owning workspace does next. STEP_OWNER gives each step one owner. */
-const NEXT_ACTION: Record<string, string> = {
-  draft: "Prepare the mandate and sign it. Size, Junior coverage, and price are derived from the receipt and policy, so nothing is typed.",
-  mandate_signed: "Document review and the private eligibility proof run on this page. They take a few seconds.",
-  approved: "Document review and the private eligibility proof run on this page. They take a few seconds.",
-  proven: "Issue the note. This mints a real ATS token on Hedera and fixes both partitions for good.",
-  tokenized: "Subscribe to a partition. Junior absorbs first loss and fills first; Senior opens once Junior is covered.",
-  subscribed: "The book is full. Registry confirmation and funding run on their own, and the position lands in My notes.",
-  funded: "Units are active. They move between allowlisted holders through Transfers, and Cashflows carries the schedule to maturity.",
-};
 
 const FLOW_SECTION: Record<Role, string> = {
   Borrower: "Financing requests",
@@ -330,6 +318,7 @@ const PROOF_COPY: Record<string, string> = {
  *  falls back to the generic sentence — a raw server string never reaches a user. */
 const GATE_COPY: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^receipt intake incomplete$/, () => "Complete the human check and obtain compliance receipt acceptance before starting financing."],
+  [/^(.+) needs a completed eligibility check$/, (m) => `${m[1]} needs a completed eligibility check. Verify with World ID first.`],
   [/^(.+) belum lolos allowlist: (.+)$/, (m) => `${m[1]} is not allowlisted — ${m[2]}.`],
   [/^mandat (.+) tidak mencakup tranche (.+)$/, (m) => `${m[1]}'s mandate does not cover the ${m[2] === "SENIOR" ? "Senior" : "Junior"} tranche.`],
   [/^di bawah tiket minimum (.+)$/, (m) => `That amount is below ${m[1]}'s minimum ticket.`],
@@ -1318,7 +1307,7 @@ export default function App() {
 
   const transferPanel = (
     <Card title="Secondary market">
-      {err && <div className="error-banner" role="alert">{err}</div>}
+      {err && <ErrorBanner>{err}</ErrorBanner>}
       {flow?.step === "funded" && <>
         <div className="status-strip">
           <span>Transfer policy</span>
@@ -1400,24 +1389,24 @@ export default function App() {
             Recipient eligibility was verified at registration and is enforced automatically at settlement. 1 unit represents Rp 1 of face value.
           </p>
           <div className="actions">
-            <button type="submit" disabled={busy || !recipientId || !amount || flow.controls.paused}>Create sale order</button>
+            <button type="submit" disabled={busy || !recipientId || !amount || flow.controls.paused}>Review transfer</button>
           </div>
         </form>
       )}
       {listing && (
         <div className="transaction-review" role="status">
-          <div><span className="section-kicker">Sale order ready</span><h3>{tokenUnits(listing.unitsIdr)} · {listing.tranche === "SENIOR" ? "Senior" : "Junior"} position</h3><p>{investorName(listing.sellerId)} → {investorName(listing.buyerId)}</p></div>
+          <div><span className="section-kicker">Review transfer</span><h3>{tokenUnits(listing.unitsIdr)} · {listing.tranche === "SENIOR" ? "Senior" : "Junior"} position</h3><p>To {investorName(listing.buyerId)}</p></div>
           <SaleQuoteLines
             unitsIdr={BigInt(Math.trunc(listing.unitsIdr))}
             grossPriceIdr={BigInt(Math.trunc(listing.priceIdr))}
             feeBp={DEMONSTRATION_FEES.transferFeeBp}
           />
           <p className="supporting-copy">
-            Eligibility is rechecked at settlement, not at listing. The price and fee above are
-            settled by the controller; the transfer endpoint moves units, so the cash leg is not
-            debited here.
+            The recipient's eligibility is checked when this settles, not while you compose it.
+            The price and fee above are settled by the controller; the transfer endpoint moves
+            units, so the cash leg is not debited here.
           </p>
-          <div className="actions"><button type="button" disabled={busy || flow?.controls.paused} onClick={settleListing}>Accept and settle</button><button type="button" className="secondary-button" onClick={() => setListing(null)}>Cancel order</button></div>
+          <div className="actions"><button type="button" disabled={busy || flow?.controls.paused} onClick={settleListing}>Confirm transfer</button><button type="button" className="secondary-button" onClick={() => setListing(null)}>Discard</button></div>
         </div>
       )}
       {flow && flow.transfers.length > 0 && (
@@ -1449,7 +1438,7 @@ export default function App() {
      already finished. */
   const repaymentPanel = repayment && flow && (
     <>
-      {err && <div className="error-banner" role="alert">{err}</div>}
+      {err && <ErrorBanner>{err}</ErrorBanner>}
       <Card title={repayment.settled ? "Facility settled" : "Repayment"}>
         <div className="funded-note">
           <Badge tone={repayment.settled ? "success" : repayment.payable ? "warning" : "neutral"}>
@@ -1589,6 +1578,21 @@ export default function App() {
     ["Senior cap", proposal.structure ? rpExact(proposal.structure.seniorCapIdr) : undrawn, "What is left, paid first"],
   ];
 
+  /* What the bands actually say, so the proposal can be read against them
+     instead of in place of them. Null until the note exists. */
+  const liveTerms = (() => {
+    const senior = bands.find((band) => band.name === "SENIOR");
+    const junior = bands.find((band) => band.name === "JUNIOR");
+    if (!senior || !junior) return null;
+    return {
+      faceIdr: BigInt(Math.trunc(senior.capacityIdr + junior.capacityIdr)),
+      seniorCapIdr: BigInt(Math.trunc(senior.capacityIdr)),
+      juniorCapIdr: BigInt(Math.trunc(junior.capacityIdr)),
+      seniorBp: BigInt(Math.trunc(senior.returnBp)),
+      juniorBp: BigInt(Math.trunc(junior.returnBp)),
+    };
+  })();
+
   const complianceStructuringPanel = <>
     <Card title="Observation to locked terms">
       <div className="status-strip">
@@ -1603,7 +1607,7 @@ export default function App() {
       </div>
     </Card>
     <CollateralPanel view={collateral} policy={DEMONSTRATION_POLICY} editable onObserve={setObservation} />
-    <StructuringPanel proposal={proposal} policy={DEMONSTRATION_POLICY} canApprove />
+    <StructuringPanel proposal={proposal} policy={DEMONSTRATION_POLICY} canApprove live={liveTerms} />
   </>;
 
   const complianceServicingPanel = <>
@@ -1726,7 +1730,7 @@ export default function App() {
       : activeRole === "Compliance"
         ? { Structuring: complianceStructuringPanel, "Funding & settlement": complianceServicingPanel }
       : activeRole === "Borrower" ? {
-          [INTAKE_SECTION]: <>{err && <div className="error-banner" role="alert">{err}</div>}{intakePanel}</>,
+          [INTAKE_SECTION]: <>{err && <ErrorBanner>{err}</ErrorBanner>}{intakePanel}</>,
           ...(repaymentPanel ? { Repayments: repaymentPanel } : {}),
         } : {};
   const stages = JOURNEY[activeRole];
@@ -2081,11 +2085,9 @@ export default function App() {
     </Card>
   );
 
-  /* One notice, always first. Precedence: owned step, issuance strip, handoff line. */
-  const nextAction = flow && !startingNew && ownsStep ? NEXT_ACTION[flow.step] : undefined;
-  const notice = nextAction
-    ? <div className="handoff-banner acting" role="status"><div><strong>Your turn</strong><span>{nextAction}</span></div></div>
-    : issuanceStatus
+  /* One notice, always first. Precedence: issuance strip, handoff line. A step
+     the current workspace owns gets no banner — the card states the action. */
+  const notice = issuanceStatus
     || (!ownsStep && !borrowerAwaitingRelease && <div className="handoff-banner"><div><strong>Waiting on {stepOwner}</strong><span>You can review this record. The next action belongs to {stepOwner}.</span></div></div>);
 
   const flowPanel = (
@@ -2102,7 +2104,7 @@ export default function App() {
       </header>
 
       <div className="flow-main" aria-busy={busy}>
-        {err && <div className="error-banner" role="alert">{err}</div>}
+        {err && <ErrorBanner>{err}</ErrorBanner>}
         {notice}
 
         {activeRole === "Capital Provider" && opportunitiesPanel}
@@ -2225,7 +2227,7 @@ function LandingPage({ onNavigate, onAccess }: { onNavigate: (view: View) => voi
             <div className="hero-copy">
               <div className="hero-wordmark">Anora</div>
               <h1 id="landing-title">Turn verified inventory<br />into investable credit.</h1>
-              <p>Anora connects holders of Indonesian electronic warehouse receipts (e-SRG) with capital providers through structured, permissioned notes.</p>
+              <p>Anora connects holders of warehouse receipts (Indonesia - SRG) with capital providers through structured, permissioned notes.</p>
               <div className="hero-actions">
                 <button type="button" onClick={() => onAccess()}>Get started</button>
                 <button type="button" className="secondary-button" onClick={() => onNavigate("how")}>How it works</button>

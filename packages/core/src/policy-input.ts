@@ -18,6 +18,7 @@ export const DEMONSTRATION_POLICY: Policy = {
   policyHash: "0x997fe5d1d9ebf0998958c5d94f50a6219a4933cc",
   validUntil: "2026-12-31",
   maxLtvBp: 7_000n,
+  targetLtvBp: 6_500n,
   reconciliationToleranceBp: 50n,
   sponsorRetentionBp: 2_500n,
   maxObservationAgeSeconds: 86_400n,

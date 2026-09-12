@@ -48,6 +48,14 @@ export type Policy = {
   validUntil: string;
   /** λ: the LTV ceiling on eligible collateral. */
   maxLtvBp: bigint;
+  /**
+   * The LTV a facility actually issues at, at or below λ.
+   *
+   * Two different jobs: λ is the line a facility may never cross, this is where
+   * it is written. Holding them apart is what leaves headroom between the
+   * collateral ceiling and the issued face — unused authority, not funded cash.
+   */
+  targetLtvBp: bigint;
   /** ε: registry-versus-warehouse reconciliation tolerance. */
   reconciliationToleranceBp: bigint;
   /** ρ: sponsor retention on the Junior cap. */
