@@ -157,17 +157,6 @@ const NAV_ICONS: Record<string, string> = {
 /** Where a borrower proposes a receipt for intake review. */
 const INTAKE_SECTION = "My e-SRGs";
 
-/** What the owning workspace does next. STEP_OWNER gives each step one owner. */
-const NEXT_ACTION: Record<string, string> = {
-  draft: "Prepare the mandate and sign it. Size, Junior coverage, and price are derived from the receipt and policy, so nothing is typed.",
-  mandate_signed: "Document review and the private eligibility proof run on this page. They take a few seconds.",
-  approved: "Document review and the private eligibility proof run on this page. They take a few seconds.",
-  proven: "Issue the note. This mints a real ATS token on Hedera and fixes both partitions for good.",
-  tokenized: "Subscribe to a partition. Junior absorbs first loss and fills first; Senior opens once Junior is covered.",
-  subscribed: "The book is full. Registry confirmation and funding run on their own, and the position lands in My notes.",
-  funded: "Units are active. They move between allowlisted holders through Transfers, and Cashflows carries the schedule to maturity.",
-};
-
 const FLOW_SECTION: Record<Role, string> = {
   Borrower: "Financing requests",
   "Capital Provider": "Opportunities",
@@ -2081,11 +2070,9 @@ export default function App() {
     </Card>
   );
 
-  /* One notice, always first. Precedence: owned step, issuance strip, handoff line. */
-  const nextAction = flow && !startingNew && ownsStep ? NEXT_ACTION[flow.step] : undefined;
-  const notice = nextAction
-    ? <div className="handoff-banner acting" role="status"><div><strong>Your turn</strong><span>{nextAction}</span></div></div>
-    : issuanceStatus
+  /* One notice, always first. Precedence: issuance strip, handoff line. A step
+     the current workspace owns gets no banner — the card states the action. */
+  const notice = issuanceStatus
     || (!ownsStep && !borrowerAwaitingRelease && <div className="handoff-banner"><div><strong>Waiting on {stepOwner}</strong><span>You can review this record. The next action belongs to {stepOwner}.</span></div></div>);
 
   const flowPanel = (

@@ -574,9 +574,6 @@
 }
 .lock-note .lock-icon { margin-right: 6px; }
 
-/* Your turn, not a warning: amber is what the page uses for waiting on someone else. */
-.handoff-banner.acting { background: var(--accent-soft); border-color: var(--fill); }
-
 /* Layout from .finance-metrics so this lines up with the panels below. Only the number is new. */
 .derivation { counter-reset: derivation; margin-top: 14px; }
 .derivation > div { counter-increment: derivation; position: relative; padding-top: 26px; }
