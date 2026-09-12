@@ -18,9 +18,8 @@ import {
 import {
   collateralView, flowApprovedFace, flowIssuedFace, observationFrom, proposalFor,
 } from "./facility-view";
-import { purchase } from "./tranche-math";
-import { DEMONSTRATION_FEES, DEMONSTRATION_POLICY } from "./policy-input";
-import type { CollateralReport } from "./structuring";
+import { purchase, DEMONSTRATION_FEES, DEMONSTRATION_POLICY } from "@anora/core";
+import type { CollateralReport } from "@anora/core";
 
 type Role = "Borrower" | "Capital Provider" | "Compliance";
 type Screen = "pick" | "mandate" | "review" | "proof" | "note" | "fund" | "done";

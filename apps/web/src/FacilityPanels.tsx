@@ -16,7 +16,7 @@ import {
   COLLATERAL_STATE_COPY, distributionView, gateView, saleQuote, settlementView,
   type CollateralView, type FacilityProposal, type Provenance, type SettlementView,
 } from "./facility-view";
-import type { CollateralReport, Policy } from "./structuring";
+import type { CollateralReport, Policy } from "@anora/core";
 
 const idr = new Intl.NumberFormat("id-ID");
 /** Rupiah from an exact integer. Never via Number — face values overflow it. */

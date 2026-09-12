@@ -13,11 +13,10 @@
 import type { Band, ESrg, Flow, Position, TrancheName } from "./api";
 import {
   attachments, coverageShortfall, covenantCollateral, dust, eligibleCollateral, faceCeiling,
-  feeOf, headroom, holderClaim, issuedLtvBp, reconcile, retainedMinimum,
-  unlockedSenior, waterfall,
-} from "./tranche-math";
-import { propose, type CollateralReport, type Policy, type Proposal } from "./structuring";
-import { DEMONSTRATION_TERM_DAYS, DEMONSTRATION_UPFRONT_COSTS_IDR } from "./policy-input";
+  feeOf, headroom, holderClaim, issuedLtvBp, propose, reconcile, retainedMinimum,
+  unlockedSenior, waterfall, DEMONSTRATION_TERM_DAYS, DEMONSTRATION_UPFRONT_COSTS_IDR,
+} from "@anora/core";
+import type { CollateralReport, Policy, Proposal } from "@anora/core";
 
 /**
  * Where a number came from. The interface renders this next to the number,
