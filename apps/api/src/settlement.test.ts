@@ -27,8 +27,10 @@ const funded = async (owner = OWNER) => {
   await flow.approve(id);
   await flow.prove(id);
   await flow.tokenize(id);
+  /* Senior exceeds any single ticket, so the book syndicates across two. */
   await flow.subscribe(id, "INV-BRS", "SENIOR", 270_000_000);
-  await flow.subscribe(id, "INV-KIT", "JUNIOR", 120_000_000);
+  await flow.subscribe(id, "INV-NFO", "SENIOR", 31_040_000);
+  await flow.subscribe(id, "INV-KIT", "JUNIOR", 88_960_000);
   await flow.registerAndFund(id);
   return id;
 };
@@ -39,8 +41,8 @@ describe("settlement at repayment", () => {
     const settlement = s.settlement!;
 
     expect(settlement.conserved).toBe(true);
-    expect(settlement.paid.seniorPrincipalIdr).toBe(270_000_000);
-    expect(settlement.paid.juniorPrincipalIdr).toBe(120_000_000);
+    expect(settlement.paid.seniorPrincipalIdr).toBe(301_040_000);
+    expect(settlement.paid.juniorPrincipalIdr).toBe(88_960_000);
     expect(settlement.loss.every((l) => l.lossIdr === 0)).toBe(true);
   });
 
@@ -51,7 +53,7 @@ describe("settlement at repayment", () => {
 
     expect(senior.lossIdr).toBe(0);
     expect(junior.lossIdr).toBeGreaterThan(0);
-    expect(s.settlement!.paid.seniorPrincipalIdr).toBe(270_000_000);
+    expect(s.settlement!.paid.seniorPrincipalIdr).toBe(301_040_000);
   });
 
   test("Senior is only impaired once Junior is exhausted", async () => {
@@ -59,7 +61,7 @@ describe("settlement at repayment", () => {
     const junior = s.settlement!.loss.find((l) => l.tranche === "JUNIOR")!;
     const senior = s.settlement!.loss.find((l) => l.tranche === "SENIOR")!;
 
-    expect(junior.lossIdr).toBe(120_000_000);
+    expect(junior.lossIdr).toBe(88_960_000);
     expect(senior.lossIdr).toBeGreaterThan(0);
   });
 
@@ -67,8 +69,8 @@ describe("settlement at repayment", () => {
     const s = await flow.repay(await funded(), 0);
     const loss = Object.fromEntries(s.settlement!.loss.map((l) => [l.tranche, l.lossIdr]));
 
-    expect(loss.JUNIOR).toBe(120_000_000);
-    expect(loss.SENIOR).toBe(270_000_000);
+    expect(loss.JUNIOR).toBe(88_960_000);
+    expect(loss.SENIOR).toBe(301_040_000);
   });
 
   test("cash is conserved at every recovery level", async () => {

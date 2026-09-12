@@ -74,7 +74,7 @@ describe("creating a request", () => {
   test("returns 201 and the derived ceiling", async () => {
     const res = await post("/api/requests", { esrgId: "SRG-TEH-024" });
     expect(res.status).toBe(201);
-    expect((await body(res)).request.requestedIdr).toBe(420_000_000);
+    expect((await body(res)).request.requestedIdr).toBe(390_000_000);
   });
 
   test("rejects an unknown receipt with 404", async () => {
@@ -134,7 +134,10 @@ describe("error codes reach the client", () => {
       investorId: "INV-BRS", tranche: "SENIOR", unitsIdr: 270_000_000,
     });
     await post(`/api/requests/${id}/subscribe`, {
-      investorId: "INV-KIT", tranche: "JUNIOR", unitsIdr: 120_000_000,
+      investorId: "INV-NFO", tranche: "SENIOR", unitsIdr: 31_040_000,
+    });
+    await post(`/api/requests/${id}/subscribe`, {
+      investorId: "INV-KIT", tranche: "JUNIOR", unitsIdr: 88_960_000,
     });
     await post(`/api/requests/${id}/register`);
     const final = await body(await post(`/api/requests/${id}/repay`));
@@ -206,16 +209,16 @@ describe("tranches", () => {
     const id = await openRequest();
     const tranches = await body(await get(`/api/requests/${id}/tranches`));
     const senior = tranches.find((t: { name: string }) => t.name === "SENIOR");
-    expect(senior.capacityIdr).toBe(270_000_000);
-    expect(senior.attachmentIdr).toBe(120_000_000);
+    expect(senior.capacityIdr).toBe(301_040_000);
+    expect(senior.attachmentIdr).toBe(88_960_000);
   });
 
   test("remaining capacity starts at full", async () => {
     const id = await openRequest();
     const remaining = await body(await get(`/api/requests/${id}/remaining`));
     expect(remaining).toEqual([
-      { tranche: "SENIOR", remainingIdr: 270_000_000 },
-      { tranche: "JUNIOR", remainingIdr: 120_000_000 },
+      { tranche: "SENIOR", remainingIdr: 301_040_000 },
+      { tranche: "JUNIOR", remainingIdr: 88_960_000 },
     ]);
   });
 });

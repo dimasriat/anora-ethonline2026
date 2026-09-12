@@ -1,6 +1,7 @@
 import {
-  allocateLoss, distribute, facilityFrom, isReversible, previousStep,
-  remainingCapacityIdr, requireStep, screenSubscription,
+  allocateLoss, DEMONSTRATION_POLICY, DEMONSTRATION_UPFRONT_COSTS_IDR, distribute,
+  facilityFrom, isReversible, previousStep, remainingCapacityIdr, requireStep,
+  screenSubscription,
 } from "@anora/core";
 import type {
   Distribution, ESrg, EligibilityProof, Facility, FinancingRequest, NoteToken,
@@ -56,7 +57,6 @@ export type FlowState = {
   history: HistoryEntry[];
 };
 
-const MAX_LTV_BP = 7_000;
 const MATURITY_DAYS = 90;
 const DAYS_IN_YEAR = 365;
 
@@ -163,16 +163,31 @@ export function makeFlow(ports: Ports) {
         throw new FlowError("receipt_encumbered", `${esrgId} is already pledged`, { esrgId });
       }
 
-      const facility = facilityFrom(esrg.valueIdr, MAX_LTV_BP);
+      /* Size and price from the policy, not a fixed split. An infeasible
+         structure is refused here rather than issued and explained later. */
+      const derived = facilityFrom(
+        esrg,
+        DEMONSTRATION_POLICY,
+        BigInt(MATURITY_DAYS),
+        DEMONSTRATION_UPFRONT_COSTS_IDR,
+      );
+      if (!derived.ok) {
+        throw new FlowError(
+          "policy_infeasible",
+          derived.reasons[0]?.detail ?? "The policy refuses this structure.",
+          { reasons: derived.reasons },
+        );
+      }
+      const facility = derived.facility;
       const id = `REQ-${++sequence}`;
       const state: FlowState = {
         ownerId,
         request: {
           id,
           esrgId,
-          requestedIdr: facility.ceilingIdr,
+          requestedIdr: facility.faceIdr,
           maturityDays: MATURITY_DAYS,
-          maxLtvBp: MAX_LTV_BP,
+          maxLtvBp: Number(DEMONSTRATION_POLICY.maxLtvBp),
           epoch: 1,
           status: "draft",
         },

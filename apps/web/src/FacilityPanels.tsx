@@ -16,7 +16,7 @@ import {
   COLLATERAL_STATE_COPY, distributionView, gateView, saleQuote, settlementView,
   type CollateralView, type FacilityProposal, type Provenance, type SettlementView,
 } from "./facility-view";
-import type { CollateralReport, Policy } from "./structuring";
+import type { CollateralReport, Policy } from "@anora/core";
 
 const idr = new Intl.NumberFormat("id-ID");
 /** Rupiah from an exact integer. Never via Number — face values overflow it. */
@@ -145,12 +145,37 @@ export function CollateralPanel({ view, policy, onObserve, editable }: {
 
 /* ── Structuring and pricing ───────────────────────────────────────────── */
 
-export function StructuringPanel({ proposal, policy, canApprove }: {
+/**
+ * The terms actually on sale, when there are any. The server derives them from
+ * this same policy, so the panel shows both rather than asking a reviewer to
+ * take a derivation on trust as the live structure.
+ */
+export type LiveTerms = {
+  faceIdr: bigint; seniorCapIdr: bigint; juniorCapIdr: bigint;
+  seniorBp: bigint; juniorBp: bigint;
+};
+
+export function StructuringPanel({ proposal, policy, canApprove, live }: {
   proposal: FacilityProposal;
   policy: Policy;
   canApprove: boolean;
+  live?: LiveTerms | null;
 }) {
   const { structure, pricing, reasons, feasible } = proposal;
+
+  /* The server derives the live facility from this same policy, so these should
+     agree line for line. Comparing rather than trusting is what catches it if
+     the two ever drift apart again. */
+  const comparison = live && structure && pricing
+    ? ([
+      ["Face", structure.targetFaceIdr, live.faceIdr, rp],
+      ["Senior cap", structure.seniorCapIdr, live.seniorCapIdr, rp],
+      ["Junior cap", structure.juniorCapIdr, live.juniorCapIdr, rp],
+      ["Senior yield", pricing.seniorYieldBp, live.seniorBp, pct],
+      ["Junior yield", pricing.juniorYieldBp, live.juniorBp, pct],
+    ] as [string, bigint, bigint, (v: bigint) => string][])
+    : null;
+  const diverged = comparison?.some(([, derived, actual]) => derived !== actual) ?? false;
 
   return (
     <>
@@ -158,8 +183,10 @@ export function StructuringPanel({ proposal, policy, canApprove }: {
         <div className="status-strip">
           <span>Proposal</span>
           <Badge tone={feasible ? "success" : "danger"}>{feasible ? "Feasible" : "Infeasible"}</Badge>
+          {diverged && <Badge tone="warning">Not the live terms</Badge>}
           <small>
             Derived from the policy and the current report. A preview is not approved, funded or issued.
+            {diverged && " The facility on sale does not match this derivation, and neither is adjusted to fit the other."}
           </small>
         </div>
 
@@ -248,6 +275,24 @@ export function StructuringPanel({ proposal, policy, canApprove }: {
                 <small>Absorbs first loss. Funded before Senior unlocks</small>
               </div>
             </div>
+            {comparison && (
+              <>
+                <div className="section-heading"><h3>Against the terms on sale</h3></div>
+                <div className="order-book">
+                  {comparison.map(([label, derived, actual, show]) => (
+                    <div className={`order-row${derived === actual ? "" : " breach"}`} key={label}>
+                      <span><strong>{label}</strong><small>This proposal derives {show(derived)}</small></span>
+                      <strong>{show(actual)}</strong>
+                    </div>
+                  ))}
+                </div>
+                <p className="supporting-copy">
+                  {diverged
+                    ? "The right column is what capital providers subscribe to. A row marked as a breach means the derivation and the live facility disagree; neither is adjusted to match."
+                    : "The right column is what capital providers subscribe to. It is derived from this same policy, so every line agrees."}
+                </p>
+              </>
+            )}
             <Source provenance={proposal.provenance} />
           </>
         )}
