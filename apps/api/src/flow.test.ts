@@ -26,21 +26,58 @@ const upToTokenized = async () => {
   return s.request.id;
 };
 
+/* The derived book for SRG-TEH-024. Senior is larger than any single investor's
+   maximum ticket, so filling it takes two — which is what a permissioned book
+   does rather than a special case. */
+const SENIOR_CAP = 301_040_000;
+const JUNIOR_CAP = 88_960_000;
+
+const fillSenior = async (id: string) => {
+  await flow.subscribe(id, "INV-BRS", "SENIOR", 270_000_000);
+  await flow.subscribe(id, "INV-NFO", "SENIOR", SENIOR_CAP - 270_000_000);
+};
+
 describe("create", () => {
   test("derives the requested principal from the receipt", async () => {
     const s = await flow.create("SRG-TEH-024", OWNER);
-    expect(s.request.requestedIdr).toBe(420_000_000);
+    expect(s.request.requestedIdr).toBe(390_000_000);
     expect(s.facility.ceilingIdr).toBe(420_000_000);
     expect(s.request.status).toBe("draft");
   });
 
+  test("writes the face below the ceiling it is authorised against", async () => {
+    const s = await flow.create("SRG-TEH-024", OWNER);
+    expect(s.facility.faceIdr).toBe(390_000_000);
+    expect(s.facility.ceilingIdr - s.facility.faceIdr).toBe(30_000_000);
+  });
+
   test("gives a smaller receipt a smaller facility", async () => {
     const s = await flow.create("SRG-TEH-018", OWNER);
-    expect(s.request.requestedIdr).toBe(217_000_000);
+    expect(s.request.requestedIdr).toBe(201_498_570);
   });
 
   test("refuses an unknown receipt", async () => {
     expect(await codeOf(() => flow.create("SRG-NOPE", OWNER))).toBe("unknown_receipt");
+  });
+
+  /* A receipt the policy cannot carry is refused here rather than issued and
+     explained afterwards. Every seeded receipt is financeable, so the refusal
+     needs a receipt built for it. */
+  test("refuses a receipt the policy will not structure", async () => {
+    const base = mockPorts();
+    const tiny = makeFlow({
+      ...base,
+      esrg: {
+        ...base.esrg,
+        get: async () => ({
+          id: "SRG-TINY", holder: "Koperasi Test", warehouse: "Gudang Test",
+          commodity: "Tea", quantityKg: 1, valueIdr: 1,
+          issuedAt: "2026-01-01T00:00:00.000Z", expiresAt: "2027-01-01T00:00:00.000Z",
+          documentHash: "0xtiny", encumbrance: "none" as const,
+        }),
+      },
+    });
+    expect(await codeOf(() => tiny.create("SRG-TINY", OWNER))).toBe("policy_infeasible");
   });
 });
 
@@ -121,16 +158,16 @@ describe("subscribe", () => {
 
   test("refuses more than the tranche has left", async () => {
     const id = await upToTokenized();
-    await flow.subscribe(id, "INV-KIT", "JUNIOR", 120_000_000);
+    await flow.subscribe(id, "INV-KIT", "JUNIOR", JUNIOR_CAP);
     expect(await codeOf(() => flow.subscribe(id, "INV-YMS", "JUNIOR", 10_000_000)))
       .toBe("exceeds_remaining_capacity");
   });
 
   test("closes the facility only when every tranche is full", async () => {
     const id = await upToTokenized();
-    await flow.subscribe(id, "INV-BRS", "SENIOR", 270_000_000);
+    await fillSenior(id);
     expect(flow.get(id, OWNER)!.request.status).toBe("tokenized");
-    await flow.subscribe(id, "INV-KIT", "JUNIOR", 120_000_000);
+    await flow.subscribe(id, "INV-KIT", "JUNIOR", JUNIOR_CAP);
     expect(flow.get(id, OWNER)!.request.status).toBe("subscribed");
   });
 });
@@ -138,8 +175,8 @@ describe("subscribe", () => {
 describe("funding and repayment", () => {
   const fullySubscribed = async () => {
     const id = await upToTokenized();
-    await flow.subscribe(id, "INV-BRS", "SENIOR", 270_000_000);
-    await flow.subscribe(id, "INV-KIT", "JUNIOR", 120_000_000);
+    await fillSenior(id);
+    await flow.subscribe(id, "INV-KIT", "JUNIOR", JUNIOR_CAP);
     return id;
   };
 
@@ -164,8 +201,8 @@ describe("funding and repayment", () => {
 describe("secondary transfers", () => {
   const funded = async () => {
     const id = await upToTokenized();
-    await flow.subscribe(id, "INV-BRS", "SENIOR", 270_000_000);
-    await flow.subscribe(id, "INV-KIT", "JUNIOR", 120_000_000);
+    await fillSenior(id);
+    await flow.subscribe(id, "INV-KIT", "JUNIOR", JUNIOR_CAP);
     await flow.registerAndFund(id);
     return id;
   };

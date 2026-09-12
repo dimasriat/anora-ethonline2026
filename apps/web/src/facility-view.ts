@@ -13,7 +13,7 @@
 import type { Band, ESrg, Flow, Position, TrancheName } from "./api";
 import {
   attachments, coverageShortfall, covenantCollateral, dust, eligibleCollateral, faceCeiling,
-  feeOf, headroom, holderClaim, issuedLtvBp, propose, reconcile, retainedMinimum,
+  feeOf, headroom, holderClaim, issuedLtvBp, propose, reconcile, reportFrom, retainedMinimum,
   unlockedSenior, waterfall, DEMONSTRATION_TERM_DAYS, DEMONSTRATION_UPFRONT_COSTS_IDR,
 } from "@anora/core";
 import type { CollateralReport, Policy, Proposal } from "@anora/core";
@@ -39,7 +39,6 @@ export const PROVENANCE_COPY: Record<Provenance, string> = {
   local: "Entered here; not yet written to the controller",
 };
 
-const GRAMS_PER_KG = 1_000n;
 const big = (value: number | undefined | null): bigint => BigInt(Math.trunc(value ?? 0));
 
 /* ── Collateral ────────────────────────────────────────────────────────── */
@@ -72,17 +71,7 @@ export type CollateralView = {
  * reconciliation path the controller owns.
  */
 export function observationFrom(esrg: ESrg | null, haircutBp: bigint): CollateralReport {
-  const quantityGrams = big(esrg?.quantityKg) * GRAMS_PER_KG;
-  const quantityKg = big(esrg?.quantityKg);
-  return {
-    registryGrams: quantityGrams,
-    warehouseGrams: quantityGrams,
-    priceIdrPerKg: quantityKg > 0n ? big(esrg?.valueIdr) / quantityKg : 0n,
-    haircutBp,
-    observedAt: esrg?.issuedAt ?? "",
-    nonce: 0n,
-    reportHash: esrg?.documentHash ?? "",
-  };
+  return reportFrom(esrg ?? { quantityKg: 0, valueIdr: 0, issuedAt: "", documentHash: "" }, haircutBp);
 }
 
 export function collateralView(
