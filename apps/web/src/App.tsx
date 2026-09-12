@@ -10,7 +10,7 @@ import {
   type Band, type Chain, type ESrg, type Flow, type IntakeAction, type IntakeOptions, type IntakeState, type Investor, type Mode,
   type Note, type Position, type TrancheName,
 } from "./api";
-import { Badge, Card, groupDigits, NumberField, PendingAction, RailRow, Row, Source } from "./ui";
+import { Badge, Card, ErrorBanner, groupDigits, NumberField, PendingAction, RailRow, Row, Source } from "./ui";
 import {
   CollateralPanel, DistributionPanel, FundingGatePanel, kg, pct, rpExact, SaleQuoteLines,
   SettlementPanel, StructuringPanel, type ScheduledDistribution,
@@ -1318,7 +1318,7 @@ export default function App() {
 
   const transferPanel = (
     <Card title="Secondary market">
-      {err && <div className="error-banner" role="alert">{err}</div>}
+      {err && <ErrorBanner>{err}</ErrorBanner>}
       {flow?.step === "funded" && <>
         <div className="status-strip">
           <span>Transfer policy</span>
@@ -1449,7 +1449,7 @@ export default function App() {
      already finished. */
   const repaymentPanel = repayment && flow && (
     <>
-      {err && <div className="error-banner" role="alert">{err}</div>}
+      {err && <ErrorBanner>{err}</ErrorBanner>}
       <Card title={repayment.settled ? "Facility settled" : "Repayment"}>
         <div className="funded-note">
           <Badge tone={repayment.settled ? "success" : repayment.payable ? "warning" : "neutral"}>
@@ -1726,7 +1726,7 @@ export default function App() {
       : activeRole === "Compliance"
         ? { Structuring: complianceStructuringPanel, "Funding & settlement": complianceServicingPanel }
       : activeRole === "Borrower" ? {
-          [INTAKE_SECTION]: <>{err && <div className="error-banner" role="alert">{err}</div>}{intakePanel}</>,
+          [INTAKE_SECTION]: <>{err && <ErrorBanner>{err}</ErrorBanner>}{intakePanel}</>,
           ...(repaymentPanel ? { Repayments: repaymentPanel } : {}),
         } : {};
   const stages = JOURNEY[activeRole];
@@ -2102,7 +2102,7 @@ export default function App() {
       </header>
 
       <div className="flow-main" aria-busy={busy}>
-        {err && <div className="error-banner" role="alert">{err}</div>}
+        {err && <ErrorBanner>{err}</ErrorBanner>}
         {notice}
 
         {activeRole === "Capital Provider" && opportunitiesPanel}

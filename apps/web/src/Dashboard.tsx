@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { rp, type ESrg, type Flow, type Band } from "./api";
+import { ErrorBanner } from "./ui";
 
 const money = (n: number) => `Rp ${new Intl.NumberFormat("en-GB", { notation: "compact", maximumFractionDigits: 1 }).format(n)}`;
 const dates = (s: string) => new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(s));
@@ -222,7 +223,7 @@ export default function Dashboard({ receipts, flow, bands, role, section, loadin
     coverageTile,
   ] : [...summary.map(m => ({ ...m, kind: "Portfolio" })), coverageTile];
   return <div className="analytics-content">
-    {error && <div className="error-banner" role="alert">{error}</div>}
+    {error && <ErrorBanner>{error}</ErrorBanner>}
     {loading ? <p className="empty-state" role="status">Loading collateral records…</p> : <>
       {overview && <>
         <section className="analytics-metrics" aria-label="Portfolio summary">{metrics.map(m => <article key={m.label}><div><span>{m.label}</span><svg className="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d={metricIcons[m.label]} /></svg></div><strong>{m.value}</strong><p>{m.note}</p><small>{m.kind}</small></article>)}</section>
