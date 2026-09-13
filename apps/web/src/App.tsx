@@ -2126,9 +2126,6 @@ export default function App() {
 
   const flowPanel = (
     <div className="flow-layout">
-      {/* A board seat belongs to the cooperative, not to whoever opened the
-          facility, so the second officer needs it without owning one. */}
-      {identity.label !== "Simulated" && !flow && activeRole === "Borrower" && <BoardPanel />}
       {/* Spans both columns. Inside the left one it pushed that card down while
           the rail still started at the top, so the two never lined up. */}
       <header className="flow-heading">
@@ -2216,6 +2213,7 @@ export default function App() {
       onReset={resetDemo}
       onNavigate={navigate}
       flowPanel={flowPanel}
+      board={identity.label !== "Simulated" && !flow && activeRole === "Borrower" ? <div className="section-panel"><BoardPanel /></div> : null}
       stepOwner={stepOwner}
       lock={actionLock}
       navMarks={navMarks}
@@ -2482,7 +2480,7 @@ function AccessPage({
   );
 }
 
-function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onReset, onNavigate, flowPanel, stepOwner, lock, navMarks, panels, identity, analytics }: {
+function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onReset, onNavigate, flowPanel, board, stepOwner, lock, navMarks, panels, identity, analytics }: {
   role: Role;
   section: string;
   onSection: (section: string) => void;
@@ -2492,6 +2490,7 @@ function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onRes
   onReset: () => void;
   onNavigate: (view: View) => void;
   flowPanel: React.ReactNode;
+  board: React.ReactNode;
   stepOwner: Role;
   lock: string | null;
   navMarks: Record<string, "action" | "waiting">;
@@ -2534,6 +2533,7 @@ function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onRes
             breadcrumb and sidebar already say which section this is — so in the
             flow the page heading was the section name twice over. */}
         {!inFlow && <header className="workspace-heading"><div><span className="eyebrow">{section === "Overview" ? meta.eyebrow : role}</span><h1>{section === "Overview" ? meta.title : section}</h1><p>{section === "Overview" ? meta.summary : section === "Structuring" ? "See how collateral and policy determine the note." : `Review ${section.toLowerCase()} available to this workspace.`}</p>{lock && <p className="lock-note">{lockIcon}{lock}</p>}</div><button type="button" ref={headingAction} className={lock ? "locked-action" : undefined} disabled={!!lock} title={lock ?? undefined} onClick={onAction}>{lock && lockIcon}{meta.action}</button></header>}
+        {board}
         {inFlow ? flowPanel : <div className="section-panel">{panels[section] ?? analytics}</div>}
       </main>
     </div>
