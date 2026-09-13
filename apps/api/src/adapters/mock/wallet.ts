@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Officer, OrgWallet, WalletProvider } from "@anora/core";
 
 export const OFFICERS: Officer[] = [
@@ -38,7 +39,7 @@ export function mockWallet(): WalletProvider {
           `Number of signatures does not match the wallet's authorization threshold`,
         );
       }
-      const digest = new Bun.CryptoHasher("sha256").update(message).digest("hex");
+      const digest = createHash("sha256").update(message).digest("hex");
       return `0xsim${digest}`;
     },
   };
