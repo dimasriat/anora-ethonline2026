@@ -1,4 +1,4 @@
-import { $ } from "bun";
+import { run } from "./exec";
 
 export type FacilityReader = {
   address: string;
@@ -27,7 +27,7 @@ const JUNIOR = 1;
 
 export function liveFacilityReader(address: string, rpcUrl: string): FacilityReader {
   const call = async (signature: string, ...args: string[]): Promise<string> =>
-    (await $`cast call ${address} ${signature} ${args} --rpc-url ${rpcUrl}`.text()).trim();
+    (await run("cast", ["call", address, signature, ...args, "--rpc-url", rpcUrl])).stdout.trim();
 
   const number = async (signature: string, ...args: string[]): Promise<number> =>
     Number(BigInt((await call(signature, ...args)).split(" ")[0]!));
