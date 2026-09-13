@@ -130,6 +130,12 @@ export const api = {
       await call(`/requests/${id}/approve-mandate`, "POST", { officerId: "OFF-1" });
       return normalizeFlow(await call(`/requests/${id}/approve-mandate`, "POST", { officerId: "OFF-2" }));
     }
+    /* Releasing funds answers to the operator's own quorum, not the borrower's
+       board, so both of its officers approve before the registry call. */
+    if (s === "register") {
+      await call(`/requests/${id}/approve-release`, "POST", { officerId: "OPS-1" });
+      await call(`/requests/${id}/approve-release`, "POST", { officerId: "OPS-2" });
+    }
     return normalizeFlow(await call(`/requests/${id}/${s}`, "POST"));
   },
   reset: () => call("/reset", "POST") as Promise<{ ok: true }>,
