@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { useAuthorizationSignature } from "@privy-io/react-auth";
+import { useAuthorizationSignature, useLogout } from "@privy-io/react-auth";
 import { api } from "./api";
 import type { AuthorizationRequest, BoardView } from "./api";
 
 export default function BoardPanel({ facilityId }: { facilityId: string }) {
   const { generateAuthorizationSignature } = useAuthorizationSignature();
+  const { logout } = useLogout();
   const [board, setBoard] = useState<BoardView | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,11 +63,33 @@ export default function BoardPanel({ facilityId }: { facilityId: string }) {
       {error && <p className="world-id-note" role="alert">{error}</p>}
 
       <div className="actions">
-        {!seatsFilled && (
+        {!seatsFilled && !board.you && (
           <button type="button" disabled={busy} onClick={enrol}>Take a seat as this account</button>
         )}
-        {seatsFilled && !board.signature && (
+        {!seatsFilled && board.you && (
+          <>
+            <p className="supporting-copy">
+              This account holds the {board.members.find((m) => m.officerId === board.you)?.role} seat.
+              The second officer signs in with their own account.
+            </p>
+            <button type="button" className="secondary-button" onClick={() => logout()}>
+              Sign out to switch officer
+            </button>
+          </>
+        )}
+        {seatsFilled && !board.signature && board.you && !board.approvals.includes(board.you) && (
           <button type="button" disabled={busy} onClick={approve}>Approve as this account</button>
+        )}
+        {seatsFilled && !board.signature && board.you && board.approvals.includes(board.you) && (
+          <>
+            <p className="supporting-copy">Approved. Waiting for the other officer.</p>
+            <button type="button" className="secondary-button" onClick={() => logout()}>
+              Sign out to switch officer
+            </button>
+          </>
+        )}
+        {seatsFilled && !board.signature && !board.you && (
+          <p className="supporting-copy">Both seats are taken. Sign in as one of the officers to approve.</p>
         )}
       </div>
     </div>

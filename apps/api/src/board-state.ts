@@ -2,6 +2,7 @@ import type { BoardMember, BoardWallet, SignaturePayload } from "./adapters/live
 
 export type BoardView = {
   quorum: number;
+  you: string | null;
   members: { officerId: string; name: string; role: string; enrolled: boolean }[];
   walletAddress: string | null;
   organizationId: string | null;
@@ -41,9 +42,10 @@ export function makeBoardState(
   };
 
   return {
-    view(): BoardView {
+    view(privyUserId?: string): BoardView {
       return {
         quorum: BOARD_QUORUM,
+        you: enrolled.find((e) => e.privyUserId === privyUserId)?.officerId ?? null,
         members: COOPERATIVE_BOARD.map((o) => ({
           ...o,
           enrolled: enrolled.some((e) => e.officerId === o.officerId),
@@ -69,7 +71,7 @@ export function makeBoardState(
           "Cooperative board",
         );
       }
-      return this.view();
+      return this.view(privyUserId);
     },
 
     payload(message: string): SignaturePayload {
@@ -86,7 +88,7 @@ export function makeBoardState(
       if (approvals.size >= BOARD_QUORUM) {
         signature = await board.signWith(wallet, message, [...approvals.values()]);
       }
-      return this.view();
+      return this.view(privyUserId);
     },
   };
 }

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { serveStatic } from "@hono/node-server/serve-static";
+import { serveStatic } from "hono/bun";
 import { bearer, type Authenticator } from "./auth";
 import type { EligibilityChecker } from "./adapters/live/world";
 import type { Ports, TrancheName } from "@anora/core";
@@ -98,7 +98,10 @@ export function makeApp(
 
   const mandateMessage = (id: string) => `Financing mandate ${id}`;
 
-  app.get("/api/board", (c) => c.json(boardOr501().view()));
+  app.get("/api/board", async (c) => {
+    const { userId } = await callerOf(c);
+    return c.json(boardOr501().view(userId));
+  });
 
   app.post("/api/board/enrol", async (c) => {
     const { userId } = await callerOf(c);
@@ -301,8 +304,12 @@ export function makeApp(
   });
 
   const built = "./apps/web/dist";
-  app.use("/*", serveStatic({ root: built }));
-  app.get("*", serveStatic({ path: `${built}/index.html` }));
+  /* hono/bun reaches for the Bun global, which the test runner does not have.
+     The bundle is only ever served by the running app, never by a test. */
+  if (typeof (globalThis as { Bun?: unknown }).Bun !== "undefined") {
+    app.use("/*", serveStatic({ root: built }));
+    app.get("*", serveStatic({ path: `${built}/index.html` }));
+  }
 
   return app;
 }

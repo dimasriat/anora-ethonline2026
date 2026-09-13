@@ -1,5 +1,5 @@
 process.env.ADAPTER_PROOF = "demo";
 
-await import("./index");
+const { default: server } = await import("./index");
 
-export {};
+export default server;
