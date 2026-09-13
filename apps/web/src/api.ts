@@ -44,7 +44,7 @@ export type Flow = {
   reversibleTo?: string;
   proof?: { nullifier: string; checks: { label: string; pass: boolean }[] };
   onchain?: { ok: boolean; gasUsed?: number };
-  note?: { series: string; underlying: string; ceilingIdr: number; transferRule: string; state: string };
+  note?: { series: string; underlying: string; ceilingIdr: number; transferRule: string; state: string; receipts?: { step: string; hash: string }[] };
   subscriptions: Subscription[];
   transfers: NoteTransfer[];
   controls: { paused: boolean; frozenInvestorIds: string[] };

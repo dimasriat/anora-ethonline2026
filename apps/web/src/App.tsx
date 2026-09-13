@@ -1709,6 +1709,23 @@ export default function App() {
      and Compliance's settlement row went on promising money that had already
      been repaid, so they read the facility instead. */
   const liveRows: Record<string, { title: string; meta: string; status: string }[]> = {};
+
+  /* The audit trail used to render a fixed sentence, so the quorum approvals
+     and the on-chain hashes it already held were invisible. */
+  if (flow) {
+    liveRows["Audit trail"] = [
+      ...(flow.note?.receipts ?? []).map((r: { step: string; hash: string }) => ({
+        title: r.step,
+        meta: `${r.hash.slice(0, 22)}… · hashscan.io/testnet/transaction/${r.hash}`,
+        status: "On chain",
+      })),
+      ...[...flow.history].reverse().map((h) => ({
+        title: h.note,
+        meta: `${h.by} · ${new Date(h.at).toLocaleString("id-ID")}`,
+        status: h.step,
+      })),
+    ];
+  }
   if (repayment && flow) {
     const note = flow.note?.series ?? flow.request.id;
     const due = repayment.dueAt ? day.format(repayment.dueAt) : "on disbursement";
