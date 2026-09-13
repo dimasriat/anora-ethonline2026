@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { makeFlow, settle } from "./flow";
 import { mockPorts } from "./adapters/mock/index";
 import type { EligibilityProof, Ports } from "@anora/core";

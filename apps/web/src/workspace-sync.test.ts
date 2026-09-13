@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { syncWorkspace } from "./workspace-sync";
 
 const flow = { id: "f1" } as never;

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { ESRGS, INTAKES } from "./seed";
 
 const MADE_TEA_IDR_PER_KG = { min: 11_000, max: 30_000 };

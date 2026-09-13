@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { propose, type Policy, type Scenario, type StructuringInput } from "./structuring";
 
 /* Every input is declared here. The module under test holds no commercial

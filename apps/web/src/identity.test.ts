@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { privyStanding } from "./identity";
 
 describe("what the onboarding strip may claim about Privy", () => {

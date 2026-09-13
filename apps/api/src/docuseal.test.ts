@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { docuSealConfig, makeDocuSealClient, verifyDocuSealWebhook } from "./docuseal";
 
 describe("DocuSeal", () => {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { createHmac } from "node:crypto";
 import { makeApp } from "./app";
 import { mockPorts } from "./adapters/mock/index";

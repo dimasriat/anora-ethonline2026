@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { OFFICERS, QUORUM_THRESHOLD, makePrivy } from "./privy";
 
 const online = process.env.ANORA_INTEGRATION === "1"

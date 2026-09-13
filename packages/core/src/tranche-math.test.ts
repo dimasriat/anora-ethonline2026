@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import {
   attachments, chargeFor, covenantCollateral, coverageShortfall, dust, eligibleCollateral,
   faceCeiling, feeOf, headroom, holderClaim, indicativeMark, issuedLtvBp, purchase, reconcile,

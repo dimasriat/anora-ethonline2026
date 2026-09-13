@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { makeFlow } from "./flow";
 import { mockPorts } from "./adapters/mock/index";
 import { FlowError } from "./errors";
@@ -312,7 +312,7 @@ describe("releasing funds needs the operator's own quorum", () => {
     await flow.approveRelease(id, "OPS-2");
     const funded = await flow.registerAndFund(id);
     expect(funded.request.status).toBe("funded");
-    expect(funded.releaseSignature).toStartWith("0x");
+    expect(funded.releaseSignature).toMatch(/^0x/);
   });
 
   test("the operator wallet is not the cooperative's", async () => {

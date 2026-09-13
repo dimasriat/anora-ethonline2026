@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { liveProofEngine } from "./proof";
 import { mockPorts } from "../mock/index";
 import deployed from "../../../../../contracts/deployed.json";

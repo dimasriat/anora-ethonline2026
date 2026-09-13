@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { noteDetail } from "./notes";
 
 describe("how a held note describes its return", () => {

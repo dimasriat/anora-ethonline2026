@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { facilityFrom, remainingCapacityIdr, screenSubscription } from "./facility";
 import { DEMONSTRATION_POLICY } from "./policy-input";
 import type { ESrg, Investor, Subscription } from "./domain";
