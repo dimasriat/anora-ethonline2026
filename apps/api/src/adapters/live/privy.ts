@@ -9,6 +9,7 @@ export type OrgWallet = {
   walletId: string;
   address: string;
   quorumId: string;
+  organizationId?: string;
   threshold: number;
   officers: Officer[];
 };
@@ -74,29 +75,49 @@ export function makePrivy(config: PrivyConfig) {
   };
 
   return {
+    /**
+     * A Privy organization, not a bare wallet. Each officer becomes a Privy user
+     * so the organization has named members, and holds an authorization key so
+     * the quorum can actually sign. The wallet belongs to the organization and
+     * is owned by that quorum, which is what enforces the threshold.
+     */
     async createOrgWallet(officers: Officer[], threshold: number, displayName = "Organisation board"): Promise<OrgWallet> {
       const publicKeys: string[] = [];
+      const userIds: string[] = [];
+
       for (const officer of officers) {
         const pair = newKeyPair();
         keys.set(officer.id, pair);
         publicKeys.push(pair.publicDer);
+
+        const user = await post("/users", {
+          linked_accounts: [{ type: "custom_auth", custom_user_id: `${displayName}:${officer.id}`.toLowerCase().replace(/[^a-z0-9:-]+/g, "-") }],
+        });
+        userIds.push(user.id);
       }
 
       const quorum = await post("/key_quorums", {
         display_name: displayName,
         public_keys: publicKeys,
+        user_ids: userIds,
         authorization_threshold: threshold,
+      });
+
+      const organization = await post("/organizations", {
+        display_name: displayName,
+        default_key_quorum_id: quorum.id,
       });
 
       const wallet = await post("/wallets", {
         chain_type: "ethereum",
-        owner_id: quorum.id,
+        entity: { type: "organization", id: organization.id },
       });
 
       return {
         walletId: wallet.id,
         address: wallet.address,
         quorumId: quorum.id,
+        organizationId: organization.id,
         threshold,
         officers,
       };

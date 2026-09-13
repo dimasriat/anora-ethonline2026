@@ -52,6 +52,7 @@ export type OrgWallet = {
   walletId: string;
   address: string;
   quorumId: string;
+  organizationId?: string;
   threshold: number;
   officers: Officer[];
 };

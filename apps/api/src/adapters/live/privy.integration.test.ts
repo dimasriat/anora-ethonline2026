@@ -26,4 +26,10 @@ describe.skipIf(!online)("privy organisation wallet", () => {
     const signature = await privy.signAsOrg(wallet, ["OFF-1", "OFF-3"], message);
     expect(signature).toMatch(/^0x[0-9a-fA-F]+$/);
   }, 90_000);
+
+  test("the wallet belongs to a Privy organization with named members", async () => {
+    const wallet = await privy.createOrgWallet(OFFICERS, QUORUM_THRESHOLD, "Cooperative board");
+    expect(wallet.organizationId).toMatch(/^[a-z0-9]+$/);
+    expect(wallet.officers).toHaveLength(OFFICERS.length);
+  }, 90_000);
 });
