@@ -1,11 +1,34 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { PrivyProvider } from "@privy-io/react-auth";
 import App from "./App";
+import { PrivySession } from "./PrivySession";
+import { IdentityContext, privyStanding } from "./identity";
 import "./index.css";
 import "./dashboard.css";
 
+const SIMULATED = import.meta.env.VITE_ADAPTER_IDENTITY === "demo";
+const APP_ID = SIMULATED ? undefined : (import.meta.env.VITE_PRIVY_APP_ID as string | undefined);
+
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <App />
+    {APP_ID ? (
+      <PrivyProvider
+        appId={APP_ID}
+        config={{
+          loginMethods: ["email", "google"],
+          embeddedWallets: { ethereum: { createOnLogin: "users-without-wallets" } },
+          appearance: { theme: "light", accentColor: "#c3e01e" },
+        }}
+      >
+        <PrivySession>
+          <App />
+        </PrivySession>
+      </PrivyProvider>
+    ) : (
+      <IdentityContext.Provider value={privyStanding({ simulated: true, ready: false, authenticated: false, carrying: false })}>
+        <App />
+      </IdentityContext.Provider>
+    )}
   </React.StrictMode>,
 );

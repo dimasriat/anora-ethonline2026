@@ -3,6 +3,8 @@
  * panels can use the same card, row and badge rather than growing a second
  * visual language beside them.
  */
+import { useLayoutEffect, useRef, type MutableRefObject } from "react";
+import { caretAfterDigits, digitsBefore, digitsOf } from "./amount";
 import React from "react";
 import { PROVENANCE_COPY, type Provenance } from "./facility-view";
 
@@ -56,22 +58,44 @@ export function Source({ provenance, children }: { provenance: Provenance; child
 export const groupDigits = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
 /** Digits in, grouped digits shown. The value stays a plain integer string. */
-export function NumberField({ value, onValue, id, placeholder, ariaLabel }: {
+export function NumberField({ value, onValue, id, placeholder, ariaLabel, inputRef }: {
   value: string;
   onValue: (digits: string) => void;
   id?: string;
   placeholder?: string;
   ariaLabel?: string;
+  inputRef?: MutableRefObject<HTMLInputElement | null>;
 }) {
+  const own = useRef<HTMLInputElement | null>(null);
+  const pendingCaret = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    const field = own.current;
+    if (!field || pendingCaret.current === null) return;
+    const caret = caretAfterDigits(field.value, pendingCaret.current);
+    pendingCaret.current = null;
+    field.setSelectionRange(caret, caret);
+  }, [value]);
+
   return (
     <input
+      ref={(node) => {
+        own.current = node;
+        if (inputRef) inputRef.current = node;
+      }}
       type="text"
       inputMode="numeric"
       id={id}
       aria-label={ariaLabel}
       placeholder={placeholder}
       value={groupDigits(value)}
-      onChange={(event) => onValue(event.target.value.replace(/[^0-9]/g, ""))}
+      onFocus={(event) => event.target.select()}
+      onChange={(event) => {
+        const typed = event.target.value;
+        const caret = event.target.selectionStart ?? typed.length;
+        pendingCaret.current = digitsBefore(typed, caret);
+        onValue(digitsOf(typed));
+      }}
     />
   );
 }

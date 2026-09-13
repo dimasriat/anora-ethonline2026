@@ -1,0 +1,462 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import {Test} from "forge-std/Test.sol";
+import {AnoraFacilityController} from "../src/AnoraFacilityController.sol";
+
+contract AnoraFacilityControllerTest is Test {
+    AnoraFacilityController controller;
+    address constant SPONSOR = address(0x50);
+
+    address constant ORACLE = address(0xA1);
+    address constant STRANGER = address(0xBEEF);
+    uint256 constant MAX_AGE = 1 hours;
+
+    uint256 constant GRAMS = 24_000_000;
+    uint256 constant PRICE_PER_KG = 25_000;
+
+    function setUp() public {
+        vm.warp(1_000_000);
+        controller = new AnoraFacilityController(ORACLE, address(this), MAX_AGE, AnoraFacilityController.Policy({
+                maxLtvBp: 7_000,
+                juniorNumerator: 4,
+                juniorDenominator: 13,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            }));
+    }
+
+    function _report(uint256 registry, uint256 warehouse, uint256 observedAt, uint256 nonce) internal {
+        vm.prank(ORACLE);
+        controller.reportCollateral(registry, warehouse, PRICE_PER_KG, 0, observedAt, nonce, keccak256("evidence"));
+    }
+
+    function test_recordsAnAuthorizedReport() public {
+        _report(GRAMS, GRAMS, block.timestamp, 1);
+        assertEq(controller.eligibleValueIdr(), 600_000_000);
+        assertEq(controller.observedAt(), block.timestamp);
+        assertEq(controller.nonce(), 1);
+    }
+
+    function test_refusesAStranger() public {
+        vm.expectRevert(AnoraFacilityController.NotOracle.selector);
+        vm.prank(STRANGER);
+        controller.reportCollateral(GRAMS, GRAMS, PRICE_PER_KG, 0, block.timestamp, 1, keccak256("e"));
+    }
+
+    function test_refusesAStaleReport() public {
+        vm.expectRevert(AnoraFacilityController.ReportTooOld.selector);
+        _report(GRAMS, GRAMS, block.timestamp - MAX_AGE - 1, 1);
+    }
+
+    function test_refusesAReportFromTheFuture() public {
+        vm.expectRevert(AnoraFacilityController.ReportFromTheFuture.selector);
+        _report(GRAMS, GRAMS, block.timestamp + 1, 1);
+    }
+
+    function test_refusesAReplayedNonce() public {
+        _report(GRAMS, GRAMS, block.timestamp, 5);
+        vm.expectRevert(AnoraFacilityController.NonceNotAdvanced.selector);
+        _report(GRAMS, GRAMS, block.timestamp, 5);
+    }
+
+    function test_refusesObservationTimeGoingBackwards() public {
+        _report(GRAMS, GRAMS, block.timestamp, 1);
+        vm.expectRevert(AnoraFacilityController.ObservationWentBackwards.selector);
+        _report(GRAMS, GRAMS, block.timestamp - 1, 2);
+    }
+
+    function test_refusesEvidenceThatNamesNothing() public {
+        vm.expectRevert(AnoraFacilityController.EvidenceMissing.selector);
+        vm.prank(ORACLE);
+        controller.reportCollateral(GRAMS, GRAMS, PRICE_PER_KG, 0, block.timestamp, 1, bytes32(0));
+    }
+
+    function test_refusesRecordsThatDisagreeBeyondTolerance() public {
+        vm.expectRevert(AnoraFacilityController.RecordsDisagree.selector);
+        _report(GRAMS, GRAMS / 2, block.timestamp, 1);
+    }
+}
+
+contract FacilityTermsTest is Test {
+    AnoraFacilityController controller;
+
+    address constant ORACLE = address(0xA1);
+    address constant SPONSOR = address(0x50);
+
+    function setUp() public {
+        vm.warp(1_000_000);
+        controller = new AnoraFacilityController(ORACLE, address(this), 1 hours, AnoraFacilityController.Policy({
+            maxLtvBp: 7_000,
+            juniorNumerator: 4,
+            juniorDenominator: 13,
+            seniorYieldBp: 200,
+            juniorYieldBp: 450,
+            termDays: 90,
+            retentionBp: 2_500,
+            sponsor: SPONSOR
+        }));
+        vm.prank(ORACLE);
+        controller.reportCollateral(24_000_000, 24_000_000, 25_000, 0, block.timestamp, 1, keccak256("opening"));
+    }
+
+    function _open() internal {
+        controller.openFacility(390_000_000);
+    }
+
+    function test_opensWithTheApprovedTerms() public {
+        _open();
+        (uint256 seniorCap, uint256 juniorCap,,,,,,, ) = controller.terms();
+        assertEq(seniorCap, 270_000_000);
+        assertEq(juniorCap, 120_000_000);
+        assertTrue(controller.open());
+    }
+
+    function test_refusesASecondOpening() public {
+        _open();
+        vm.expectRevert(AnoraFacilityController.AlreadyOpen.selector);
+        _open();
+    }
+
+    function test_derivesTheRetainedJuniorMinimum() public {
+        _open();
+        assertEq(controller.retainedJuniorMinimum(), 30_000_000);
+    }
+}
+
+contract SubscriptionTest is Test {
+    AnoraFacilityController controller;
+    address constant SPONSOR = address(0x50);
+
+    address constant ORACLE = address(0xA1);
+    address constant BANK = address(0xB0);
+
+    uint256 constant S_CAP = 270_000_000;
+    uint256 constant J_CAP = 120_000_000;
+
+    function setUp() public {
+        vm.warp(1_000_000);
+        controller = new AnoraFacilityController(ORACLE, address(this), 1 hours, AnoraFacilityController.Policy({
+                maxLtvBp: 7_000,
+                juniorNumerator: 4,
+                juniorDenominator: 13,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            }));
+        vm.prank(ORACLE);
+        controller.reportCollateral(24_000_000, 24_000_000, 25_000, 0, block.timestamp, 1, keccak256("opening"));
+        controller.openFacility(390_000_000);
+    }
+
+    function _junior(address who, uint256 face) internal {
+        vm.prank(who);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, face);
+    }
+
+    function _senior(address who, uint256 face) internal {
+        vm.prank(who);
+        controller.subscribe(AnoraFacilityController.Slice.Senior, face);
+    }
+
+    function test_refusesSeniorBeforeAnyJunior() public {
+        vm.expectRevert(AnoraFacilityController.SeniorNotUnlocked.selector);
+        _senior(BANK, 1);
+    }
+
+    function test_juniorOpensSeniorInProportion() public {
+        _junior(SPONSOR, 30_000_000);
+        _senior(BANK, 67_500_000);
+        assertEq(controller.committed(AnoraFacilityController.Slice.Senior), 67_500_000);
+    }
+
+    function test_refusesOneRupiahAboveTheUnlock() public {
+        _junior(SPONSOR, 30_000_000);
+        vm.expectRevert(AnoraFacilityController.SeniorNotUnlocked.selector);
+        _senior(BANK, 67_500_001);
+    }
+
+    function test_refusesJuniorBeyondItsCap() public {
+        vm.expectRevert(AnoraFacilityController.ExceedsCap.selector);
+        _junior(SPONSOR, J_CAP + 1);
+    }
+
+    function test_chargesTheDiscountedPrice() public {
+        _junior(SPONSOR, J_CAP);
+        assertEq(controller.paid(AnoraFacilityController.Slice.Junior, SPONSOR), 118_683_105);
+    }
+
+    function test_fullJuniorUnlocksAllSenior() public {
+        _junior(SPONSOR, J_CAP);
+        _senior(BANK, S_CAP);
+        assertEq(controller.committed(AnoraFacilityController.Slice.Senior), S_CAP);
+        assertEq(controller.paid(AnoraFacilityController.Slice.Senior, BANK), 268_675_027);
+    }
+
+    function test_splittingASeniorOrderCostsTheSame() public {
+        _junior(SPONSOR, J_CAP);
+        _senior(BANK, 100_000_000);
+        _senior(BANK, 170_000_000);
+        assertEq(controller.paid(AnoraFacilityController.Slice.Senior, BANK), 268_675_027);
+    }
+}
+
+contract ActivationTest is Test {
+    AnoraFacilityController controller;
+    address constant SPONSOR = address(0x50);
+
+    address constant ORACLE = address(0xA1);
+    address constant BANK = address(0xB0);
+
+    uint256 constant S_CAP = 270_000_000;
+    uint256 constant J_CAP = 120_000_000;
+    uint256 constant GRAMS = 24_000_000;
+
+    function setUp() public {
+        vm.warp(1_000_000);
+        controller = new AnoraFacilityController(ORACLE, address(this), 1 hours, AnoraFacilityController.Policy({
+                maxLtvBp: 7_000,
+                juniorNumerator: 4,
+                juniorDenominator: 13,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            }));
+        vm.prank(ORACLE);
+        controller.reportCollateral(24_000_000, 24_000_000, 25_000, 0, block.timestamp, 1, keccak256("opening"));
+        controller.openFacility(390_000_000);
+    }
+
+    function _report() internal {
+        vm.prank(ORACLE);
+        controller.reportCollateral(GRAMS, GRAMS, 25_000, 0, block.timestamp, 2, keccak256("e"));
+    }
+
+    function _fill() internal {
+        vm.prank(SPONSOR);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, J_CAP);
+        vm.prank(BANK);
+        controller.subscribe(AnoraFacilityController.Slice.Senior, S_CAP);
+    }
+
+    function test_activatesWhenEveryGateIsSatisfied() public {
+        _report();
+        _fill();
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        controller.activate();
+        assertTrue(controller.active());
+    }
+
+    function test_refusesUnfilledTranches() public {
+        _report();
+        vm.prank(SPONSOR);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, J_CAP);
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        vm.expectRevert(AnoraFacilityController.TrancheNotFilled.selector);
+        controller.activate();
+    }
+
+    function test_refusesWithoutRegistryConfirmation() public {
+        _report();
+        _fill();
+        vm.expectRevert(AnoraFacilityController.RegistryNotConfirmed.selector);
+        controller.activate();
+    }
+
+    function test_refusesStaleCollateral() public {
+        _report();
+        _fill();
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        vm.warp(block.timestamp + 2 hours);
+        vm.expectRevert(AnoraFacilityController.ReportTooOld.selector);
+        controller.activate();
+    }
+
+    function test_refusesWhenSponsorRetainsTooLittleJunior() public {
+        _report();
+        vm.prank(BANK);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, J_CAP);
+        vm.prank(BANK);
+        controller.subscribe(AnoraFacilityController.Slice.Senior, S_CAP);
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        vm.expectRevert(AnoraFacilityController.RetentionNotMet.selector);
+        controller.activate();
+    }
+
+    function test_refusesIssuedFaceAboveTheCoverageCeiling() public {
+        vm.prank(ORACLE);
+        controller.reportCollateral(GRAMS / 2, GRAMS / 2, 25_000, 0, block.timestamp, 2, keccak256("e"));
+        _fill();
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        vm.expectRevert(AnoraFacilityController.CoverageBreached.selector);
+        controller.activate();
+    }
+
+    function test_refusesASecondActivation() public {
+        _report();
+        _fill();
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        controller.activate();
+        vm.expectRevert(AnoraFacilityController.AlreadyActive.selector);
+        controller.activate();
+    }
+}
+
+contract SettlementLifecycleTest is Test {
+    AnoraFacilityController controller;
+    address constant SPONSOR = address(0x50);
+
+    address constant ORACLE = address(0xA1);
+    address constant BANK = address(0xB0);
+    address constant FUND = address(0xF0);
+
+    uint256 constant S_CAP = 270_000_000;
+    uint256 constant J_CAP = 120_000_000;
+
+    function setUp() public {
+        vm.warp(1_000_000);
+        controller = new AnoraFacilityController(ORACLE, address(this), 1 hours, AnoraFacilityController.Policy({
+                maxLtvBp: 7_000,
+                juniorNumerator: 4,
+                juniorDenominator: 13,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            }));
+        vm.prank(ORACLE);
+        controller.reportCollateral(24_000_000, 24_000_000, 25_000, 0, block.timestamp, 1, keccak256("opening"));
+        controller.openFacility(390_000_000);
+        vm.prank(ORACLE);
+        controller.reportCollateral(24_000_000, 24_000_000, 25_000, 0, block.timestamp, 2, keccak256("e"));
+        vm.prank(SPONSOR);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, 30_000_000);
+        vm.prank(FUND);
+        controller.subscribe(AnoraFacilityController.Slice.Junior, 90_000_000);
+        vm.prank(BANK);
+        controller.subscribe(AnoraFacilityController.Slice.Senior, S_CAP);
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+        controller.activate();
+    }
+
+    function test_recordsTheSplitOnce() public {
+        controller.settle(420_000_000, 0, keccak256("cash"));
+        assertEq(controller.payout(AnoraFacilityController.Slice.Senior), S_CAP);
+        assertEq(controller.payout(AnoraFacilityController.Slice.Junior), J_CAP);
+        assertEq(controller.surplus(), 30_000_000);
+    }
+
+    function test_refusesASecondSettlement() public {
+        controller.settle(420_000_000, 0, keccak256("cash"));
+        vm.expectRevert(AnoraFacilityController.AlreadySettled.selector);
+        controller.settle(420_000_000, 0, keccak256("cash"));
+    }
+
+    function test_refusesSettlementBeforeActivation() public {
+        AnoraFacilityController fresh = new AnoraFacilityController(ORACLE, address(this), 1 hours, AnoraFacilityController.Policy({
+                maxLtvBp: 7_000,
+                juniorNumerator: 4,
+                juniorDenominator: 13,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            }));
+        vm.expectRevert(AnoraFacilityController.NotActive.selector);
+        fresh.settle(1, 0, keccak256("cash"));
+    }
+
+    function test_juniorHoldersShareWhatIsLeftProRata() public {
+        controller.settle(330_000_000, 0, keccak256("cash"));
+        assertEq(controller.payout(AnoraFacilityController.Slice.Junior), 60_000_000);
+
+        vm.prank(SPONSOR);
+        assertEq(controller.claim(AnoraFacilityController.Slice.Junior), 15_000_000);
+        vm.prank(FUND);
+        assertEq(controller.claim(AnoraFacilityController.Slice.Junior), 45_000_000);
+    }
+
+    function test_seniorIsWholeWhileJuniorIsWipedOut() public {
+        controller.settle(S_CAP, 0, keccak256("cash"));
+        vm.prank(BANK);
+        assertEq(controller.claim(AnoraFacilityController.Slice.Senior), S_CAP);
+        vm.prank(SPONSOR);
+        assertEq(controller.claim(AnoraFacilityController.Slice.Junior), 0);
+    }
+
+    function test_refusesASecondClaim() public {
+        controller.settle(420_000_000, 0, keccak256("cash"));
+        vm.prank(BANK);
+        controller.claim(AnoraFacilityController.Slice.Senior);
+        vm.expectRevert(AnoraFacilityController.AlreadyClaimed.selector);
+        vm.prank(BANK);
+        controller.claim(AnoraFacilityController.Slice.Senior);
+    }
+
+    function test_claimsNeverExceedWhatWasSetAside() public {
+        controller.settle(330_000_000, 0, keccak256("cash"));
+        vm.prank(SPONSOR);
+        uint256 a = controller.claim(AnoraFacilityController.Slice.Junior);
+        vm.prank(FUND);
+        uint256 b = controller.claim(AnoraFacilityController.Slice.Junior);
+        assertTrue(a + b <= controller.payout(AnoraFacilityController.Slice.Junior));
+    }
+}
+
+contract RoleTest is Test {
+    AnoraFacilityController controller;
+    address constant SPONSOR = address(0x50);
+
+    address constant ORACLE = address(0xA1);
+    address constant COMPLIANCE = address(0xC0);
+    address constant STRANGER = address(0xBEEF);
+
+    function setUp() public {
+        vm.warp(1_000_000);
+        controller = new AnoraFacilityController(ORACLE, COMPLIANCE, 1 hours, AnoraFacilityController.Policy({
+                maxLtvBp: 7_000,
+                juniorNumerator: 4,
+                juniorDenominator: 13,
+                seniorYieldBp: 200,
+                juniorYieldBp: 450,
+                termDays: 90,
+                retentionBp: 2_500,
+                sponsor: SPONSOR
+            }));
+    }
+
+    function test_opensWithoutAskingCompliance() public {
+        vm.prank(ORACLE);
+        controller.reportCollateral(24_000_000, 24_000_000, 25_000, 0, block.timestamp, 1, keccak256("opening"));
+        vm.prank(STRANGER);
+        controller.openFacility(390_000_000);
+        assertTrue(controller.open());
+    }
+
+    function test_onlyComplianceConfirmsTheRegistry() public {
+        vm.expectRevert(AnoraFacilityController.NotCompliance.selector);
+        vm.prank(STRANGER);
+        controller.confirmRegistry(keccak256("hak-jaminan"));
+    }
+
+    function test_onlyComplianceActivates() public {
+        vm.expectRevert(AnoraFacilityController.NotCompliance.selector);
+        vm.prank(STRANGER);
+        controller.activate();
+    }
+
+    function test_onlyComplianceSettles() public {
+        vm.expectRevert(AnoraFacilityController.NotCompliance.selector);
+        vm.prank(STRANGER);
+        controller.settle(1, 0, keccak256("cash"));
+    }
+}

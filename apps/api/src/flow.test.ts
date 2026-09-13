@@ -53,7 +53,7 @@ describe("create", () => {
 
   test("gives a smaller receipt a smaller facility", async () => {
     const s = await flow.create("SRG-TEH-018", OWNER);
-    expect(s.request.requestedIdr).toBe(201_498_570);
+    expect(s.request.requestedIdr).toBe(201_500_000);
   });
 
   test("refuses an unknown receipt", async () => {
@@ -140,6 +140,28 @@ describe("prove", () => {
     await flow.approve(s.request.id);
     expect(await codeOf(() => flow.prove(s.request.id))).toBe("capability_not_available");
     expect(flow.get(s.request.id, OWNER)!.request.status).toBe("approved");
+  });
+
+  test("carries what the prover actually printed, not the exit status", async () => {
+    const ports = mockPorts();
+    ports.proof.prove = () => {
+      const shellError = new Error("Failed with exit code 1") as Error & { stderr: Buffer };
+      shellError.stderr = Buffer.from("error: Failed constraint\n56 | assert(merkle_root(leaf, path, index) == registry_root);");
+      throw shellError;
+    };
+    const failing = makeFlow(ports);
+    const s = await failing.create("SRG-TEH-024", OWNER);
+    await failing.approveMandate(s.request.id, "OFF-1");
+    await failing.approveMandate(s.request.id, "OFF-3");
+    await failing.approve(s.request.id);
+
+    try {
+      await failing.prove(s.request.id);
+    } catch (e) {
+      expect((e as FlowError).detail.because).toContain("Failed constraint");
+      return;
+    }
+    throw new Error("expected a refusal");
   });
 });
 

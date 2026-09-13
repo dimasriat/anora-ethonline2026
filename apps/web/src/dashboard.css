@@ -341,6 +341,16 @@
   border-radius: 6px;
   font-size: 11.5px;
 }
+.onboarding-privy[data-tone="pending"] > strong {
+  background: #f4f4f2;
+  border-color: #d9d9d4;
+  color: #4a4a45;
+}
+.onboarding-privy[data-tone="absent"] > strong {
+  background: #fdecec;
+  border-color: #f2c9c9;
+  color: #8a2b2b;
+}
 @media (max-width: 900px) {
   .onboarding-layout { grid-template-columns: minmax(0, 1fr); }
   .onboarding-form { position: static; }
@@ -573,6 +583,23 @@
   font-size: 11px;
 }
 .lock-note .lock-icon { margin-right: 6px; }
+.world-id-qr-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+}
+.world-id-qr {
+  width: 200px;
+  height: 200px;
+  border: 1px solid #e6e4de;
+  border-radius: 10px;
+  background: #fff;
+  padding: 6px;
+}
+.world-id-qr svg { width: 100%; height: 100%; display: block; }
+.world-id-note { margin-top: 10px; font-size: 12px; color: #6a6a63; }
 
 /* Layout from .finance-metrics so this lines up with the panels below. */
 .derivation { margin-top: 14px; }

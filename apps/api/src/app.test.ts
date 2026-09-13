@@ -222,3 +222,34 @@ describe("tranches", () => {
     ]);
   });
 });
+
+describe("the human check behind a live World adapter", () => {
+  test("refuses to mark a borrower human without a real credential", async () => {
+    app = makeApp(mockPorts(), openAuthenticator, eligible(false));
+    const refused = await post("/api/intake", { role: "Borrower", action: { kind: "human" } });
+    expect(refused.status).toBe(403);
+    expect((await refused.json() as { error: { code: string } }).error.code).toBe("not_eligible");
+  });
+
+  test("marks the borrower human once the credential exists", async () => {
+    app = makeApp(mockPorts(), openAuthenticator, eligible(true));
+    const allowed = await post("/api/intake", { role: "Borrower", action: { kind: "human" } });
+    expect(allowed.status).toBe(200);
+    expect((await allowed.json() as { state: { humanCheck: boolean } }).state.humanCheck).toBe(true);
+  });
+
+  test("hands the page a scannable code, not a bare link", async () => {
+    const checker: EligibilityChecker = {
+      async open() {
+        return { id: "S1", ownerId: "did:privy:test", connectorURI: "https://world.org/verify?t=abc", state: "pending" as const };
+      },
+      read: () => null,
+      credentialOf: () => null,
+    };
+    app = makeApp(mockPorts(), openAuthenticator, checker);
+    const opened = await post("/api/eligibility/session");
+    const body = await opened.json() as { connectorURI: string; qrSvg: string };
+    expect(body.connectorURI).toContain("world.org");
+    expect(body.qrSvg.startsWith("<svg")).toBe(true);
+  });
+});

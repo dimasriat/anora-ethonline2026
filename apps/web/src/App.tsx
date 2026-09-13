@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { syncWorkspace } from "./workspace-sync";
+import { isSigningUnavailable } from "./mandate-route";
 import { flushSync } from "react-dom";
 import Dashboard from "./Dashboard";
 import IntakePanel from "./IntakePanel";
 import BorrowerOnboarding from "./BorrowerOnboarding";
 import InstitutionOnboarding from "./InstitutionOnboarding";
+import { STACK_PORTS } from "./stack";
+import { noteDetail } from "./notes";
+import { suggestionFor } from "./amount";
 import {
   api, rp,
   type Band, type Chain, type ESrg, type Flow, type IntakeAction, type IntakeOptions, type IntakeState, type Investor, type Mode,
@@ -221,8 +225,8 @@ const WORKSPACE_META: Record<Role, {
       { label: "Next cashflow", value: "4 Dec 2026", note: "Facility ANR-SRG-024" },
     ],
     rows: [
-      { title: "ANR-SRG-024 · Senior note", meta: "Paid first · 90 days · target 2.0% p.a.", status: "Open" },
-      { title: "ANR-SRG-024 · Junior note", meta: "First-loss · 90 days · target 4.5% p.a.", status: "Open" },
+      { title: "ANR-SRG-024 · Senior note", meta: "Paid first · 90 days · 2.0% annualized target", status: "Open" },
+      { title: "ANR-SRG-024 · Junior note", meta: "First-loss · 90 days · 4.5% annualized target", status: "Open" },
     ],
   },
   "Compliance": {
@@ -257,8 +261,8 @@ const SECTION_ROWS: Record<string, { title: string; meta: string; status: string
   ],
   Repayments: [{ title: "ANR-SRG-024", meta: "Rp 432.600.000 due · 4 Dec 2026", status: "62 days" }],
   Opportunities: [
-    { title: "ANR-SRG-024 · Senior note", meta: "Rp 270m · paid first · target 2.0% p.a.", status: "Open" },
-    { title: "ANR-SRG-024 · Junior note", meta: "Rp 120m · first-loss · target 4.5% p.a.", status: "Open" },
+    { title: "ANR-SRG-024 · Senior note", meta: "Rp 270m · paid first · 2.0% annualized target", status: "Open" },
+    { title: "ANR-SRG-024 · Junior note", meta: "Rp 120m · first-loss · 4.5% annualized target", status: "Open" },
   ],
   Cashflows: [{ title: "ANR-SRG-024 · Expected repayment", meta: "Senior principal and return · 4 Dec 2026", status: "Upcoming" }],
   "Review queue": [{ title: "SRG-TEH-024 · PT Kebun Nusantara", meta: "Mandate signed · valuation and registry checks ready", status: "Review" }],
@@ -512,20 +516,20 @@ const SETTLED_FACILITIES = [
 
 const INVESTOR_DEMOS: Record<string, {
   capital: number; returnIdr: number; due: string; growth: number;
-  notes: [string, string, number, string][];
+  notes: [string, string, number, number, string][];
   transfers: [string, string, number][];
 }> = {
-  "INV-BRS": { capital: 270_000_000, returnIdr: 8_600_000, due: "4 Dec 2026", growth: 50, notes: [["ANR-SRG-018", "Senior", 180_000_000, "2.4% p.a. · matures 18 Nov 2026"], ["ANR-SRG-011", "Senior", 90_000_000, "2.8% p.a. · matures 4 Dec 2026"]], transfers: [["ANR-SRG-018 · Senior", "Received from Nusantara Credit Fund · 21 Aug 2026", 40_000_000], ["ANR-SRG-007 · Senior", "Settled with Merdeka Income Fund · 17 Jul 2026", 32_500_000]] },
-  "INV-DPN": { capital: 240_000_000, returnIdr: 6_200_000, due: "18 Nov 2026", growth: 31, notes: [["ANR-SRG-018", "Senior", 150_000_000, "2.4% p.a. · matures 18 Nov 2026"], ["ANR-SRG-009", "Senior", 90_000_000, "2.2% p.a. · matures 12 Jan 2027"]], transfers: [["ANR-SRG-009 · Senior", "Received from Bank Rakyat Sejahtera · 03 Sep 2026", 25_000_000]] },
-  "INV-MVA": { capital: 120_000_000, returnIdr: 5_400_000, due: "15 Jan 2027", growth: 44, notes: [["ANR-SRG-024", "Junior", 70_000_000, "4.5% p.a. · matures 15 Jan 2027"], ["ANR-SRG-014", "Senior", 50_000_000, "3.1% p.a. · matures 22 Dec 2026"]], transfers: [["ANR-SRG-024 · Junior", "Received from Koperasi Induk Tani · 09 Sep 2026", 20_000_000], ["ANR-SRG-014 · Senior", "Transferred to Dana Pensiun Nusantara · 28 Aug 2026", 10_000_000]] },
-  "INV-KIT": { capital: 95_000_000, returnIdr: 4_800_000, due: "28 Feb 2027", growth: 24, notes: [["ANR-SRG-024", "Junior", 65_000_000, "4.5% p.a. · matures 28 Feb 2027"], ["ANR-SRG-012", "Junior", 30_000_000, "5.0% p.a. · matures 30 Nov 2026"]], transfers: [["ANR-SRG-024 · Junior", "Transferred to Mandiri Ventura Agri · 09 Sep 2026", 20_000_000]] },
-  "INV-YMS": { capital: 60_000_000, returnIdr: 2_700_000, due: "20 Dec 2026", growth: 18, notes: [["ANR-SRG-016", "Junior", 35_000_000, "4.2% p.a. · matures 20 Dec 2026"], ["ANR-SRG-010", "Junior", 25_000_000, "3.8% p.a. · matures 08 Feb 2027"]], transfers: [["ANR-SRG-016 · Junior", "Received from Mandiri Ventura Agri · 11 Aug 2026", 12_000_000]] },
+  "INV-BRS": { capital: 270_000_000, returnIdr: 8_600_000, due: "4 Dec 2026", growth: 50, notes: [["ANR-SRG-018", "Senior", 180_000_000, 240, "18 Nov 2026"], ["ANR-SRG-011", "Senior", 90_000_000, 280, "4 Dec 2026"]], transfers: [["ANR-SRG-018 · Senior", "Received from Nusantara Credit Fund · 21 Aug 2026", 40_000_000], ["ANR-SRG-007 · Senior", "Settled with Merdeka Income Fund · 17 Jul 2026", 32_500_000]] },
+  "INV-DPN": { capital: 240_000_000, returnIdr: 6_200_000, due: "18 Nov 2026", growth: 31, notes: [["ANR-SRG-018", "Senior", 150_000_000, 240, "18 Nov 2026"], ["ANR-SRG-009", "Senior", 90_000_000, 220, "12 Jan 2027"]], transfers: [["ANR-SRG-009 · Senior", "Received from Bank Rakyat Sejahtera · 03 Sep 2026", 25_000_000]] },
+  "INV-MVA": { capital: 120_000_000, returnIdr: 5_400_000, due: "15 Jan 2027", growth: 44, notes: [["ANR-SRG-024", "Junior", 70_000_000, 450, "15 Jan 2027"], ["ANR-SRG-014", "Senior", 50_000_000, 310, "22 Dec 2026"]], transfers: [["ANR-SRG-024 · Junior", "Received from Koperasi Induk Tani · 09 Sep 2026", 20_000_000], ["ANR-SRG-014 · Senior", "Transferred to Dana Pensiun Nusantara · 28 Aug 2026", 10_000_000]] },
+  "INV-KIT": { capital: 95_000_000, returnIdr: 4_800_000, due: "28 Feb 2027", growth: 24, notes: [["ANR-SRG-024", "Junior", 65_000_000, 450, "28 Feb 2027"], ["ANR-SRG-012", "Junior", 30_000_000, 500, "30 Nov 2026"]], transfers: [["ANR-SRG-024 · Junior", "Transferred to Mandiri Ventura Agri · 09 Sep 2026", 20_000_000]] },
+  "INV-YMS": { capital: 60_000_000, returnIdr: 2_700_000, due: "20 Dec 2026", growth: 18, notes: [["ANR-SRG-016", "Junior", 35_000_000, 420, "20 Dec 2026"], ["ANR-SRG-010", "Junior", 25_000_000, 380, "08 Feb 2027"]], transfers: [["ANR-SRG-016 · Junior", "Received from Mandiri Ventura Agri · 11 Aug 2026", 12_000_000]] },
   "INV-MFC": { capital: 0, returnIdr: 0, due: "—", growth: 0, notes: [], transfers: [] },
-  "INV-NFO": { capital: 145_000_000, returnIdr: 5_900_000, due: "12 Mar 2027", growth: 29, notes: [["ANR-KKO-035", "Junior", 55_000_000, "4.4% p.a. · matures 12 Mar 2027"], ["ANR-BRS-032", "Senior", 90_000_000, "2.6% p.a. · matures 17 Dec 2026"]], transfers: [["ANR-KKO-035 · Junior", "Received from Banyan Commodity Traders · 02 Sep 2026", 15_000_000]] },
-  "INV-JFS": { capital: 180_000_000, returnIdr: 4_900_000, due: "24 Jan 2027", growth: 22, notes: [["ANR-GBH-031", "Senior", 110_000_000, "2.3% p.a. · matures 24 Jan 2027"], ["ANR-GKP-048", "Senior", 70_000_000, "2.5% p.a. · matures 15 Mar 2027"]], transfers: [] },
-  "INV-STF": { capital: 72_000_000, returnIdr: 3_500_000, due: "15 Apr 2027", growth: 38, notes: [["ANR-AGR-052", "Junior", 32_000_000, "4.8% p.a. · matures 15 Apr 2027"], ["ANR-KDL-049", "Senior", 40_000_000, "2.7% p.a. · matures 10 Dec 2026"]], transfers: [["ANR-AGR-052 · Junior", "Transferred to Raka Pranoto · 06 Sep 2026", 8_000_000]] },
-  "INV-BCT": { capital: 105_000_000, returnIdr: 4_600_000, due: "05 Feb 2027", growth: 33, notes: [["ANR-PNG-055", "Junior", 45_000_000, "4.6% p.a. · matures 05 Feb 2027"], ["ANR-TPK-056", "Senior", 60_000_000, "2.9% p.a. · matures 28 Dec 2026"]], transfers: [["ANR-PNG-055 · Junior", "Transferred to Nusantara Family Office · 02 Sep 2026", 15_000_000]] },
-  "INV-RPR": { capital: 28_000_000, returnIdr: 1_500_000, due: "15 Apr 2027", growth: 41, notes: [["ANR-AGR-052", "Junior", 28_000_000, "4.8% p.a. · matures 15 Apr 2027"]], transfers: [["ANR-AGR-052 · Junior", "Received from Sahabat Tani Funding · 06 Sep 2026", 8_000_000]] },
+  "INV-NFO": { capital: 145_000_000, returnIdr: 5_900_000, due: "12 Mar 2027", growth: 29, notes: [["ANR-KKO-035", "Junior", 55_000_000, 440, "12 Mar 2027"], ["ANR-BRS-032", "Senior", 90_000_000, 260, "17 Dec 2026"]], transfers: [["ANR-KKO-035 · Junior", "Received from Banyan Commodity Traders · 02 Sep 2026", 15_000_000]] },
+  "INV-JFS": { capital: 180_000_000, returnIdr: 4_900_000, due: "24 Jan 2027", growth: 22, notes: [["ANR-GBH-031", "Senior", 110_000_000, 230, "24 Jan 2027"], ["ANR-GKP-048", "Senior", 70_000_000, 250, "15 Mar 2027"]], transfers: [] },
+  "INV-STF": { capital: 72_000_000, returnIdr: 3_500_000, due: "15 Apr 2027", growth: 38, notes: [["ANR-AGR-052", "Junior", 32_000_000, 480, "15 Apr 2027"], ["ANR-KDL-049", "Senior", 40_000_000, 270, "10 Dec 2026"]], transfers: [["ANR-AGR-052 · Junior", "Transferred to Raka Pranoto · 06 Sep 2026", 8_000_000]] },
+  "INV-BCT": { capital: 105_000_000, returnIdr: 4_600_000, due: "05 Feb 2027", growth: 33, notes: [["ANR-PNG-055", "Junior", 45_000_000, 460, "05 Feb 2027"], ["ANR-TPK-056", "Senior", 60_000_000, 290, "28 Dec 2026"]], transfers: [["ANR-PNG-055 · Junior", "Transferred to Nusantara Family Office · 02 Sep 2026", 15_000_000]] },
+  "INV-RPR": { capital: 28_000_000, returnIdr: 1_500_000, due: "15 Apr 2027", growth: 41, notes: [["ANR-AGR-052", "Junior", 28_000_000, 480, "15 Apr 2027"]], transfers: [["ANR-AGR-052 · Junior", "Received from Sahabat Tani Funding · 06 Sep 2026", 8_000_000]] },
   "INV-RKN": { capital: 0, returnIdr: 0, due: "—", growth: 0, notes: [], transfers: [] },
 };
 
@@ -560,6 +564,8 @@ export default function App() {
   const investorPicked = useRef(false);
   const [tranche, setTranche] = useState<TrancheName>("SENIOR");
   const [amount, setAmount] = useState("");
+  const amountRef = useRef<HTMLInputElement | null>(null);
+
   const [recipientId, setRecipientId] = useState("");
   const [startingNew, setStartingNew] = useState(false);
   const [esrgs, setEsrgs] = useState<ESrg[]>([]);
@@ -775,7 +781,12 @@ export default function App() {
      proposal is computed once, wiped on entry, and never offered again. */
   useEffect(() => {
     if (!me || !open) return;
-    setAmount(suggested >= me.ticketIdr.min ? String(suggested) : "");
+    const proposal = suggestionFor({
+      suggestedIdr: suggested,
+      minimumTicketIdr: me.ticketIdr.min,
+      editing: document.activeElement === amountRef.current,
+    });
+    if (proposal !== null) setAmount(proposal);
   }, [investorId, tranche, activeRole, open?.subscribedIdr, open?.capacityIdr]);
 
   /* Replays whenever a different proof lands; the nullifier is stable across polls. */
@@ -1178,7 +1189,7 @@ export default function App() {
         </label>
         <label>
           <span>Maturity face value (IDR)</span>
-          <NumberField value={amount} onValue={setAmount} />
+          <NumberField value={amount} onValue={setAmount} inputRef={amountRef} />
         </label>
       </div>
       {open && Number(amount) > 0 && <section className="commitment-comparison" aria-label="Commitment comparison">
@@ -1237,7 +1248,7 @@ export default function App() {
           {bands.map((band) => {
             const face = band.capacityIdr - band.subscribedIdr;
             const price = issuePrice(face, band.returnBp, flow?.request.maturityDays ?? 90);
-            return <div className="order-row" key={band.name}><span><strong>{flow?.note?.series ?? "Pending series"} · {band.name === "SENIOR" ? "Senior" : "Junior"}</strong><small>{noteState} · {band.name === "SENIOR" ? "paid first" : "first-loss"} · {(band.returnBp / 100).toFixed(1)}% p.a.</small></span><strong>{tokenUnits(face)}<small>Pay {rp(price)} for {rp(face)} at maturity</small></strong></div>;
+            return <div className="order-row" key={band.name}><span><strong>{flow?.note?.series ?? "Pending series"} · {band.name === "SENIOR" ? "Senior" : "Junior"}</strong><small>{noteState} · {band.name === "SENIOR" ? "paid first" : "first-loss"} · {(band.returnBp / 100).toFixed(1)}% annualized target</small></span><strong>{tokenUnits(face)}<small>Pay {rp(price)} for {rp(face)} at maturity</small></strong></div>;
           })}
         </div>
         <p className="supporting-copy">1 unit represents Rp 1 of note face value. Holdings appear in My notes only after registry confirmation and activation.</p>
@@ -1262,8 +1273,8 @@ export default function App() {
       {myPositions.length === 0 ? (
         <div className="position-list">
           {flow?.note ? <p className="empty-state">You hold no units in {flow.note.series}. Select the investor that subscribed to view its allocated position.</p> : <><p className="supporting-copy">Current holdings for the selected investor.</p>
-          {investorDemo.notes.length ? investorDemo.notes.map(([series, trancheName, value, detail]) => <details className="position" key={series}>
-            <summary><span><strong>{series} · {trancheName} partition</strong><small>{detail}</small></span><strong>{tokenUnits(value)}<small>{rp(value)} face value</small></strong></summary>
+          {investorDemo.notes.length ? investorDemo.notes.map(([series, trancheName, value, returnBp, maturity]) => <details className="position" key={series}>
+            <summary><span><strong>{series} · {trancheName} partition</strong><small>{noteDetail(returnBp, maturity)}</small></span><strong>{tokenUnits(value)}<small>{rp(value)} face value</small></strong></summary>
             <div className="position-detail"><Row label="Token state" value="Active · allocated" /><Row label="Token standard" value="ERC-1400 / ERC-3643" /><Row label="Allocation event" value="Registry confirmed and facility activated" /><Row label="Transfer rule" value="Allowlisted participants with a matching mandate" /></div>
           </details>) : <p className="empty-state">No positions: this investor is not allowlisted.</p>}</>}
         </div>
@@ -1475,7 +1486,7 @@ export default function App() {
             <div className="order-row" key={item.note}>
               <span>
                 <strong>{item.note} · {item.commodity}</strong>
-                <small>{item.receipt} · {item.term} days at {(item.returnBp / 100).toFixed(2)}% p.a. · settled {formatDate(item.settledOn)}</small>
+                <small>{item.receipt} · {item.term} days at {(item.returnBp / 100).toFixed(2)}% annualized · settled {formatDate(item.settledOn)}</small>
               </span>
               <strong>{rp(item.principalIdr + item.returnIdr)}</strong>
             </div>
@@ -2058,7 +2069,7 @@ export default function App() {
         <dl>
           <div><dt>Facility ceiling</dt><dd>{rp(flow.request.requestedIdr)}</dd></div>
           <div><dt>Term</dt><dd>{flow.request.maturityDays} days</dd></div>
-          <div><dt>Blended target return</dt><dd>{(blendedBp / 100).toFixed(2)}% p.a.</dd></div>
+          <div><dt>Blended target return</dt><dd>{(blendedBp / 100).toFixed(2)}% annualized</dd></div>
         </dl>
         <div className="actions"><button type="button" onClick={() => setWorkspaceSection("Repayments")}>Track repayment</button></div>
       </div>
@@ -2168,7 +2179,7 @@ export default function App() {
         { label: "Open opportunities", value: me?.allowlisted ? String(me.mandate.length) : "0", note: me?.allowlisted ? `${me.mandate.join(" + ")} mandate` : "Allowlisting required" },
         { label: "Committed capital", value: `Rp ${investorDemo.capital / 1_000_000}m`, note: `${investorDemo.notes.length} positions` },
         { label: "Next cashflow", value: investorDemo.due, note: investorDemo.notes[0]?.[0] ?? "No eligible facilities" },
-      ] : WORKSPACE_META[activeRole].metrics ?? []} portfolio={activeRole === "Capital Provider" ? { valueIdr: investorDemo.capital, growthPct: investorDemo.growth, restricted: !me?.allowlisted } : undefined} maxLtvBp={chain?.policy.maxLtvBp} acceptedIds={acceptedReceipts.map(receipt => receipt.id)} priorities={workspaceSection === "Overview" && activeRole === "Capital Provider" ? investorDemo.notes.map(([series, trancheName, value, detail]) => ({ title: `${series} · ${trancheName}`, meta: `${rp(value)} · ${detail}`, status: "Funded" })) : workspaceSection === "Overview" ? WORKSPACE_META[activeRole].rows : liveRows[workspaceSection] ?? SECTION_ROWS[workspaceSection] ?? []} loading={loading} error={err} onSection={setWorkspaceSection} onOpen={(receipt) => {
+      ] : WORKSPACE_META[activeRole].metrics ?? []} portfolio={activeRole === "Capital Provider" ? { valueIdr: investorDemo.capital, growthPct: investorDemo.growth, restricted: !me?.allowlisted } : undefined} maxLtvBp={chain?.policy.maxLtvBp} acceptedIds={acceptedReceipts.map(receipt => receipt.id)} priorities={workspaceSection === "Overview" && activeRole === "Capital Provider" ? investorDemo.notes.map(([series, trancheName, value, returnBp, maturity]) => ({ title: `${series} · ${trancheName}`, meta: `${rp(value)} · ${noteDetail(returnBp, maturity)}`, status: "Funded" })) : workspaceSection === "Overview" ? WORKSPACE_META[activeRole].rows : liveRows[workspaceSection] ?? SECTION_ROWS[workspaceSection] ?? []} loading={loading} error={err} onSection={setWorkspaceSection} onOpen={(receipt) => {
         if (receipt && activeRole === "Borrower" && receipt.id !== flow?.request.esrgId) {
           /* A receipt has to clear intake before it can be financed, so one that
              has not been accepted goes to the intake form already chosen —
@@ -2231,16 +2242,6 @@ function LandingPage({ onNavigate, onAccess }: { onNavigate: (view: View) => voi
 /* Every capability enters through a port in packages/core, so the same flow runs
    against a simulated or a live adapter. Two are genuinely on Hedera today; the
    rest are simulated for reasons worth stating rather than hiding. */
-/* SVG text does not wrap: `backend` and `detail` must fit 168px, which is
-   about 26 characters at their sizes. Longer strings run outside the box. */
-const STACK_PORTS = [
-  { port: "e-SRG", backend: "Synthetic documents", detail: "Not running in practice", mode: "simulated" },
-  { port: "Identity", backend: "Privy sign-in", detail: "World ID pending", mode: "simulated" },
-  { port: "Registry", backend: "Bappebti registry", detail: "No public API", mode: "simulated" },
-  { port: "Proof", backend: "Noir · nargo → bb", detail: "HonkVerifier 0xc90C…3115", mode: "live" },
-  { port: "Token", backend: "ATS v4.x factory", detail: "AnoraNote 0xA44C…4F22", mode: "live" },
-] as const;
-
 const SD = { x0: 40, w: 196, gap: 15 };
 const sdX = (i: number) => SD.x0 + i * (SD.w + SD.gap);
 const sdMid = (i: number) => sdX(i) + SD.w / 2;
