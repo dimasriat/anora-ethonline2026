@@ -142,6 +142,60 @@ Doing exactly that returns:
 `action` has to travel with the payload. Either the example should include it or
 the sentence should be qualified.
 
+## Developer Portal
+
+Grouped separately because the prize asks about navigation, search, product
+discovery and debugging guidance specifically.
+
+### Finding the RP signing key is three levels deep and unsearchable
+
+The value we needed most often lives at **app → anora → signing_key**. Nothing
+on the way there names it, and the portal's search does not find "signing key",
+"rp_id" or "RP" as terms. We ended up recording the path as a comment in our
+`.env` so the next person would not have to hunt again:
+
+```
+# Ambil dari Developer Portal > app anora > signing_key
+```
+
+A settings page that lists `app_id`, `rp_id` and `signing_key` together, in the
+shape the SDK wants them, would have removed a whole class of confusion. Those
+three values always travel together in code; they do not travel together in the
+portal.
+
+### Selfie Check is not discoverable as a product
+
+The portal presents World ID, IDKit and Agent Kit as products. Selfie Check is
+not one of them, so the natural move is to look for it in the product list,
+fail, and conclude it is unavailable to you. In fact it is reached through IDKit
+as a credential preset, which is a documentation fact rather than a portal fact.
+This is the same failure described in section 1 above, but the portal is where
+it starts: the thing the prize is named after has no entry of its own.
+
+### Nothing in the portal tells you which environment a proof came from
+
+Our most expensive bug was `environment_mismatch` between `staging` and
+`sandbox`. The verify endpoint's error message was excellent and is what finally
+explained it. The portal, by contrast, never showed which environment our app
+was configured against, and offered no log of attempted verifications. A
+per-app list of recent verification attempts with their environment, action and
+outcome would have turned a multi-hour hunt into one glance.
+
+### Debugging guidance is absent where the failures actually happen
+
+Three of our six time sinks above failed silently: the WASM asset fetched from
+the page root, the same-device flow whose polling dies with the page, and the
+verify call rejected for a missing `action`. None of these surface anywhere in
+the portal. We found each one by instrumenting our own client. A "recent
+errors" view scoped to the app, even a crude one, would cover all three.
+
+### What worked
+
+Getting access was quick and the reply was specific. Once we knew the app and RP
+identifiers, nothing about the portal got in the way again. The friction is
+concentrated in the first hour, which is also when a hackathon team decides
+whether to keep going.
+
 ## Smaller notes
 
 - The iOS cold-start funnel includes an invite-code step for new accounts. Worth
