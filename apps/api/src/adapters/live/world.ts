@@ -1,4 +1,3 @@
-import "./wasm-fetch";
 import { IDKit, selfieCheckLegacy } from "@worldcoin/idkit-core";
 import { signRequest } from "@worldcoin/idkit-core/signing";
 
