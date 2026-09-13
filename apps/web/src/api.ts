@@ -113,6 +113,7 @@ export type BoardView = {
   walletAddress: string | null;
   organizationId: string | null;
   approvals: string[];
+  facilityId: string | null;
   signature: string | null;
 };
 
@@ -135,7 +136,7 @@ const normalizeFlow = (raw: Flow & {
 export const api = {
   mode: () => call("/mode") as Promise<Mode>,
   board: () => call("/board") as Promise<BoardView>,
-  enrolOfficer: () => call("/board/enrol", "POST") as Promise<BoardView>,
+  enrolOfficer: (facilityId?: string) => call("/board/enrol", "POST", { facilityId }) as Promise<BoardView>,
   boardPayload: (id: string) => call(`/board/payload/${id}`) as Promise<AuthorizationRequest>,
   approveMandateAsOfficer: (id: string, signature: string) =>
     call(`/board/approve/${id}`, "POST", { signature }) as Promise<BoardView>,

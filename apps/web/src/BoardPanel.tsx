@@ -3,7 +3,7 @@ import { useAuthorizationSignature, useLogout } from "@privy-io/react-auth";
 import { api } from "./api";
 import type { AuthorizationRequest, BoardView } from "./api";
 
-export default function BoardPanel({ facilityId }: { facilityId: string }) {
+export default function BoardPanel({ facilityId }: { facilityId?: string }) {
   const { generateAuthorizationSignature } = useAuthorizationSignature();
   const { logout } = useLogout();
   const [board, setBoard] = useState<BoardView | null>(null);
@@ -20,12 +20,14 @@ export default function BoardPanel({ facilityId }: { facilityId: string }) {
     finally { setBusy(false); }
   };
 
-  const enrol = () => guard(() => api.enrolOfficer());
+  const enrol = () => guard(() => api.enrolOfficer(facilityId));
 
   const approve = () => guard(async () => {
-    const payload = await api.boardPayload(facilityId);
+    const target = facilityId ?? board?.facilityId;
+    if (!target) throw new Error("The board has no facility to sign for yet.");
+    const payload = await api.boardPayload(target);
     const { signature } = await generateAuthorizationSignature(payload as AuthorizationRequest as never);
-    return api.approveMandateAsOfficer(facilityId, signature);
+    return api.approveMandateAsOfficer(target, signature);
   });
 
   if (!board) return null;

@@ -7,6 +7,7 @@ export type BoardView = {
   walletAddress: string | null;
   organizationId: string | null;
   approvals: string[];
+  facilityId: string | null;
   signature: string | null;
 };
 
@@ -30,6 +31,9 @@ export function makeBoardState(
   const approvals = new Map<string, string>();
   let wallet: BoardWallet | null = null;
   let signature: string | null = null;
+  /* The board signs for one facility at a time. Remembering which one lets the
+     second officer approve without owning it. */
+  let facilityId: string | null = null;
 
   const seatFor = (privyUserId: string) => {
     const held = enrolled.find((e) => e.privyUserId === privyUserId);
@@ -53,11 +57,13 @@ export function makeBoardState(
         walletAddress: wallet?.address ?? null,
         organizationId: wallet?.organizationId ?? null,
         approvals: [...approvals.keys()],
+        facilityId,
         signature,
       };
     },
 
-    async enrol(privyUserId: string): Promise<BoardView> {
+    async enrol(privyUserId: string, forFacility?: string): Promise<BoardView> {
+      if (forFacility) facilityId = forFacility;
       const seat = seatFor(privyUserId);
       if (!seat) throw new Error("Every seat on this board is already taken.");
 

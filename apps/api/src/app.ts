@@ -109,7 +109,8 @@ export function makeApp(
 
   app.post("/api/board/enrol", async (c) => {
     const { userId } = await callerOf(c);
-    return c.json(await boardOr501().enrol(userId));
+    const body: { facilityId?: string } = await c.req.json().catch(() => ({}));
+    return c.json(await boardOr501().enrol(userId, body.facilityId));
   });
 
   app.get("/api/board/payload/:id", (c) => c.json(boardOr501().payload(mandateMessage(id(c)))));

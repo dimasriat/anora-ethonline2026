@@ -2126,6 +2126,9 @@ export default function App() {
 
   const flowPanel = (
     <div className="flow-layout">
+      {/* A board seat belongs to the cooperative, not to whoever opened the
+          facility, so the second officer needs it without owning one. */}
+      {identity.label !== "Simulated" && !flow && activeRole === "Borrower" && <BoardPanel />}
       {/* Spans both columns. Inside the left one it pushed that card down while
           the rail still started at the top, so the two never lined up. */}
       <header className="flow-heading">
