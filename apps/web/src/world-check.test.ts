@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { readCheck } from "./world-check";
 
 describe("what the page does with an eligibility session", () => {

@@ -1,11 +1,12 @@
-import { $ } from "bun";
 import { cp, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { run } from "./exec";
 import type { ESrg, EligibilityProof, FinancingRequest, Intake, ProofEngine } from "@anora/core";
 import { registryEntry } from "./registry";
 
-const CIRCUIT_DIR = join(import.meta.dir, "../../../../../circuits/eligibility");
+const CIRCUIT_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../../../circuits/eligibility");
 const SUPPLIER_SLOTS = 8;
 
 const hex = (buffer: Buffer): string => `0x${buffer.toString("hex")}`;
@@ -55,10 +56,12 @@ export function liveProofEngine(verifierAddress: string, rpcUrl: string): ProofE
       await cp(join(CIRCUIT_DIR, "src"), join(work, "src"), { recursive: true });
       await writeFile(join(work, "Prover.toml"), proverToml(req, esrg, intakes, entry));
 
-      await $`nargo execute`.cwd(work).quiet();
-      await $`bb write_vk -b target/eligibility.json -o . --oracle_hash keccak`.cwd(work).quiet();
-      await $`bb prove -b target/eligibility.json -w target/eligibility.gz -k vk -o . --oracle_hash keccak`
-        .cwd(work).quiet();
+      await run("nargo", ["execute"], { cwd: work });
+      await run("bb", ["write_vk", "-b", "target/eligibility.json", "-o", ".", "--oracle_hash", "keccak"], { cwd: work });
+      await run("bb", [
+        "prove", "-b", "target/eligibility.json", "-w", "target/eligibility.gz",
+        "-k", "vk", "-o", ".", "--oracle_hash", "keccak",
+      ], { cwd: work });
 
       const proof = await readFile(join(work, "proof"));
       const publicInputs = fields(await readFile(join(work, "public_inputs")));

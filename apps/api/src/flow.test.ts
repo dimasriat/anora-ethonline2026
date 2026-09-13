@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { makeFlow } from "./flow";
 import { mockPorts } from "./adapters/mock/index";
 import { FlowError } from "./errors";
@@ -6,6 +6,12 @@ import { FlowError } from "./errors";
 const OWNER = "did:privy:test";
 let flow: ReturnType<typeof makeFlow>;
 beforeEach(() => { flow = makeFlow(mockPorts()); });
+
+const releaseFunds = async (id: string) => {
+  await flow.approveRelease(id, "OPS-1");
+  await flow.approveRelease(id, "OPS-2");
+  return flow.registerAndFund(id);
+};
 
 const codeOf = async (fn: () => Promise<unknown>): Promise<string> => {
   try { await fn(); } catch (e) { return (e as FlowError).code; }
@@ -35,6 +41,13 @@ const JUNIOR_CAP = 88_960_000;
 const fillSenior = async (id: string) => {
   await flow.subscribe(id, "INV-BRS", "SENIOR", 270_000_000);
   await flow.subscribe(id, "INV-NFO", "SENIOR", SENIOR_CAP - 270_000_000);
+};
+
+const upToSubscribed = async () => {
+  const id = await upToTokenized();
+  await fillSenior(id);
+  await flow.subscribe(id, "INV-MVA", "JUNIOR", JUNIOR_CAP);
+  return id;
 };
 
 describe("create", () => {
@@ -204,7 +217,7 @@ describe("funding and repayment", () => {
 
   test("registry confirmation activates the note and funds", async () => {
     const id = await fullySubscribed();
-    const s = await flow.registerAndFund(id);
+    const s = await releaseFunds(id);
     expect(s.request.status).toBe("funded");
     expect(s.note!.state).toBe("active");
     expect(s.registryRef).toContain("SRG-TEH-024");
@@ -212,7 +225,7 @@ describe("funding and repayment", () => {
 
   test("repayment redeems the note and raises the round", async () => {
     const id = await fullySubscribed();
-    await flow.registerAndFund(id);
+    await releaseFunds(id);
     const s = await flow.repay(id);
     expect(s.request.status).toBe("repaid");
     expect(s.note!.state).toBe("redeemed");
@@ -225,7 +238,7 @@ describe("secondary transfers", () => {
     const id = await upToTokenized();
     await fillSenior(id);
     await flow.subscribe(id, "INV-KIT", "JUNIOR", JUNIOR_CAP);
-    await flow.registerAndFund(id);
+    await releaseFunds(id);
     return id;
   };
 
@@ -273,5 +286,39 @@ describe("ownership", () => {
     for (let i = 0; i < 5; i++) await flow.create("SRG-TEH-024", OWNER);
     expect(await codeOf(() => flow.create("SRG-TEH-024", OWNER))).toBe("facility_limit_reached");
     expect((await flow.create("SRG-TEH-024", OTHER)).ownerId).toBe(OTHER);
+  });
+});
+
+describe("releasing funds needs the operator's own quorum", () => {
+  test("refuses a release nobody has approved", async () => {
+    const id = await upToSubscribed();
+    expect(await codeOf(() => flow.registerAndFund(id))).toBe("quorum_not_reached");
+  });
+
+  test("refuses a release one officer approved alone", async () => {
+    const id = await upToSubscribed();
+    await flow.approveRelease(id, "OPS-1");
+    expect(await codeOf(() => flow.registerAndFund(id))).toBe("quorum_not_reached");
+  });
+
+  test("refuses an officer who does not belong to the operator", async () => {
+    const id = await upToSubscribed();
+    expect(await codeOf(() => flow.approveRelease(id, "OFF-1"))).toBe("unknown_officer");
+  });
+
+  test("releases once both operator officers have approved", async () => {
+    const id = await upToSubscribed();
+    await flow.approveRelease(id, "OPS-1");
+    await flow.approveRelease(id, "OPS-2");
+    const funded = await flow.registerAndFund(id);
+    expect(funded.request.status).toBe("funded");
+    expect(funded.releaseSignature).toMatch(/^0x/);
+  });
+
+  test("the operator wallet is not the cooperative's", async () => {
+    const id = await upToSubscribed();
+    const s = flow.get(id, OWNER)!;
+    expect(s.complianceWallet).toBeDefined();
+    expect(s.complianceWallet!.walletId).not.toBe(s.orgWallet!.walletId);
   });
 });

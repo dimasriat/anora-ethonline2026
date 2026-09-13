@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { createHmac } from "node:crypto";
 import { makeApp } from "./app";
 import { mockPorts } from "./adapters/mock/index";
@@ -139,6 +139,8 @@ describe("error codes reach the client", () => {
     await post(`/api/requests/${id}/subscribe`, {
       investorId: "INV-KIT", tranche: "JUNIOR", unitsIdr: 88_960_000,
     });
+    await post(`/api/requests/${id}/approve-release`, { officerId: "OPS-1" });
+    await post(`/api/requests/${id}/approve-release`, { officerId: "OPS-2" });
     await post(`/api/requests/${id}/register`);
     const final = await body(await post(`/api/requests/${id}/repay`));
 

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { STEP_ORDER, isReversible, previousStep, requireStep, stepIndex } from "./lifecycle";
 import type { RequestStatus } from "./domain";
 

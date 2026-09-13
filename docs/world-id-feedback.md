@@ -142,6 +142,121 @@ Doing exactly that returns:
 `action` has to travel with the payload. Either the example should include it or
 the sentence should be qualified.
 
+### 7. A refused selfie strands the desktop page, and the code cannot be reused
+
+Recorded 13 September 2026, driving the real flow.
+
+The scan reached the Sandbox app, the selfie step failed, and the app offered
+**try again**. Retrying kept failing at the same step. What finally worked was
+abandoning that check and generating a fresh QR code.
+
+Two things follow from that.
+
+The first is ours, and we fixed it: our page sat on `Waiting for the scan…`
+with the button disabled, because the failure happened on the phone and the
+session never moved off `pending`. Anyone who is not the developer has no way
+to tell whether to keep waiting or start over.
+
+The second is World's. A code that the app has already refused stays outwardly
+valid: the connector URI still resolves, the session still reports `pending`,
+and nothing tells the relying party that this attempt is dead. If a refused
+selfie closed its session, or the status carried a terminal state the caller
+could poll, the desktop side could say so instead of guessing. As it stands,
+the only working recovery is one a first-time user would not think of.
+
+Worth noting what did work: the retry loop lived entirely in the app, and the
+second QR succeeded on the first attempt. The flow is not fragile, but its
+failure is silent on the side that needs to react to it.
+
+### 8. `Failed: error sending request` names nothing, and the bridge answered 200
+
+Recorded 13 September 2026. Selfie Check worked twice that morning under Bun.
+After the API moved to Node, `IDKit.request` began failing with:
+
+```
+Failed: error sending request
+```
+
+No host, no status, no stack, and `Object.getOwnPropertyNames` on the thrown
+value yields only that string. It reads like a network fault, so we spent an
+hour on our own DNS, TLS and firewall before instrumenting `globalThis.fetch`
+to print every outbound call. What it showed:
+
+```
+GET https://bridge.worldcoin.org/request -> 200
+Failed: error sending request
+```
+
+The bridge answered. The failure is inside the module, immediately after a
+successful response, with no further request attempted. We could not get past
+it, and shipped the demo with the simulated adapter instead.
+
+Two asks. Put the host, the status and the stage into that error: had it said
+which call failed, the hour would have been a minute. And if the WASM depends
+on runtime behaviour that differs between Bun and Node, say so in the docs;
+the same code, same version and same credentials work under one and not the
+other, which is the hardest kind of failure to attribute.
+
+Related and cheaper to fix: IDKit loads its WebAssembly by fetching a `file://`
+URL built from `import.meta.url` during module import. Bun resolves that
+scheme, Node refuses it, so the first failure under Node was
+`Failed to initialize IDKit WASM: TypeError: fetch failed`. Reading the bytes
+from disk would remove a whole class of runtime dependence.
+
+## Developer Portal
+
+Grouped separately because the prize asks about navigation, search, product
+discovery and debugging guidance specifically.
+
+### Finding the RP signing key is three levels deep and unsearchable
+
+The value we needed most often lives at **app → anora → signing_key**. Nothing
+on the way there names it, and the portal's search does not find "signing key",
+"rp_id" or "RP" as terms. We ended up recording the path as a comment in our
+`.env` so the next person would not have to hunt again:
+
+```
+# Ambil dari Developer Portal > app anora > signing_key
+```
+
+A settings page that lists `app_id`, `rp_id` and `signing_key` together, in the
+shape the SDK wants them, would have removed a whole class of confusion. Those
+three values always travel together in code; they do not travel together in the
+portal.
+
+### Selfie Check is not discoverable as a product
+
+The portal presents World ID, IDKit and Agent Kit as products. Selfie Check is
+not one of them, so the natural move is to look for it in the product list,
+fail, and conclude it is unavailable to you. In fact it is reached through IDKit
+as a credential preset, which is a documentation fact rather than a portal fact.
+This is the same failure described in section 1 above, but the portal is where
+it starts: the thing the prize is named after has no entry of its own.
+
+### Nothing in the portal tells you which environment a proof came from
+
+Our most expensive bug was `environment_mismatch` between `staging` and
+`sandbox`. The verify endpoint's error message was excellent and is what finally
+explained it. The portal, by contrast, never showed which environment our app
+was configured against, and offered no log of attempted verifications. A
+per-app list of recent verification attempts with their environment, action and
+outcome would have turned a multi-hour hunt into one glance.
+
+### Debugging guidance is absent where the failures actually happen
+
+Three of our six time sinks above failed silently: the WASM asset fetched from
+the page root, the same-device flow whose polling dies with the page, and the
+verify call rejected for a missing `action`. None of these surface anywhere in
+the portal. We found each one by instrumenting our own client. A "recent
+errors" view scoped to the app, even a crude one, would cover all three.
+
+### What worked
+
+Getting access was quick and the reply was specific. Once we knew the app and RP
+identifiers, nothing about the portal got in the way again. The friction is
+concentrated in the first hour, which is also when a hackathon team decides
+whether to keep going.
+
 ## Smaller notes
 
 - The iOS cold-start funnel includes an invite-code step for new accounts. Worth

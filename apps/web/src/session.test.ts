@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it } from "vitest";
 import { authHeaders, setAccessToken } from "./session";
 
 describe("authHeaders", () => {

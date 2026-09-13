@@ -105,6 +105,8 @@ export type NoteTransfer = {
   at: string;
 };
 
+export type OnChainReceipt = { step: string; hash: string };
+
 export type NoteToken = {
   series: string;
   underlying: string;
@@ -112,6 +114,8 @@ export type NoteToken = {
   transferRule: "allowlisted";
   state: "reserved" | "active" | "redeemed";
   address?: string;
+  /** One entry per transaction, so a claim of being on-chain can be checked. */
+  receipts?: OnChainReceipt[];
 };
 
 export type EligibilityProof = {

@@ -44,7 +44,7 @@ export type Flow = {
   reversibleTo?: string;
   proof?: { nullifier: string; checks: { label: string; pass: boolean }[] };
   onchain?: { ok: boolean; gasUsed?: number };
-  note?: { series: string; underlying: string; ceilingIdr: number; transferRule: string; state: string };
+  note?: { series: string; underlying: string; ceilingIdr: number; transferRule: string; state: string; receipts?: { step: string; hash: string }[] };
   subscriptions: Subscription[];
   transfers: NoteTransfer[];
   controls: { paused: boolean; frozenInvestorIds: string[] };
@@ -98,6 +98,25 @@ export type IntakeAction =
 export type IntakeOptions = { entityTypes: string[]; representativeRoles: string[]; commodities: string[]; warehouses: string[] };
 export type IntakeView = { state: IntakeState; options: IntakeOptions };
 
+export type AuthorizationRequest = {
+  version: 1;
+  method: "POST";
+  url: string;
+  body: unknown;
+  headers: Record<string, string>;
+};
+
+export type BoardView = {
+  quorum: number;
+  you: string | null;
+  members: { officerId: string; role: string; enrolled: boolean }[];
+  walletAddress: string | null;
+  organizationId: string | null;
+  approvals: string[];
+  facilityId: string | null;
+  signature: string | null;
+};
+
 export type Mode = {
   adapters: { capability: string; mode: "live" | "testnet" | "simulated" | "planned" }[];
 };
@@ -116,6 +135,11 @@ const normalizeFlow = (raw: Flow & {
 
 export const api = {
   mode: () => call("/mode") as Promise<Mode>,
+  board: () => call("/board") as Promise<BoardView>,
+  enrolOfficer: (facilityId?: string) => call("/board/enrol", "POST", { facilityId }) as Promise<BoardView>,
+  boardPayload: (id: string) => call(`/board/payload/${id}`) as Promise<AuthorizationRequest>,
+  approveMandateAsOfficer: (id: string, signature: string) =>
+    call(`/board/approve/${id}`, "POST", { signature }) as Promise<BoardView>,
   openCheck: () => call("/eligibility/session", "POST") as Promise<CheckSessionView>,
   readCheckSession: (id: string) => call(`/eligibility/session/${id}`) as Promise<CheckSessionView>,
   prospectus: (id: string) => call(`/requests/${id}/prospectus`) as Promise<Prospectus>,
@@ -129,6 +153,12 @@ export const api = {
     if (s === "sign-mandate") {
       await call(`/requests/${id}/approve-mandate`, "POST", { officerId: "OFF-1" });
       return normalizeFlow(await call(`/requests/${id}/approve-mandate`, "POST", { officerId: "OFF-2" }));
+    }
+    /* Releasing funds answers to the operator's own quorum, not the borrower's
+       board, so both of its officers approve before the registry call. */
+    if (s === "register") {
+      await call(`/requests/${id}/approve-release`, "POST", { officerId: "OPS-1" });
+      await call(`/requests/${id}/approve-release`, "POST", { officerId: "OPS-2" });
     }
     return normalizeFlow(await call(`/requests/${id}/${s}`, "POST"));
   },

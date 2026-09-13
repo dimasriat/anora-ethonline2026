@@ -1,15 +1,21 @@
 import { Hono } from "hono";
-import { serveStatic } from "hono/bun";
 import { bearer, type Authenticator } from "./auth";
 import type { EligibilityChecker } from "./adapters/live/world";
 import type { Ports, TrancheName } from "@anora/core";
 import { FACILITIES_PER_OWNER, makeFlow } from "./flow";
 import { FlowError, STATUS_FOR } from "./errors";
 import { qrSvg } from "./qr";
+import { makeBoardState } from "./board-state";
+import { makeBoard } from "./adapters/live/board";
 import { INVESTORS } from "./adapters/mock/investors";
-import { OFFICERS } from "./adapters/mock/wallet";
+import { COMPLIANCE_OFFICERS, OFFICERS } from "./adapters/mock/wallet";
 import { applyIntake, intakeView, resetIntake, type IntakeAction } from "./intake";
 import { verifyDocuSealWebhook, type DocuSealClient } from "./docuseal";
+
+/* hono/bun reaches for the Bun global at import time, and the test runner has
+   none. The bundle is only ever served by the running app. */
+const onBun = typeof (globalThis as { Bun?: unknown }).Bun !== "undefined";
+const serveStatic = onBun ? (await import("hono/bun")).serveStatic : null;
 
 export function makeApp(
   ports: Ports,
@@ -37,7 +43,10 @@ export function makeApp(
       return c.json({ error: { code: error.code, message: error.message, ...error.detail } },
         STATUS_FOR[error.code] as 400);
     }
-    return c.json({ error: { code: "internal", message: error.message } }, 500);
+    /* A silent 500 is how the World check looked when the runtime changed:
+       the screen said nothing and so did the log. */
+    console.error("unhandled:", error);
+    return c.json({ error: { code: "internal", message: String(error?.message ?? error) } }, 500);
   });
 
   const id = (c: { req: { param: (k: string) => string } }) => c.req.param("id");
@@ -80,9 +89,52 @@ export function makeApp(
     });
   };
 
+  const board = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET
+    ? makeBoardState(makeBoard({ appId: process.env.PRIVY_APP_ID, appSecret: process.env.PRIVY_APP_SECRET }))
+    : null;
+
+  const boardOr501 = () => {
+    if (!board) {
+      throw new FlowError("capability_not_available", "Privy is not configured", { capability: "wallet" });
+    }
+    return board;
+  };
+
+  const mandateMessage = (id: string) => `Financing mandate ${id}`;
+
+  app.get("/api/board", async (c) => {
+    const { userId } = await callerOf(c);
+    return c.json(boardOr501().view(userId));
+  });
+
+  app.post("/api/board/enrol", async (c) => {
+    const { userId } = await callerOf(c);
+    const body: { facilityId?: string } = await c.req.json().catch(() => ({}));
+    return c.json(await boardOr501().enrol(userId, body.facilityId));
+  });
+
+  app.get("/api/board/payload/:id", (c) => c.json(boardOr501().payload(mandateMessage(id(c)))));
+
+  app.post("/api/board/approve/:id", async (c) => {
+    const { userId } = await callerOf(c);
+    const body: { signature?: string } = await c.req.json().catch(() => ({}));
+    if (!body.signature) throw new FlowError("unknown_request", "signature is required");
+    return c.json(await boardOr501().approve(userId, body.signature, mandateMessage(id(c))));
+  });
+
   app.post("/api/eligibility/session", async (c) => {
     const { userId } = await callerOf(c);
-    const session = await checker.open(userId);
+    let session;
+    try {
+      session = await checker.open(userId);
+    } catch (cause) {
+      /* The proof route already names its failure; this one used to answer 500
+         with an empty body, which the page then showed as a JSON parse error. */
+      throw new FlowError("capability_not_available", "Could not open a World ID check", {
+        capability: "eligibility",
+        because: String((cause as Error)?.message ?? cause),
+      });
+    }
     return c.json({
       id: session.id,
       connectorURI: session.connectorURI,
@@ -185,6 +237,7 @@ export function makeApp(
     return c.json(await flow.approveMandate(id(c), body.officerId));
   });
   app.get("/api/officers", (c) => c.json(OFFICERS));
+  app.get("/api/operator-officers", (c) => c.json(COMPLIANCE_OFFICERS));
   app.post("/api/requests/:id/approve", async (c) => {
     await ownedBy(c, id(c));
     await requireEligibility(c, "Approving the facility");
@@ -197,6 +250,13 @@ export function makeApp(
   app.post("/api/requests/:id/tokenize", async (c) => {
     await ownedBy(c, id(c));
     return c.json(await flow.tokenize(id(c)));
+  });
+  app.post("/api/requests/:id/approve-release", async (c) => {
+    await ownedBy(c, id(c));
+    await requireEligibility(c, "Approving the release");
+    const body: { officerId?: string } = await c.req.json().catch(() => ({}));
+    if (!body.officerId) throw new FlowError("unknown_officer", "officerId is required");
+    return c.json(await flow.approveRelease(id(c), body.officerId));
   });
   app.post("/api/requests/:id/register", async (c) => {
     await ownedBy(c, id(c));
@@ -245,12 +305,17 @@ export function makeApp(
   app.post("/api/reset", (c) => {
     flow.reset();
     resetIntake();
+    board?.reset();
     return c.json({ ok: true as const });
   });
 
   const built = "./apps/web/dist";
-  app.use("/*", serveStatic({ root: built }));
-  app.get("*", serveStatic({ path: `${built}/index.html` }));
+  /* hono/bun reaches for the Bun global, which the test runner does not have.
+     The bundle is only ever served by the running app, never by a test. */
+  if (serveStatic) {
+    app.use("/*", serveStatic({ root: built }));
+    app.get("*", serveStatic({ path: `${built}/index.html` }));
+  }
 
   return app;
 }

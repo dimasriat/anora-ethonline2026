@@ -9,7 +9,7 @@ import type {
 } from "@anora/core";
 import { FlowError } from "./errors";
 import { investorById } from "./adapters/mock/investors";
-import { OFFICERS, QUORUM_THRESHOLD } from "./adapters/mock/wallet";
+import { COMPLIANCE_OFFICERS, COMPLIANCE_THRESHOLD, OFFICERS, QUORUM_THRESHOLD } from "./adapters/mock/wallet";
 import type { DocuSealSubmission } from "./docuseal";
 
 export type HistoryEntry = {
@@ -36,6 +36,9 @@ export type FlowState = {
   transfers: NoteTransfer[];
   controls: { paused: boolean; frozenInvestorIds: string[] };
   orgWallet?: OrgWallet;
+  complianceWallet?: OrgWallet;
+  releaseApprovals: string[];
+  releaseSignature?: string;
   mandateApprovals: string[];
   mandateSignature?: string;
   documentSigning?: {
@@ -201,9 +204,11 @@ export function makeFlow(ports: Ports) {
         transfers: [],
         controls: { paused: false, frozenInvestorIds: [] },
         mandateApprovals: [],
+        releaseApprovals: [],
         history: [],
       };
-      state.orgWallet = await ports.wallet.createOrgWallet(OFFICERS, QUORUM_THRESHOLD);
+      state.orgWallet = await ports.wallet.createOrgWallet(OFFICERS, QUORUM_THRESHOLD, "Cooperative board");
+      state.complianceWallet = await ports.wallet.createOrgWallet(COMPLIANCE_OFFICERS, COMPLIANCE_THRESHOLD, "Facility operator");
       states.set(id, state);
       stamp(state, "draft", "cooperative", `Request opened against ${esrgId}`);
       return state;
@@ -351,12 +356,44 @@ export function makeFlow(ports: Ports) {
       return state;
     },
 
+    /** One operator officer approves. Whether that is enough is the wallet's call. */
+    async approveRelease(id: string, officerId: string): Promise<FlowState> {
+      const state = must(id);
+      gate(state, "subscribed", "Approving the release");
+
+      const officer = COMPLIANCE_OFFICERS.find((o) => o.id === officerId);
+      if (!officer) {
+        throw new FlowError("unknown_officer", `unknown officer: ${officerId}`, { officerId });
+      }
+      if (!state.releaseApprovals.includes(officerId)) state.releaseApprovals.push(officerId);
+
+      stamp(state, "subscribed", officer.name,
+        `${officer.role} approved the release (${state.releaseApprovals.length}/${COMPLIANCE_THRESHOLD})`);
+      return state;
+    },
+
     async registerAndFund(id: string): Promise<FlowState> {
       const state = must(id);
       gate(state, "subscribed", "Funding");
       if (!state.note) {
         throw new FlowError("step_out_of_order", "Funding requires an issued note", { id });
       }
+      if (!state.complianceWallet) {
+        throw new FlowError("capability_not_available", "No operator wallet", { id });
+      }
+      if (state.releaseApprovals.length < state.complianceWallet.threshold) {
+        throw new FlowError(
+          "quorum_not_reached",
+          `Releasing funds needs ${state.complianceWallet.threshold} operator approvals`,
+          { have: state.releaseApprovals.length, need: state.complianceWallet.threshold },
+        );
+      }
+
+      state.releaseSignature = await ports.wallet.signAsOrg(
+        state.complianceWallet,
+        state.releaseApprovals,
+        `Release funds ${state.request.esrgId} - ${state.facility.faceIdr} IDR`,
+      );
 
       const confirmation = await ports.registry.confirmSecurity(
         state.request.esrgId,

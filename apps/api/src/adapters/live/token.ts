@@ -1,10 +1,12 @@
-import { $ } from "bun";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { setTimeout as sleep } from "node:timers/promises";
+import { run, runAllowingFailure } from "./exec";
 import type {
   ESrg, FinancingRequest, Investor, NoteToken, TokenIssuer, TrancheName, TrancheTerms,
 } from "@anora/core";
 
-const CONTRACTS_DIR = join(import.meta.dir, "../../../../../contracts");
+const CONTRACTS_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../../../contracts");
 
 export type ChainConfig = {
   rpcUrl: string;
@@ -15,7 +17,7 @@ export type ChainConfig = {
 type Deployed = { address: string; partitions: Record<TrancheName, string> };
 
 const keccak = async (label: string): Promise<string> =>
-  (await $`cast keccak ${label}`.cwd(CONTRACTS_DIR).text()).trim();
+  (await run("cast", ["keccak", label], { cwd: CONTRACTS_DIR })).stdout.trim();
 
 export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
   const notes = new Map<string, NoteToken>();
@@ -23,7 +25,7 @@ export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
   const { rpcUrl, privateKey } = config;
 
   const gasPrice = async (): Promise<string> =>
-    (await $`cast gas-price --rpc-url ${rpcUrl}`.text()).trim();
+    (await run("cast", ["gas-price", "--rpc-url", rpcUrl])).stdout.trim();
 
   /* Hedera's mirror node lags consensus, so a submission can bounce on nonce or
      a transient RPC error. A revert is not transient and is never retried. */
@@ -33,18 +35,28 @@ export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
     let last = "";
     for (let attempt = 1; attempt <= 3; attempt++) {
       const price = await gasPrice();
-      const result = await $`cast send ${to} ${signature} ${args} --rpc-url ${rpcUrl} --private-key ${privateKey} --legacy --gas-price ${price} --gas-limit 900000`
-        .nothrow().quiet();
-      const out = result.stdout.toString() + result.stderr.toString();
+      const result = await runAllowingFailure("cast", [
+        "send", to, signature, ...args,
+        "--rpc-url", rpcUrl, "--private-key", privateKey,
+        "--legacy", "--gas-price", price, "--gas-limit", "900000",
+      ]);
+      const out = result.stdout + result.stderr;
 
       if (/^status\s+1/m.test(out)) {
         return /^transactionHash\s+(0x[0-9a-f]+)/m.exec(out)?.[1] ?? "";
       }
       last = out.trim().slice(-300);
       if (/^status\s+0/m.test(out) || !TRANSIENT.test(out)) break;
-      await Bun.sleep(3_000 * attempt);
+      await sleep(3_000 * attempt);
     }
     throw new Error(`${signature} failed: ${last}`);
+  };
+
+  const record = (series: string, step: string, hash: string): void => {
+    if (!hash) return;
+    const note = notes.get(series);
+    if (!note) return;
+    note.receipts = [...(note.receipts ?? []), { step, hash }];
   };
 
   const noteAt = (series: string): NoteToken => {
@@ -67,10 +79,15 @@ export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
       const names = tranches.map((t) => partitions[t.name]).join(",");
       const caps = tranches.map((t) => String(t.capacityIdr)).join(",");
 
-      const out = await $`forge create src/AnoraNote.sol:AnoraNote --rpc-url ${rpcUrl} --private-key ${privateKey} --broadcast --legacy --gas-price ${price} --gas-limit 6000000 --constructor-args ${series} ${esrg.id} ${`[${names}]`} ${`[${caps}]`}`
-        .cwd(CONTRACTS_DIR).text();
+      const out = (await run("forge", [
+        "create", "src/AnoraNote.sol:AnoraNote",
+        "--rpc-url", rpcUrl, "--private-key", privateKey,
+        "--broadcast", "--legacy", "--gas-price", price, "--gas-limit", "6000000",
+        "--constructor-args", series, esrg.id, `[${names}]`, `[${caps}]`,
+      ], { cwd: CONTRACTS_DIR })).stdout;
 
       const address = /Deployed to: (0x[0-9a-fA-F]{40})/.exec(out)?.[1];
+      const deployHash = /Transaction hash: (0x[0-9a-fA-F]+)/.exec(out)?.[1] ?? "";
       if (!address) throw new Error(`deployment produced no address: ${out.slice(-300)}`);
 
       deployed.set(series, { address, partitions: partitions as Record<TrancheName, string> });
@@ -83,6 +100,7 @@ export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
         address,
       };
       notes.set(series, note);
+      record(series, "Deployed the note contract", deployHash);
       return note;
     },
 
@@ -96,20 +114,20 @@ export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
       if (!target) throw new Error(`unknown note series: ${series}`);
 
       const allowed = `[${target.partitions[tranche]}]`;
-      await send(target.address, "allow(address,bytes32[])", holder.address, allowed);
-      await send(
+      record(series, `Allowlisted ${holder.name ?? holder.address}`, await send(target.address, "allow(address,bytes32[])", holder.address, allowed));
+      record(series, `Allocated ${tranche} to ${holder.name ?? holder.address}`, await send(
         target.address,
         "allocate(bytes32,address,uint256)",
         target.partitions[tranche],
         holder.address,
         String(unitsIdr),
-      );
+      ));
     },
 
     async activate(series: string): Promise<NoteToken> {
       const target = deployed.get(series);
       if (!target) throw new Error(`unknown note series: ${series}`);
-      await send(target.address, "activate()");
+      record(series, "Activated the note", await send(target.address, "activate()"));
       const next: NoteToken = { ...noteAt(series), state: "active" };
       notes.set(series, next);
       return next;
@@ -118,7 +136,7 @@ export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
     async redeem(series: string): Promise<NoteToken> {
       const target = deployed.get(series);
       if (!target) throw new Error(`unknown note series: ${series}`);
-      await send(target.address, "redeem()");
+      record(series, "Redeemed the note", await send(target.address, "redeem()"));
       const next: NoteToken = { ...noteAt(series), state: "redeemed" };
       notes.set(series, next);
       return next;

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { qrSvg } from "./qr";
 
 describe("the connector QR", () => {
@@ -16,6 +16,6 @@ describe("the connector QR", () => {
   });
 
   test("refuses an empty payload rather than drawing nothing", async () => {
-    expect(qrSvg("")).rejects.toThrow();
+    await expect(qrSvg("")).rejects.toThrow();
   });
 });

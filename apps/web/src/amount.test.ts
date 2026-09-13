@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { digitsOf, formatIdr, caretAfterDigits, digitsBefore, suggestionFor } from "./amount";
 
 describe("the formatted amount field", () => {

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { STACK_PORTS } from "./stack";
 import deployed from "../../../contracts/deployed.json";
 

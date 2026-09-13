@@ -7,6 +7,9 @@ import IntakePanel from "./IntakePanel";
 import BorrowerOnboarding from "./BorrowerOnboarding";
 import InstitutionOnboarding from "./InstitutionOnboarding";
 import { STACK_PORTS } from "./stack";
+import { useIdentityStanding } from "./identity";
+import BoardPanel from "./BoardPanel";
+import SignOutButton from "./SignOutButton";
 import { noteDetail } from "./notes";
 import { suggestionFor } from "./amount";
 import {
@@ -953,7 +956,10 @@ export default function App() {
     navigate("access");
   };
 
-  const enterWorkspace = () => {
+  const identity = useIdentityStanding();
+  const signedIn = identity.label === "Connected" || identity.label === "Simulated";
+
+  const openWorkspace = () => {
     setActiveRole(selectedRole);
     sessionStorage.setItem(WORKSPACE_KEY, selectedRole);
     setWorkspaceSection("Overview");
@@ -964,6 +970,25 @@ export default function App() {
     setErr(null);
     navigate("workspace");
   };
+
+  /* Signing in and choosing a workspace are one step, so the picker does the
+     login itself and enters as soon as Privy answers. */
+  const [enterAfterSignIn, setEnterAfterSignIn] = useState(false);
+
+  const enterWorkspace = () => {
+    if (!signedIn && identity.login) {
+      setEnterAfterSignIn(true);
+      identity.login();
+      return;
+    }
+    openWorkspace();
+  };
+
+  useEffect(() => {
+    if (!enterAfterSignIn || !signedIn) return;
+    setEnterAfterSignIn(false);
+    openWorkspace();
+  }, [enterAfterSignIn, signedIn]);
 
   /* One control instead of an undo per role: clearing this browser's demo
      records and the shared server flow, then reloading, puts every workspace
@@ -1043,7 +1068,7 @@ export default function App() {
   }
 
   if (view === "access" || !activeRole) {
-    return <AccessPage selectedRole={selectedRole} onSelectRole={setSelectedRole} onContinue={enterWorkspace} onNavigate={navigate} />;
+    return <AccessPage signedIn={signedIn} selectedRole={selectedRole} onSelectRole={setSelectedRole} onContinue={enterWorkspace} onNavigate={navigate} />;
   }
 
   if (!intake || !intakeOptions) {
@@ -1684,6 +1709,23 @@ export default function App() {
      and Compliance's settlement row went on promising money that had already
      been repaid, so they read the facility instead. */
   const liveRows: Record<string, { title: string; meta: string; status: string }[]> = {};
+
+  /* The audit trail used to render a fixed sentence, so the quorum approvals
+     and the on-chain hashes it already held were invisible. */
+  if (flow) {
+    liveRows["Audit trail"] = [
+      ...(flow.note?.receipts ?? []).map((r: { step: string; hash: string }) => ({
+        title: r.step,
+        meta: `${r.hash.slice(0, 22)}… · hashscan.io/testnet/transaction/${r.hash}`,
+        status: "On chain",
+      })),
+      ...[...flow.history].reverse().map((h) => ({
+        title: h.note,
+        meta: `${h.by} · ${new Date(h.at).toLocaleString("id-ID")}`,
+        status: h.step,
+      })),
+    ];
+  }
   if (repayment && flow) {
     const note = flow.note?.series ?? flow.request.id;
     const due = repayment.dueAt ? day.format(repayment.dueAt) : "on disbursement";
@@ -1788,8 +1830,10 @@ export default function App() {
                   : flow?.documentSigning ? "DocuSeal" : "DocuSeal, or the officers' quorum"}
               </Badge>
               <small>Signing opens a DocuSeal form where one is configured. Otherwise the
-                cooperative's officers sign as an organisation, two of three.</small>
+                cooperative's officers sign as an organisation, and their own wallet
+                enforces the quorum.</small>
             </div>
+            {identity.label !== "Simulated" && flow && <BoardPanel facilityId={flow.request.id} />}
             <div className="two-column">
               <section>
                 <h3>Receipt details</h3>
@@ -2170,6 +2214,7 @@ export default function App() {
       onReset={resetDemo}
       onNavigate={navigate}
       flowPanel={flowPanel}
+      board={identity.label !== "Simulated" && !flow && activeRole === "Borrower" ? <div className="section-panel board-slot"><BoardPanel /></div> : null}
       stepOwner={stepOwner}
       lock={actionLock}
       navMarks={navMarks}
@@ -2382,11 +2427,13 @@ function HowItWorksPage({ onNavigate, onAccess }: { onNavigate: (view: View) => 
 }
 
 function AccessPage({
+  signedIn,
   selectedRole,
   onSelectRole,
   onContinue,
   onNavigate,
 }: {
+  signedIn: boolean;
   selectedRole: Role;
   onSelectRole: (role: Role) => void;
   onContinue: () => void;
@@ -2425,8 +2472,8 @@ function AccessPage({
                 ))}
               </div>
             </fieldset>
-            <button type="submit" className="access-submit">Continue</button>
-            <p className="access-note"><strong>Signing in proves identity, not authority.</strong> Production access also requires KYB plus a director mandate, power of attorney, or cooperative resolution.</p>
+            <button type="submit" className="access-submit">{signedIn ? "Continue" : "Continue with Privy"}</button>
+            <p className="access-note">{signedIn ? "Signed in. Your organisation wallet and signing quorum follow this account." : "Anora uses Privy for sign-in. Choose the workspace you are entering, then continue."}</p>
           </form>
         </div>
       </main>
@@ -2434,7 +2481,7 @@ function AccessPage({
   );
 }
 
-function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onReset, onNavigate, flowPanel, stepOwner, lock, navMarks, panels, identity, analytics }: {
+function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onReset, onNavigate, flowPanel, board, stepOwner, lock, navMarks, panels, identity, analytics }: {
   role: Role;
   section: string;
   onSection: (section: string) => void;
@@ -2444,6 +2491,7 @@ function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onRes
   onReset: () => void;
   onNavigate: (view: View) => void;
   flowPanel: React.ReactNode;
+  board: React.ReactNode;
   stepOwner: Role;
   lock: string | null;
   navMarks: Record<string, "action" | "waiting">;
@@ -2478,7 +2526,7 @@ function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onRes
             </button>
           ))}
         </nav>
-        <div className="workspace-links"><button type="button" onClick={() => onNavigate("how")}>How it works</button><button type="button" onClick={onSwitchRole}>Switch workspace</button></div>
+        <div className="workspace-links"><button type="button" onClick={() => onNavigate("how")}>How it works</button><button type="button" onClick={onSwitchRole}>Switch workspace</button><SignOutButton /></div>
       </aside>
       <main className="workspace-main">
         <div className="workspace-topbar"><div className="breadcrumb"><span>Workspace</span><span aria-hidden="true">/</span><strong>{section}</strong></div><div className="topbar-identity">{!inFlow && <button type="button" className={`topbar-action${actionOffscreen ? " visible" : ""}${lock ? " locked-action" : ""}`} onClick={onAction} disabled={!!lock} title={lock ?? undefined} tabIndex={actionOffscreen && !lock ? undefined : -1} aria-hidden={!actionOffscreen}>{lock && lockIcon}{meta.action}</button>}{identity ?? <strong>{role}</strong>}<button type="button" className="reset-demo" onClick={onReset}>Reset</button></div></div>
@@ -2486,6 +2534,7 @@ function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onRes
             breadcrumb and sidebar already say which section this is — so in the
             flow the page heading was the section name twice over. */}
         {!inFlow && <header className="workspace-heading"><div><span className="eyebrow">{section === "Overview" ? meta.eyebrow : role}</span><h1>{section === "Overview" ? meta.title : section}</h1><p>{section === "Overview" ? meta.summary : section === "Structuring" ? "See how collateral and policy determine the note." : `Review ${section.toLowerCase()} available to this workspace.`}</p>{lock && <p className="lock-note">{lockIcon}{lock}</p>}</div><button type="button" ref={headingAction} className={lock ? "locked-action" : undefined} disabled={!!lock} title={lock ?? undefined} onClick={onAction}>{lock && lockIcon}{meta.action}</button></header>}
+        {board}
         {inFlow ? flowPanel : <div className="section-panel">{panels[section] ?? analytics}</div>}
       </main>
     </div>
