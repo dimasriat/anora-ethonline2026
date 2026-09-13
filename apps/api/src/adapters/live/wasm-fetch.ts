@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
  *
  * This module must be imported before IDKit for the patch to be in place.
  */
-const original = globalThis.fetch;
+const original = globalThis.fetch.bind(globalThis);
 
 globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
   const href = typeof input === "string"

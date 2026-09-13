@@ -168,36 +168,40 @@ Worth noting what did work: the retry loop lived entirely in the app, and the
 second QR succeeded on the first attempt. The flow is not fragile, but its
 failure is silent on the side that needs to react to it.
 
-### 8. The bridge host in IDKit 4.2.4 has no DNS record
+### 8. `Failed: error sending request` names nothing, and the bridge answered 200
 
-Recorded 13 September 2026, mid-demo. Selfie Check worked twice that morning
-and then stopped, with the SDK reporting:
+Recorded 13 September 2026. Selfie Check worked twice that morning under Bun.
+After the API moved to Node, `IDKit.request` began failing with:
 
 ```
 Failed: error sending request
 ```
 
-The message names no host, so it reads like a network fault on our side. It is
-not. `bridge.world.org`, which the WASM dials, resolves nowhere:
+No host, no status, no stack, and `Object.getOwnPropertyNames` on the thrown
+value yields only that string. It reads like a network fault, so we spent an
+hour on our own DNS, TLS and firewall before instrumenting `globalThis.fetch`
+to print every outbound call. What it showed:
 
 ```
-dig +short @8.8.8.8 bridge.world.org   -> (empty)
-dig +short @1.1.1.1 bridge.world.org   -> (empty)
-dig +short @8.8.8.8 world.org          -> 172.66.167.18
+GET https://bridge.worldcoin.org/request -> 200
+Failed: error sending request
 ```
 
-The zone is alive on Cloudflare and `https://world.org` answers 200; only the
-`bridge` subdomain is missing. `bridge.worldcoin.org` still resolves and answers
-200, but its certificate covers only that name, so pointing the old hostname at
-it fails TLS. We tried `sandbox-bridge`, `bridge.sandbox` and `staging-bridge`
-under `world.org` as well: no records for any of them.
+The bridge answered. The failure is inside the module, immediately after a
+successful response, with no further request attempted. We could not get past
+it, and shipped the demo with the simulated adapter instead.
 
-4.2.4 is the newest version published, so there is no upgrade out of it.
+Two asks. Put the host, the status and the stage into that error: had it said
+which call failed, the hour would have been a minute. And if the WASM depends
+on runtime behaviour that differs between Bun and Node, say so in the docs;
+the same code, same version and same credentials work under one and not the
+other, which is the hardest kind of failure to attribute.
 
-Two asks. Keep `bridge.world.org` resolving, or ship a version that dials the
-name you intend to keep. And put the host in the error: "error sending request"
-sent us through our own runtime, our own TLS and our own firewall before we
-thought to check whether the name existed at all.
+Related and cheaper to fix: IDKit loads its WebAssembly by fetching a `file://`
+URL built from `import.meta.url` during module import. Bun resolves that
+scheme, Node refuses it, so the first failure under Node was
+`Failed to initialize IDKit WASM: TypeError: fetch failed`. Reading the bytes
+from disk would remove a whole class of runtime dependence.
 
 ## Developer Portal
 
