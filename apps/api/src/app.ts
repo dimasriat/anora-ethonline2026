@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { serveStatic } from "hono/bun";
 import { bearer, type Authenticator } from "./auth";
 import type { EligibilityChecker } from "./adapters/live/world";
 import type { Ports, TrancheName } from "@anora/core";
@@ -12,6 +11,11 @@ import { INVESTORS } from "./adapters/mock/investors";
 import { COMPLIANCE_OFFICERS, OFFICERS } from "./adapters/mock/wallet";
 import { applyIntake, intakeView, resetIntake, type IntakeAction } from "./intake";
 import { verifyDocuSealWebhook, type DocuSealClient } from "./docuseal";
+
+/* hono/bun reaches for the Bun global at import time, and the test runner has
+   none. The bundle is only ever served by the running app. */
+const onBun = typeof (globalThis as { Bun?: unknown }).Bun !== "undefined";
+const serveStatic = onBun ? (await import("hono/bun")).serveStatic : null;
 
 export function makeApp(
   ports: Ports,
@@ -306,7 +310,7 @@ export function makeApp(
   const built = "./apps/web/dist";
   /* hono/bun reaches for the Bun global, which the test runner does not have.
      The bundle is only ever served by the running app, never by a test. */
-  if (typeof (globalThis as { Bun?: unknown }).Bun !== "undefined") {
+  if (serveStatic) {
     app.use("/*", serveStatic({ root: built }));
     app.get("*", serveStatic({ path: `${built}/index.html` }));
   }

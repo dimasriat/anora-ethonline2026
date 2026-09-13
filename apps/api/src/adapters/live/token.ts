@@ -52,6 +52,13 @@ export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
     throw new Error(`${signature} failed: ${last}`);
   };
 
+  const record = (series: string, step: string, hash: string): void => {
+    if (!hash) return;
+    const note = notes.get(series);
+    if (!note) return;
+    note.receipts = [...(note.receipts ?? []), { step, hash }];
+  };
+
   const noteAt = (series: string): NoteToken => {
     const note = notes.get(series);
     if (!note) throw new Error(`unknown note series: ${series}`);
@@ -80,6 +87,7 @@ export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
       ], { cwd: CONTRACTS_DIR })).stdout;
 
       const address = /Deployed to: (0x[0-9a-fA-F]{40})/.exec(out)?.[1];
+      const deployHash = /Transaction hash: (0x[0-9a-fA-F]+)/.exec(out)?.[1] ?? "";
       if (!address) throw new Error(`deployment produced no address: ${out.slice(-300)}`);
 
       deployed.set(series, { address, partitions: partitions as Record<TrancheName, string> });
@@ -92,6 +100,7 @@ export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
         address,
       };
       notes.set(series, note);
+      record(series, "Deployed the note contract", deployHash);
       return note;
     },
 
@@ -105,20 +114,20 @@ export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
       if (!target) throw new Error(`unknown note series: ${series}`);
 
       const allowed = `[${target.partitions[tranche]}]`;
-      await send(target.address, "allow(address,bytes32[])", holder.address, allowed);
-      await send(
+      record(series, `Allowlisted ${holder.name ?? holder.address}`, await send(target.address, "allow(address,bytes32[])", holder.address, allowed));
+      record(series, `Allocated ${tranche} to ${holder.name ?? holder.address}`, await send(
         target.address,
         "allocate(bytes32,address,uint256)",
         target.partitions[tranche],
         holder.address,
         String(unitsIdr),
-      );
+      ));
     },
 
     async activate(series: string): Promise<NoteToken> {
       const target = deployed.get(series);
       if (!target) throw new Error(`unknown note series: ${series}`);
-      await send(target.address, "activate()");
+      record(series, "Activated the note", await send(target.address, "activate()"));
       const next: NoteToken = { ...noteAt(series), state: "active" };
       notes.set(series, next);
       return next;
@@ -127,7 +136,7 @@ export function liveTokenIssuer(config: ChainConfig): TokenIssuer {
     async redeem(series: string): Promise<NoteToken> {
       const target = deployed.get(series);
       if (!target) throw new Error(`unknown note series: ${series}`);
-      await send(target.address, "redeem()");
+      record(series, "Redeemed the note", await send(target.address, "redeem()"));
       const next: NoteToken = { ...noteAt(series), state: "redeemed" };
       notes.set(series, next);
       return next;
