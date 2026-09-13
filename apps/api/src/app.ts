@@ -6,6 +6,8 @@ import type { Ports, TrancheName } from "@anora/core";
 import { FACILITIES_PER_OWNER, makeFlow } from "./flow";
 import { FlowError, STATUS_FOR } from "./errors";
 import { qrSvg } from "./qr";
+import { makeBoardState } from "./board-state";
+import { makeBoard } from "./adapters/live/board";
 import { INVESTORS } from "./adapters/mock/investors";
 import { COMPLIANCE_OFFICERS, OFFICERS } from "./adapters/mock/wallet";
 import { applyIntake, intakeView, resetIntake, type IntakeAction } from "./intake";
@@ -37,7 +39,10 @@ export function makeApp(
       return c.json({ error: { code: error.code, message: error.message, ...error.detail } },
         STATUS_FOR[error.code] as 400);
     }
-    return c.json({ error: { code: "internal", message: error.message } }, 500);
+    /* A silent 500 is how the World check looked when the runtime changed:
+       the screen said nothing and so did the log. */
+    console.error("unhandled:", error);
+    return c.json({ error: { code: "internal", message: String(error?.message ?? error) } }, 500);
   });
 
   const id = (c: { req: { param: (k: string) => string } }) => c.req.param("id");
@@ -80,9 +85,48 @@ export function makeApp(
     });
   };
 
+  const board = process.env.PRIVY_APP_ID && process.env.PRIVY_APP_SECRET
+    ? makeBoardState(makeBoard({ appId: process.env.PRIVY_APP_ID, appSecret: process.env.PRIVY_APP_SECRET }))
+    : null;
+
+  const boardOr501 = () => {
+    if (!board) {
+      throw new FlowError("capability_not_available", "Privy is not configured", { capability: "wallet" });
+    }
+    return board;
+  };
+
+  const mandateMessage = (id: string) => `Financing mandate ${id}`;
+
+  app.get("/api/board", (c) => c.json(boardOr501().view()));
+
+  app.post("/api/board/enrol", async (c) => {
+    const { userId } = await callerOf(c);
+    return c.json(await boardOr501().enrol(userId));
+  });
+
+  app.get("/api/board/payload/:id", (c) => c.json(boardOr501().payload(mandateMessage(id(c)))));
+
+  app.post("/api/board/approve/:id", async (c) => {
+    const { userId } = await callerOf(c);
+    const body: { signature?: string } = await c.req.json().catch(() => ({}));
+    if (!body.signature) throw new FlowError("unknown_request", "signature is required");
+    return c.json(await boardOr501().approve(userId, body.signature, mandateMessage(id(c))));
+  });
+
   app.post("/api/eligibility/session", async (c) => {
     const { userId } = await callerOf(c);
-    const session = await checker.open(userId);
+    let session;
+    try {
+      session = await checker.open(userId);
+    } catch (cause) {
+      /* The proof route already names its failure; this one used to answer 500
+         with an empty body, which the page then showed as a JSON parse error. */
+      throw new FlowError("capability_not_available", "Could not open a World ID check", {
+        capability: "eligibility",
+        because: String((cause as Error)?.message ?? cause),
+      });
+    }
     return c.json({
       id: session.id,
       connectorURI: session.connectorURI,

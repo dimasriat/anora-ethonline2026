@@ -98,6 +98,23 @@ export type IntakeAction =
 export type IntakeOptions = { entityTypes: string[]; representativeRoles: string[]; commodities: string[]; warehouses: string[] };
 export type IntakeView = { state: IntakeState; options: IntakeOptions };
 
+export type AuthorizationRequest = {
+  version: 1;
+  method: "POST";
+  url: string;
+  body: unknown;
+  headers: Record<string, string>;
+};
+
+export type BoardView = {
+  quorum: number;
+  members: { officerId: string; name: string; role: string; enrolled: boolean }[];
+  walletAddress: string | null;
+  organizationId: string | null;
+  approvals: string[];
+  signature: string | null;
+};
+
 export type Mode = {
   adapters: { capability: string; mode: "live" | "testnet" | "simulated" | "planned" }[];
 };
@@ -116,6 +133,11 @@ const normalizeFlow = (raw: Flow & {
 
 export const api = {
   mode: () => call("/mode") as Promise<Mode>,
+  board: () => call("/board") as Promise<BoardView>,
+  enrolOfficer: () => call("/board/enrol", "POST") as Promise<BoardView>,
+  boardPayload: (id: string) => call(`/board/payload/${id}`) as Promise<AuthorizationRequest>,
+  approveMandateAsOfficer: (id: string, signature: string) =>
+    call(`/board/approve/${id}`, "POST", { signature }) as Promise<BoardView>,
   openCheck: () => call("/eligibility/session", "POST") as Promise<CheckSessionView>,
   readCheckSession: (id: string) => call(`/eligibility/session/${id}`) as Promise<CheckSessionView>,
   prospectus: (id: string) => call(`/requests/${id}/prospectus`) as Promise<Prospectus>,

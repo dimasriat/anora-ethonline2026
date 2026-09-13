@@ -168,6 +168,37 @@ Worth noting what did work: the retry loop lived entirely in the app, and the
 second QR succeeded on the first attempt. The flow is not fragile, but its
 failure is silent on the side that needs to react to it.
 
+### 8. The bridge host in IDKit 4.2.4 has no DNS record
+
+Recorded 13 September 2026, mid-demo. Selfie Check worked twice that morning
+and then stopped, with the SDK reporting:
+
+```
+Failed: error sending request
+```
+
+The message names no host, so it reads like a network fault on our side. It is
+not. `bridge.world.org`, which the WASM dials, resolves nowhere:
+
+```
+dig +short @8.8.8.8 bridge.world.org   -> (empty)
+dig +short @1.1.1.1 bridge.world.org   -> (empty)
+dig +short @8.8.8.8 world.org          -> 172.66.167.18
+```
+
+The zone is alive on Cloudflare and `https://world.org` answers 200; only the
+`bridge` subdomain is missing. `bridge.worldcoin.org` still resolves and answers
+200, but its certificate covers only that name, so pointing the old hostname at
+it fails TLS. We tried `sandbox-bridge`, `bridge.sandbox` and `staging-bridge`
+under `world.org` as well: no records for any of them.
+
+4.2.4 is the newest version published, so there is no upgrade out of it.
+
+Two asks. Keep `bridge.world.org` resolving, or ship a version that dials the
+name you intend to keep. And put the host in the error: "error sending request"
+sent us through our own runtime, our own TLS and our own firewall before we
+thought to check whether the name existed at all.
+
 ## Developer Portal
 
 Grouped separately because the prize asks about navigation, search, product

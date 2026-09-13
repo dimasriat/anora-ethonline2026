@@ -8,6 +8,7 @@ import BorrowerOnboarding from "./BorrowerOnboarding";
 import InstitutionOnboarding from "./InstitutionOnboarding";
 import { STACK_PORTS } from "./stack";
 import { useIdentityStanding } from "./identity";
+import BoardPanel from "./BoardPanel";
 import { noteDetail } from "./notes";
 import { suggestionFor } from "./amount";
 import {
@@ -1813,6 +1814,7 @@ export default function App() {
               <small>Signing opens a DocuSeal form where one is configured. Otherwise the
                 cooperative's officers sign as an organisation, two of three.</small>
             </div>
+            {identity.label !== "Simulated" && flow && <BoardPanel facilityId={flow.request.id} />}
             <div className="two-column">
               <section>
                 <h3>Receipt details</h3>
