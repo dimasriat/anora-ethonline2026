@@ -1,18 +1,23 @@
 {
   "name": "anora",
   "private": true,
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev:api": "bun run --hot apps/api/src/index.ts",
-    "demo:api": "bun run --hot apps/api/src/demo.ts",
-    "dev:web": "bun run --cwd apps/web dev",
-    "build": "bun run --cwd apps/web build",
-    "start": "bun run apps/api/src/index.ts",
+    "dev:api": "tsx watch apps/api/src/index.ts",
+    "demo:api": "tsx watch apps/api/src/demo.ts",
+    "dev:web": "pnpm --filter @anora/web dev",
+    "build": "pnpm --filter @anora/web build",
+    "start": "tsx apps/api/src/index.ts",
     "typecheck": "tsc -p packages/core && tsc -p apps/api && tsc -p apps/web",
-    "test": "bun test"
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/bun": "^1.1.14",
-    "typescript": "^5.7.2"
+    "tsx": "^4.23.13",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.0"
   }
 }
