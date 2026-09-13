@@ -58,7 +58,7 @@ export type OrgWallet = {
 
 /** A cooperative is not one person. Signing needs a quorum of its officers. */
 export interface WalletProvider {
-  createOrgWallet(officers: Officer[], threshold: number): Promise<OrgWallet>;
+  createOrgWallet(officers: Officer[], threshold: number, displayName?: string): Promise<OrgWallet>;
   signAsOrg(wallet: OrgWallet, signerIds: string[], message: string): Promise<string>;
 }
 

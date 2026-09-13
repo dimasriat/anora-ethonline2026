@@ -17,6 +17,12 @@ const OWNER = "did:privy:test";
 let flow: ReturnType<typeof makeFlow>;
 beforeEach(() => { flow = makeFlow(provable()); });
 
+const releaseFunds = async (id: string) => {
+  await flow.approveRelease(id, "OPS-1");
+  await flow.approveRelease(id, "OPS-2");
+  return flow.registerAndFund(id);
+};
+
 let owners = 0;
 
 const funded = async (owner = OWNER) => {
@@ -31,7 +37,7 @@ const funded = async (owner = OWNER) => {
   await flow.subscribe(id, "INV-BRS", "SENIOR", 270_000_000);
   await flow.subscribe(id, "INV-NFO", "SENIOR", 31_040_000);
   await flow.subscribe(id, "INV-KIT", "JUNIOR", 88_960_000);
-  await flow.registerAndFund(id);
+  await releaseFunds(id);
   return id;
 };
 

@@ -7,7 +7,7 @@ import { FACILITIES_PER_OWNER, makeFlow } from "./flow";
 import { FlowError, STATUS_FOR } from "./errors";
 import { qrSvg } from "./qr";
 import { INVESTORS } from "./adapters/mock/investors";
-import { OFFICERS } from "./adapters/mock/wallet";
+import { COMPLIANCE_OFFICERS, OFFICERS } from "./adapters/mock/wallet";
 import { applyIntake, intakeView, resetIntake, type IntakeAction } from "./intake";
 import { verifyDocuSealWebhook, type DocuSealClient } from "./docuseal";
 
@@ -185,6 +185,7 @@ export function makeApp(
     return c.json(await flow.approveMandate(id(c), body.officerId));
   });
   app.get("/api/officers", (c) => c.json(OFFICERS));
+  app.get("/api/operator-officers", (c) => c.json(COMPLIANCE_OFFICERS));
   app.post("/api/requests/:id/approve", async (c) => {
     await ownedBy(c, id(c));
     await requireEligibility(c, "Approving the facility");
@@ -197,6 +198,13 @@ export function makeApp(
   app.post("/api/requests/:id/tokenize", async (c) => {
     await ownedBy(c, id(c));
     return c.json(await flow.tokenize(id(c)));
+  });
+  app.post("/api/requests/:id/approve-release", async (c) => {
+    await ownedBy(c, id(c));
+    await requireEligibility(c, "Approving the release");
+    const body: { officerId?: string } = await c.req.json().catch(() => ({}));
+    if (!body.officerId) throw new FlowError("unknown_officer", "officerId is required");
+    return c.json(await flow.approveRelease(id(c), body.officerId));
   });
   app.post("/api/requests/:id/register", async (c) => {
     await ownedBy(c, id(c));

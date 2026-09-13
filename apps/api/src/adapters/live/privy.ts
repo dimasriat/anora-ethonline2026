@@ -74,7 +74,7 @@ export function makePrivy(config: PrivyConfig) {
   };
 
   return {
-    async createOrgWallet(officers: Officer[], threshold: number): Promise<OrgWallet> {
+    async createOrgWallet(officers: Officer[], threshold: number, displayName = "Organisation board"): Promise<OrgWallet> {
       const publicKeys: string[] = [];
       for (const officer of officers) {
         const pair = newKeyPair();
@@ -83,7 +83,7 @@ export function makePrivy(config: PrivyConfig) {
       }
 
       const quorum = await post("/key_quorums", {
-        display_name: "Cooperative board",
+        display_name: displayName,
         public_keys: publicKeys,
         authorization_threshold: threshold,
       });

@@ -8,11 +8,20 @@ export const OFFICERS: Officer[] = [
 
 export const QUORUM_THRESHOLD = 2;
 
+/* The operator is a different organisation from the cooperative, so releasing
+   funds answers to its own signers rather than the borrower's board. */
+export const COMPLIANCE_OFFICERS: Officer[] = [
+  { id: "OPS-1", name: "Petugas kepatuhan", role: "Compliance officer" },
+  { id: "OPS-2", name: "Kepala operasi", role: "Head of operations" },
+];
+
+export const COMPLIANCE_THRESHOLD = 2;
+
 export function mockWallet(): WalletProvider {
   let issued = 0;
 
   return {
-    async createOrgWallet(officers: Officer[], threshold: number): Promise<OrgWallet> {
+    async createOrgWallet(officers: Officer[], threshold: number, _displayName?: string): Promise<OrgWallet> {
       issued += 1;
       return {
         walletId: `sim-wallet-${issued}`,
