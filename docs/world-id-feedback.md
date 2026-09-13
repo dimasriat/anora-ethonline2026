@@ -142,6 +142,32 @@ Doing exactly that returns:
 `action` has to travel with the payload. Either the example should include it or
 the sentence should be qualified.
 
+### 7. A refused selfie strands the desktop page, and the code cannot be reused
+
+Recorded 13 September 2026, driving the real flow.
+
+The scan reached the Sandbox app, the selfie step failed, and the app offered
+**try again**. Retrying kept failing at the same step. What finally worked was
+abandoning that check and generating a fresh QR code.
+
+Two things follow from that.
+
+The first is ours, and we fixed it: our page sat on `Waiting for the scan…`
+with the button disabled, because the failure happened on the phone and the
+session never moved off `pending`. Anyone who is not the developer has no way
+to tell whether to keep waiting or start over.
+
+The second is World's. A code that the app has already refused stays outwardly
+valid: the connector URI still resolves, the session still reports `pending`,
+and nothing tells the relying party that this attempt is dead. If a refused
+selfie closed its session, or the status carried a terminal state the caller
+could poll, the desktop side could say so instead of guessing. As it stands,
+the only working recovery is one a first-time user would not think of.
+
+Worth noting what did work: the retry loop lived entirely in the app, and the
+second QR succeeded on the first attempt. The flow is not fragile, but its
+failure is silent on the side that needs to react to it.
+
 ## Developer Portal
 
 Grouped separately because the prize asks about navigation, search, product

@@ -55,8 +55,8 @@ export default function WorldIdCheck({ verified, onVerified }: {
 
   return (
     <>
-      <button type="button" className="secondary-button world-id-button" disabled={busy || reading?.phase === "waiting"} onClick={start}>
-        {busy ? "Opening the check…" : reading?.phase === "waiting" ? "Waiting for the scan…" : "Verify with World ID"}
+      <button type="button" className="secondary-button world-id-button" disabled={busy} onClick={start}>
+        {busy ? "Opening the check…" : reading?.phase === "waiting" ? "Waiting for the scan… tap for a new code" : "Verify with World ID"}
       </button>
       {error && <p className="world-id-note" role="alert">{error}</p>}
       {reading?.phase === "failed" && (
