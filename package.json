@@ -6,11 +6,11 @@
     "packages/*"
   ],
   "scripts": {
-    "dev:api": "tsx watch apps/api/src/index.ts",
-    "demo:api": "tsx watch apps/api/src/demo.ts",
+    "dev:api": "bun run --hot apps/api/src/index.ts",
+    "demo:api": "bun run --hot apps/api/src/demo.ts",
     "dev:web": "pnpm --filter @anora/web dev",
     "build": "pnpm --filter @anora/web build",
-    "start": "tsx apps/api/src/index.ts",
+    "start": "bun run apps/api/src/index.ts",
     "typecheck": "tsc -p packages/core && tsc -p apps/api && tsc -p apps/web",
     "test": "vitest run"
   },
