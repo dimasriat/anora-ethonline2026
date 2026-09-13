@@ -2378,3 +2378,12 @@ next to the field that fills it. */
   .structure-equation > div, .structure-equation > div:nth-of-type(even) { border-top: 1px solid var(--line); border-left: 0; }
   .structure-equation > div:first-of-type { border-top: 0; }
 }
+
+/* The sign-in panel has no form to fill, so it centres against the figure
+   beside it rather than stranding the button at the top of a tall card. */
+.signin-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+}

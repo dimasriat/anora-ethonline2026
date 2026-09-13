@@ -7,6 +7,7 @@ import IntakePanel from "./IntakePanel";
 import BorrowerOnboarding from "./BorrowerOnboarding";
 import InstitutionOnboarding from "./InstitutionOnboarding";
 import { STACK_PORTS } from "./stack";
+import { useIdentityStanding } from "./identity";
 import { noteDetail } from "./notes";
 import { suggestionFor } from "./amount";
 import {
@@ -953,7 +954,10 @@ export default function App() {
     navigate("access");
   };
 
-  const enterWorkspace = () => {
+  const identity = useIdentityStanding();
+  const signedIn = identity.label === "Connected" || identity.label === "Simulated";
+
+  const openWorkspace = () => {
     setActiveRole(selectedRole);
     sessionStorage.setItem(WORKSPACE_KEY, selectedRole);
     setWorkspaceSection("Overview");
@@ -964,6 +968,25 @@ export default function App() {
     setErr(null);
     navigate("workspace");
   };
+
+  /* Signing in and choosing a workspace are one step, so the picker does the
+     login itself and enters as soon as Privy answers. */
+  const [enterAfterSignIn, setEnterAfterSignIn] = useState(false);
+
+  const enterWorkspace = () => {
+    if (!signedIn && identity.login) {
+      setEnterAfterSignIn(true);
+      identity.login();
+      return;
+    }
+    openWorkspace();
+  };
+
+  useEffect(() => {
+    if (!enterAfterSignIn || !signedIn) return;
+    setEnterAfterSignIn(false);
+    openWorkspace();
+  }, [enterAfterSignIn, signedIn]);
 
   /* One control instead of an undo per role: clearing this browser's demo
      records and the shared server flow, then reloading, puts every workspace
@@ -1043,7 +1066,7 @@ export default function App() {
   }
 
   if (view === "access" || !activeRole) {
-    return <AccessPage selectedRole={selectedRole} onSelectRole={setSelectedRole} onContinue={enterWorkspace} onNavigate={navigate} />;
+    return <AccessPage signedIn={signedIn} selectedRole={selectedRole} onSelectRole={setSelectedRole} onContinue={enterWorkspace} onNavigate={navigate} />;
   }
 
   if (!intake || !intakeOptions) {
@@ -2382,11 +2405,13 @@ function HowItWorksPage({ onNavigate, onAccess }: { onNavigate: (view: View) => 
 }
 
 function AccessPage({
+  signedIn,
   selectedRole,
   onSelectRole,
   onContinue,
   onNavigate,
 }: {
+  signedIn: boolean;
   selectedRole: Role;
   onSelectRole: (role: Role) => void;
   onContinue: () => void;
@@ -2425,8 +2450,8 @@ function AccessPage({
                 ))}
               </div>
             </fieldset>
-            <button type="submit" className="access-submit">Continue</button>
-            <p className="access-note"><strong>Signing in proves identity, not authority.</strong> Production access also requires KYB plus a director mandate, power of attorney, or cooperative resolution.</p>
+            <button type="submit" className="access-submit">{signedIn ? "Continue" : "Continue with Privy"}</button>
+            <p className="access-note">{signedIn ? "Signed in. Your organisation wallet and signing quorum follow this account." : "Anora uses Privy for sign-in. Choose the workspace you are entering, then continue."}</p>
           </form>
         </div>
       </main>

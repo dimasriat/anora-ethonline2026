@@ -16,6 +16,8 @@ export const privyStanding = ({ simulated, ready, authenticated, carrying }: Pri
   return { label: "Signing in…", tone: "pending" };
 };
 
-export const IdentityContext = createContext<Standing>({ label: "Simulated", tone: "pending" });
+export type Identity = Standing & { login?: () => void };
 
-export const useIdentityStanding = () => useContext(IdentityContext);
+export const IdentityContext = createContext<Identity>({ label: "Simulated", tone: "pending" });
+
+export const useIdentityStanding = (): Identity => useContext(IdentityContext);
