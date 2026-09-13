@@ -48,7 +48,11 @@ Commits written with AI assistance carry a `Co-Authored-By: Claude` trailer, so
 | Interface | `apps/web/` | Written by Claude Code. Role ownership and hand-off framing follow Gama's storyboard |
 | Documentation | `docs/`, `README.md` | Written by Claude Code from measured results and human decisions |
 
-`contracts/src/Verifier.sol` is **generated**, not written, and is not committed.
+`contracts/src/Verifier.sol` is **generated**, not written. It is produced by
+`bb write_solidity_verifier` from the compiled eligibility circuit, and its 2,491
+lines are committed so the contract verified on HashScan at
+`0x96daE21bB0Ba3529032de506DBd7d875D56D8DFb` can be read from this repository.
+No human and no model edited it.
 
 ## Corrections and decisions the humans made
 
