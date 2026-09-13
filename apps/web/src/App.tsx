@@ -2213,7 +2213,7 @@ export default function App() {
       onReset={resetDemo}
       onNavigate={navigate}
       flowPanel={flowPanel}
-      board={identity.label !== "Simulated" && !flow && activeRole === "Borrower" ? <div className="section-panel"><BoardPanel /></div> : null}
+      board={identity.label !== "Simulated" && !flow && activeRole === "Borrower" ? <div className="section-panel board-slot"><BoardPanel /></div> : null}
       stepOwner={stepOwner}
       lock={actionLock}
       navMarks={navMarks}

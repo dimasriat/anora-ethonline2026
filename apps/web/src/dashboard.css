@@ -605,5 +605,17 @@
 .derivation { margin-top: 14px; }
 .derivation strong { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 
-.board-panel { margin-top: 16px; }
+/* .analytics-panel pads its own header and footer, never a bare run of
+   children. This panel is a bare run, so its button sat on the bottom edge
+   and its text was inset by nothing but its own margins. */
+.board-panel { margin-top: 16px; padding: 20px 22px 22px; }
+.board-panel > h3 { margin: 0 0 12px; font-size: 15px; font-weight: 500; }
+.board-panel > .supporting-copy { margin: 0 0 16px; }
+.board-panel > dl.wide { margin: 0 0 16px; }
+.board-panel .actions { margin-top: 18px; }
+
+/* The dashboard content this sits above is capped; without the same cap the
+   panel ran 142px wider than the cards directly beneath it. */
+.board-slot { margin-bottom: 20px; }
+@media (min-width: 1650px) { .board-slot { max-width: 1450px; } }
 .board-panel code { font-size: 11.5px; word-break: break-all; }

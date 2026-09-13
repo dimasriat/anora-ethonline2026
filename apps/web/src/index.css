@@ -1863,6 +1863,9 @@ stated before the data it qualifies. */
 .proof-disclosure strong { font-size: 13px; }
 .proof-disclosure span { color: var(--muted); font-size: 12.5px; line-height: 1.55; }
 
+/* Sits among .card siblings in the flow column, which cap at 920px. */
+.flow-main > .technical-details { max-width: 920px; }
+
 .technical-details {
   background: var(--surface);
   border: 1px solid var(--line);
