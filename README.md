@@ -1,49 +1,59 @@
 # Anora
 
-Anora turns verified Indonesian electronic warehouse receipts into structured,
-permissioned credit facilities without exposing sensitive commercial data.
+Anora connects warehouse-receipt owners with institutional capital through
+zero-knowledge proofs and permissioned tranches.
+
+In Indonesia, Anora works with the
+[Warehouse Receipt System (Sistem Resi Gudang, or SRG)](https://en.antaranews.com/news/273924/warehouse-receipt-system-empowers-farmers-trade-ministry).
+It helps commodity owners finance stored goods without selling early, while
+investors take only the risk their mandates allow.
 
 Built for ETHOnline 2026, Classic / From Scratch track.
 
-## The problem
+## Why Anora
 
-Commodity producers and businesses frequently possess valuable inventories yet
-remain constrained by inadequate liquidity, as their capital is locked in
-storage until the goods are sold. Although Indonesia's Sistem Resi Gudang (SRG)
-was designed to make stored commodities viable collateral, participation
-remains limited because the evidence required for financing is fragmented
-across physical supply chains and difficult to share without exposing
-commercially sensitive information. Anora introduces selective traceability by
-linking warehouse and field attestations to cryptographic commitments, then
-using zero-knowledge proofs to verify specific financing conditions without
-revealing the underlying records. It makes financing conditional on a defined
-set of verifiable claims. A verified e-SRG can then support a tokenized
-financing claim divided into structured positions for eligible capital
-providers, giving institutions clearer evidence while preserving the boundaries
-of what the technology can prove.
+Commodity owners often need capital before their goods are sold. Without formal
+financing, they may have to sell early through
+[informal middlemen (*tengkulak*)](https://www.thejakartapost.com/longform/2020/08/13/a-land-without-farmers-indonesias-agricultural-conundrum),
+reducing their ability to negotiate a fair price.
 
-## What this builds
+Warehouse receipts make stored commodities usable as collateral. Yet financing
+remains difficult because the evidence is fragmented and each participant must
+verify the same facility separately.
 
-A financing facility backed by one verified e-SRG, issued as a permissioned
-security token with facility-specific Senior and Junior tranches whose terms are
-fixed before subscription, where selective traceability and eligibility are
-proven without disclosing confidential commercial records.
+Anora brings the process into one traceable workflow. Zero-knowledge proofs
+verify financing conditions without disclosing the underlying records, while
+permissioned tranches let investors take exposure that fits their mandates.
+This helps attract suitable capital while the commodity owner retains control
+over when the goods are sold.
 
-1. The **warehouse and regulated registry remain legally authoritative.** Anora
-   does not transfer ownership of the receipt on-chain; the token represents a
-   financing claim, while the security interest is recorded through the
-   existing SRG framework.
-2. **Zero-knowledge is applied.** It proves that committed warehouse and field
-   records satisfy defined financing conditions without revealing supplier
-   identities, purchase prices, or underlying documents.
-3. **Permissioning is demonstrated through enforcement.** Participation and
-   transfers are restricted to eligible capital providers, and transactions
-   that fail the allowlist or tranche mandate are explicitly refused.
-4. **Technology supports institutional trust.** Accredited inspectors and
-   warehouse operators attest to the physical goods, while Compliance reviews
-   that evidence and makes financing conditional on verified records.
-   Cryptography protects and selectively proves those records; it does not
-   establish physical truth by itself.
+The shared financing record also makes oversight more efficient for regulated
+participants and
+[Bappebti, Indonesia's Commodity Futures Trading Regulatory Agency](https://ojk.go.id/en/berita-dan-kegiatan/siaran-pers/Pages/Bappebti-Transfers-Regulation-and-Supervision-Duties-on-Digital-Financial-Assets-Crypto-Assets-and-Derivatives-to-OJK-BI.aspx).
+Anora supports the existing SRG framework; it does not replace its registry or
+legal processes.
+
+## How it works
+
+1. **Select** — The commodity owner chooses a warehouse receipt to finance.
+2. **Verify** — Anora proves that the receipt meets the facility's requirements
+   without publishing the underlying records.
+3. **Structure** — The facility is divided into permissioned tranches with
+   different levels of risk.
+4. **Fund** — Eligible investors subscribe to a tranche that fits their mandate.
+   The commodity owner receives capital without selling the goods early.
+5. **Settle** — Repayment follows the facility terms and is recorded in a shared
+   audit trail.
+
+Anora provides a verifiable financing layer around them.
+
+## Product highlights
+
+| Facility dashboard | Receipt financing | ZKP private verification |
+|:---:|:---:|:---:|
+| ![Facility dashboard](docs/img/screenshots/facility-dashboard.png) | ![Receipt financing](docs/img/screenshots/receipt-financing.png) | ![ZKP private verification](docs/img/screenshots/private-verification.png) |
+| **Facility structuring** | **Tranche subscription** | **Settlement waterfall** |
+| ![Facility structuring](docs/img/screenshots/facility-structuring.png) | ![Tranche subscription](docs/img/screenshots/tranche-subscription.png) | ![Settlement waterfall](docs/img/screenshots/settlement-waterfall.png) |
 
 ## Design process
 
@@ -71,25 +81,6 @@ bun run dev:web -- --port 3334
 Open `http://127.0.0.1:3334/`. The demo API runs the complete role workflow
 without Hedera or identity credentials. The normal `start` and `dev:api`
 commands continue to use the repository's configured adapters.
-
-## DocuSeal signing
-
-Copy `.env.example` to `.env`, add the DocuSeal Cloud API key, verified template
-ID, and webhook secret, then configure DocuSeal to send `submission.completed`
-to the public `/api/webhooks/docuseal` endpoint. The backend creates an
-individual `/s/{slug}` signing session and only unlocks Compliance review after
-the signed webhook passes `X-Docuseal-Signature` verification. The existing
-shared `/d/Awg1hAT1aLHFsQ` URL identifies the form, not its numeric template ID.
-
-## Provenance
-
-This repository was started on 6 September 2026 and all code in it is written
-during the hackathon.
-
-The team's domain research predates it: the Indonesian warehouse-receipt system,
-tea sector price data, and the product framing come from notes and conversations
-that are not code and are not in this repository. Where a figure comes from an
-outside source, the source is named at the point it is used.
 
 ## Team
 

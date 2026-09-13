@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { syncWorkspace } from "./workspace-sync";
 import { isSigningUnavailable } from "./mandate-route";
 import { flushSync } from "react-dom";
@@ -8,17 +8,26 @@ import BorrowerOnboarding from "./BorrowerOnboarding";
 import InstitutionOnboarding from "./InstitutionOnboarding";
 import { STACK_PORTS } from "./stack";
 import { noteDetail } from "./notes";
-import { caretAfterDigits, digitsBefore, digitsOf, formatIdr, suggestionFor } from "./amount";
+import { suggestionFor } from "./amount";
 import {
   api, rp,
   type Band, type Chain, type ESrg, type Flow, type IntakeAction, type IntakeOptions, type IntakeState, type Investor, type Mode,
   type Note, type Position, type TrancheName,
 } from "./api";
+import { Badge, Card, ErrorBanner, groupDigits, NumberField, PendingAction, RailRow, Row, Source } from "./ui";
+import {
+  CollateralPanel, DistributionPanel, FundingGatePanel, kg, pct, rpExact, SaleQuoteLines,
+  SettlementPanel, StructuringPanel, type ScheduledDistribution,
+} from "./FacilityPanels";
+import {
+  collateralView, flowApprovedFace, flowIssuedFace, observationFrom, proposalFor,
+} from "./facility-view";
+import { purchase, DEMONSTRATION_FEES, DEMONSTRATION_POLICY } from "@anora/core";
+import type { CollateralReport } from "@anora/core";
 
 type Role = "Borrower" | "Capital Provider" | "Compliance";
 type Screen = "pick" | "mandate" | "review" | "proof" | "note" | "fund" | "done";
 type View = "landing" | "how" | "access" | "workspace";
-type DistributionKind = "Coupon" | "Dividend" | "Royalty";
 
 const SCREEN: Record<Screen, { actor: Role; eyebrow: string; title: string; summary?: string }> = {
   pick: {
@@ -32,12 +41,12 @@ const SCREEN: Record<Screen, { actor: Role; eyebrow: string; title: string; summ
     title: "Sign the mandate",
   },
   review: {
-    actor: "Compliance",
+    actor: "Borrower",
     eyebrow: "Facility review",
     title: "Review the request",
   },
   proof: {
-    actor: "Compliance",
+    actor: "Borrower",
     eyebrow: "Private verification",
     title: "Verify eligibility",
   },
@@ -71,11 +80,16 @@ const ROLE_ICONS: Record<Role, string> = {
  *  the real ownership: SCREEN[].actor only describes whose concern the copy is. */
 const STEP_OWNER: Record<string, Role> = {
   draft: "Borrower",
-  mandate_signed: "Compliance",
-  approved: "Compliance",
+  /* Review and proof carry no decision, so they run from the borrower's own
+     page. These two entries are the retry owner when a run fails, not a queue
+     anyone waits in. */
+  mandate_signed: "Borrower",
+  approved: "Borrower",
+  /* The one step Compliance still holds: issuing the note mints a real ATS
+     token, and a person presses that. */
   proven: "Compliance",
   tokenized: "Capital Provider",
-  subscribed: "Compliance",
+  subscribed: "Capital Provider",
   funded: "Capital Provider",
   repaid: "Capital Provider",
 };
@@ -92,6 +106,17 @@ const STEP_SCREEN: Record<string, Screen> = {
   funded: "done",
   repaid: "done",
 };
+/** Whose page draws a screen. The step still decides which screen is current. */
+const SCREEN_ROLES: Record<Screen, Role[]> = {
+  pick: ["Borrower", "Compliance"],
+  mandate: ["Borrower", "Compliance"],
+  review: ["Borrower", "Compliance"],
+  proof: ["Borrower", "Compliance"],
+  note: ["Borrower", "Capital Provider", "Compliance"],
+  fund: ["Borrower", "Compliance"],
+  done: ["Borrower", "Capital Provider", "Compliance"],
+};
+
 const ROLE_COPY: Record<Role, { summary: string; detail: string }> = {
   Borrower: {
     summary: "Raise working capital against stored inventory.",
@@ -110,7 +135,7 @@ const ROLE_COPY: Record<Role, { summary: string; detail: string }> = {
 const WORKSPACE_NAV: Record<Role, string[]> = {
   Borrower: ["Overview", "My e-SRGs", "Financing requests", "Documents", "Repayments"],
   "Capital Provider": ["Overview", "Opportunities", "My notes", "Transfers", "Cashflows"],
-  "Compliance": ["Overview", "Review queue", "Registry controls", "Funding & settlement", "Audit trail"],
+  "Compliance": ["Overview", "Review queue", "Structuring", "Registry controls", "Funding & settlement", "Audit trail"],
 };
 
 const NAV_ICONS: Record<string, string> = {
@@ -124,6 +149,7 @@ const NAV_ICONS: Record<string, string> = {
   Transfers: "M3 7h18m-4-4 4 4-4 4M21 17H3m4-4-4 4 4 4",
   Cashflows: "M3 3v18h18M7 16v-4m5 4V7m5 9v-6",
   "Review queue": "M8 4H4v18h16V4h-4M8 2h8v4H8V2Zm0 9h8m-8 5h5",
+  Structuring: "M4 20V10m5 10V4m5 16v-7m5 7V8M3 20h18",
   "Registry controls": "M12 2 3 6v6c0 5 9 10 9 10s9-5 9-10V6l-9-4Zm-4 10 3 3 5-6",
   "Funding & settlement": "M3 21h18M3 7l9-5 9 5H3Zm3 3v7m6-7v7m6-7v7M3 17h18",
   "Audit trail": "M9 3H4v18h16v-5M14 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm3 7 4 4M8 15h5m-5 3h8",
@@ -259,8 +285,8 @@ const JOURNEY: Record<Role, { label: string; hint: string; from: string }[]> = {
   Borrower: [
     { label: "Receipt", hint: "Select a receipt for review", from: "none" },
     { label: "Mandate", hint: "Review and sign", from: "draft" },
-    { label: "Compliance review", hint: "Documents, lien and eligibility checks", from: "mandate_signed" },
-    { label: "Note", hint: "Eligibility passed; Compliance issues note", from: "proven" },
+    { label: "Review and proof", hint: "Runs here, no approval to wait for", from: "mandate_signed" },
+    { label: "Note", hint: "Eligibility passed; Compliance issues the note", from: "proven" },
     { label: "Funded", hint: "Capital committed against your note", from: "tokenized" },
     { label: "Repayment", hint: "Track and release", from: "funded" },
   ],
@@ -273,12 +299,12 @@ const JOURNEY: Record<Role, { label: string; hint: string; from: string }[]> = {
     { label: "Cashflow", hint: "Track maturity proceeds", from: "funded" },
     { label: "Redemption", hint: "Return paid and units retired", from: "repaid" },
   ],
+  /* Compliance gates one step and supervises the rest. Review, eligibility and
+     settlement left this rail when they stopped being decisions. */
   "Compliance": [
-    { label: "Submission", hint: "Await borrower mandate", from: "none" },
-    { label: "Review", hint: "Check documents and lien", from: "mandate_signed" },
-    { label: "Eligibility", hint: "Run the private proof", from: "approved" },
-    { label: "Note", hint: "Create the draft", from: "proven" },
-    { label: "Settlement", hint: "Registry and release", from: "subscribed" },
+    { label: "Standby", hint: "Nothing waits on this desk", from: "none" },
+    { label: "Note", hint: "Issue the ATS note", from: "proven" },
+    { label: "Oversight", hint: "Controls, audit and distributions", from: "funded" },
   ],
 };
 
@@ -296,6 +322,7 @@ const PROOF_COPY: Record<string, string> = {
  *  falls back to the generic sentence — a raw server string never reaches a user. */
 const GATE_COPY: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^receipt intake incomplete$/, () => "Complete the human check and obtain compliance receipt acceptance before starting financing."],
+  [/^(.+) needs a completed eligibility check$/, (m) => `${m[1]} needs a completed eligibility check. Verify with World ID first.`],
   [/^(.+) belum lolos allowlist: (.+)$/, (m) => `${m[1]} is not allowlisted — ${m[2]}.`],
   [/^mandat (.+) tidak mencakup tranche (.+)$/, (m) => `${m[1]}'s mandate does not cover the ${m[2] === "SENIOR" ? "Senior" : "Junior"} tranche.`],
   [/^di bawah tiket minimum (.+)$/, (m) => `That amount is below ${m[1]}'s minimum ticket.`],
@@ -388,6 +415,8 @@ const ACTOR_COPY: Record<string, string> = {
 };
 
 const SEQ_STEP_MS = 260;
+/** Long enough to read the registry check that acceptance is re-asserting. */
+const RECEIPT_CHECK_MS = 1_600;
 
 const REVIEW_CHECKS = [
   "Receipt signature and document hash",
@@ -398,7 +427,6 @@ const REVIEW_CHECKS = [
 ];
 
 const MANDATE_DOCS = [
-  "Tokenization application",
   "Financing mandate",
   "Registry inquiry consent",
   "Data and privacy consent",
@@ -435,8 +463,20 @@ const formatDate = (value: string) => day.format(new Date(`${value}T00:00:00Z`))
  *  amortisation schedule (the demo has no lender calendar) but it is the note's
  *  own arithmetic, so the borrower, the capital provider, and Compliance all
  *  read one number and all three change together when it is repaid. */
+/**
+ * ANO-24 §4, not an approximation of it.
+ *
+ * This used to be `Math.round(face / (1 + y * t))`, which agrees with the
+ * normative rule on most inputs and disagrees exactly at the ties — where a
+ * screen must not disagree with the chain. The integer form rounds a half
+ * upward; an unqualified division quietly favours the issuer every time.
+ */
 const issuePrice = (faceValueIdr: number, returnBp: number, termDays: number) =>
-  Math.round(faceValueIdr / (1 + (returnBp / 10_000) * (termDays / 365)));
+  Number(purchase(
+    BigInt(Math.max(0, Math.trunc(faceValueIdr))),
+    BigInt(Math.max(0, Math.trunc(returnBp))),
+    BigInt(Math.max(1, Math.trunc(termDays))),
+  ));
 const targetReturn = (faceValueIdr: number, returnBp: number, termDays: number) =>
   faceValueIdr - issuePrice(faceValueIdr, returnBp, termDays);
 
@@ -444,7 +484,11 @@ function repaymentOf(flow: Flow | null, bands: Band[]) {
   if (!flow || !bands.length) return null;
   const term = flow.request.maturityDays;
   const faceValueIdr = bands.reduce((total, band) => total + band.subscribedIdr, 0);
-  const principalIdr = bands.reduce((total, band) => total + band.purchasePriceIdr, 0);
+  /* The API answers `purchasePriceIdr: 0` for every band, which made this read
+     "Rp 0 drawn" against a full-face return. Price the book from the band's own
+     yield until the controller reports a locked price of its own. */
+  const principalIdr = bands.reduce((total, band) =>
+    total + (band.purchasePriceIdr || issuePrice(band.subscribedIdr, band.returnBp, term)), 0);
   const returnIdr = faceValueIdr - principalIdr;
   const fundedAt = flow.history.find((item) => item.step === "funded")?.at ?? null;
   return {
@@ -520,16 +564,8 @@ export default function App() {
   const investorPicked = useRef(false);
   const [tranche, setTranche] = useState<TrancheName>("SENIOR");
   const [amount, setAmount] = useState("");
-  const amountRef = useRef<HTMLInputElement>(null);
-  const pendingCaret = useRef<number | null>(null);
+  const amountRef = useRef<HTMLInputElement | null>(null);
 
-  useLayoutEffect(() => {
-    const field = amountRef.current;
-    if (!field || pendingCaret.current === null) return;
-    const caret = caretAfterDigits(field.value, pendingCaret.current);
-    pendingCaret.current = null;
-    field.setSelectionRange(caret, caret);
-  }, [amount]);
   const [recipientId, setRecipientId] = useState("");
   const [startingNew, setStartingNew] = useState(false);
   const [esrgs, setEsrgs] = useState<ESrg[]>([]);
@@ -555,13 +591,12 @@ export default function App() {
   const [controlInvestorId, setControlInvestorId] = useState("");
   const [kycOverrides, setKycOverrides] = useState<Record<string, boolean>>({});
   const [mandateOverrides, setMandateOverrides] = useState<Record<string, TrancheName[]>>({});
-  const [distributionKind, setDistributionKind] = useState<DistributionKind>("Coupon");
-  const [distributionAmount, setDistributionAmount] = useState("4500000");
-  const [distributions, setDistributions] = useState<{ id: number; kind: DistributionKind; amountIdr: number; feeIdr: number; status: "Scheduled" | "Distributed" }[]>([
-    { id: 1, kind: "Coupon", amountIdr: 4_500_000, feeIdr: 22_500, status: "Scheduled" },
-    { id: 2, kind: "Dividend", amountIdr: 3_000_000, feeIdr: 15_000, status: "Distributed" },
-    { id: 3, kind: "Royalty", amountIdr: 1_250_000, feeIdr: 6_250, status: "Distributed" },
-  ]);
+  /* Scheduled here rather than seeded: three rows of invented history read as
+     settled facts, and each carried a fee that no configured rate produced. */
+  const [distributions, setDistributions] = useState<ScheduledDistribution[]>([]);
+  /* An observation a role entered in this window. Null means "as the receipt
+     stands", which is what the API can actually tell us. */
+  const [observation, setObservation] = useState<CollateralReport | null>(null);
   const [sequence, setSequence] = useState<{ id: string; count: number } | null>(null);
   const [activityAll, setActivityAll] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -620,10 +655,14 @@ export default function App() {
   const intakeIds = Object.keys(intake?.receipts ?? {});
   const latestIntakeId = [...intakeIds].reverse().find(id => intake?.receipts[id] === "accepted") ?? intakeIds[intakeIds.length - 1];
   const facility = flowReceipt ?? selectedReceipt ?? esrgs.find(esrg => esrg.id === latestIntakeId) ?? null;
-  const stepOwner: Role = flow && !startingNew ? STEP_OWNER[flow.step] ?? "Borrower" : Object.values(intake?.receipts ?? {}).includes("proposed") && !acceptedReceipts.length ? "Compliance" : "Borrower";
+  /* A proposed receipt used to be Compliance's turn. It accepts itself now, so
+     the borrower is never told to go and wait on another desk. */
+  const stepOwner: Role = flow && !startingNew ? STEP_OWNER[flow.step] ?? "Borrower" : "Borrower";
   const screen: Screen = !flow || startingNew
     ? "pick"
     : STEP_SCREEN[flow.step] ?? "pick";
+
+  const onScreen = (name: Screen) => screen === name && !!activeRole && SCREEN_ROLES[name].includes(activeRole);
 
   useEffect(() => { headingRef.current?.focus(); }, [screen, activeRole]);
 
@@ -638,6 +677,9 @@ export default function App() {
     api.tranches(requestId).then(setBands).catch(() => {});
     api.positions(requestId).then(setPositions).catch(() => {});
   }, [flow?.request.id, flow?.step, flow?.subscriptions.length, flow?.transfers.length]);
+
+  /** An observation is about one receipt; selecting another discards it. */
+  useEffect(() => { setObservation(null); }, [facility?.id]);
 
   /** Contract state is keyed by receipt hash, so it has to follow the selection. */
   useEffect(() => {
@@ -663,7 +705,6 @@ export default function App() {
      "how much has this borrower raised". */
   const issuedIdr = bands.reduce((total, band) => total + band.capacityIdr, 0);
   const subscribedIdr = bands.reduce((total, band) => total + band.subscribedIdr, 0);
-  const purchasePriceIdr = bands.reduce((total, band) => total + band.purchasePriceIdr, 0);
   const juniorBand = bands.find((band) => band.name === "JUNIOR")?.capacityIdr ?? 0;
   const seniorBand = bands.find((band) => band.name === "SENIOR")?.capacityIdr ?? 0;
   const juniorCommitted = bandOf("JUNIOR")?.subscribedIdr ?? 0;
@@ -672,6 +713,23 @@ export default function App() {
      tranche rates that carry different weight. */
   const blendedBp = issuedIdr ? bands.reduce((n, b) => n + b.capacityIdr * b.returnBp, 0) / issuedIdr : 0;
   const repayment = repaymentOf(flow, bands);
+
+  /* ANO-24's view of this facility, derived from what the API does return.
+     The collateral report starts as the receipt itself — one quantity, so the
+     registry and warehouse counts agree — and a role may vary it to exercise
+     the reconciliation the controller owns. */
+  const report = observation ?? observationFrom(facility, 0n);
+  const issuedFaceIdr = flowIssuedFace(bands);
+  const approvedFaceIdr = flowApprovedFace(flow, bands);
+  const collateral = useMemo(
+    () => collateralView(report, DEMONSTRATION_POLICY, approvedFaceIdr, issuedFaceIdr, observation ? "local" : "derived"),
+    [report, approvedFaceIdr, issuedFaceIdr, observation],
+  );
+  const requestedFaceIdr = BigInt(Math.trunc(flow?.request.requestedIdr ?? 0)) || collateral.faceCeilingIdr;
+  const proposal = useMemo(
+    () => proposalFor(report, DEMONSTRATION_POLICY, requestedFaceIdr, collateral.faceCeilingIdr),
+    [report, requestedFaceIdr, collateral.faceCeilingIdr],
+  );
   /** Largest ticket this investor could write into what is left of the tranche. */
   const suggested = me ? Math.min(room, me.ticketIdr.max) : 0;
   const suggestedPrice = open ? issuePrice(Number(amount) || 0, open.returnBp, flow?.request.maturityDays ?? 90) : 0;
@@ -735,6 +793,10 @@ export default function App() {
   const proofChecks = flow?.proof?.checks ?? [];
   const proofCursor = useSequence(proofChecks.length, flow?.proof?.nullifier ?? "");
 
+  /** Which leg of the automatic run is on screen, so the two steps it passes
+   *  through show progress instead of a button nobody needs to press. */
+  const [autoStage, setAutoStage] = useState<null | "review" | "proof">(null);
+
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setErr(null);
@@ -753,6 +815,45 @@ export default function App() {
     setFlow(await api.step(flow!.request.id, step));
   });
 
+  /**
+   * Review and proof, run from wherever the mandate was signed.
+   *
+   * Neither step holds a decision: `approve` stamps evidence that the proof
+   * then checks, and the proof is a circuit. They were two workspace switches
+   * and four clicks for machine work, so they follow the signature instead.
+   *
+   * It stops at `proven` on purpose — issuing the note mints a real ATS token
+   * and stays a Compliance click. A failure leaves the facility at whatever
+   * step it reached, so the retry appears where the borrower already is.
+   */
+  const openTheBook = async (id: string) => {
+    try {
+      setAutoStage("review");
+      setSequence({ id: `approve-${Date.now()}`, count: REVIEW_CHECKS.length });
+      try {
+        const [reviewed] = await Promise.all([
+          api.step(id, "approve"),
+          new Promise((resolve) => setTimeout(resolve, REVIEW_CHECKS.length * SEQ_STEP_MS + 240)),
+        ]);
+        setFlow(reviewed);
+      } finally {
+        setSequence(null);
+      }
+      setAutoStage("proof");
+      setFlow(await api.step(id, "prove"));
+    } finally {
+      setAutoStage(null);
+    }
+  };
+
+  /**
+   * DocuSeal when it is configured; the officers' quorum when it is not.
+   *
+   * The fallback is not a stand-in for a signature — it is the other real way
+   * this mandate gets signed, and the one STATUS.md calls live: Privy holds a
+   * 2-of-3 key quorum and refuses a single approval itself. Without it an
+   * environment with no DocuSeal account cannot leave the first step at all.
+   */
   const beginDocumentSigning = () => {
     const signingWindow = window.open("about:blank", "_blank");
     run(async () => {
@@ -763,8 +864,10 @@ export default function App() {
         else signingWindow?.close();
       } catch (error) {
         signingWindow?.close();
-        if (!isSigningUnavailable(error)) throw error;
-        setFlow(await api.step(flow!.request.id, "sign-mandate"));
+        if (!/docuseal is not configured/i.test((error as Error).message)) throw error;
+        const signed = await api.step(flow!.request.id, "sign-mandate");
+        setFlow(signed);
+        if (signed.step === "mandate_signed") await openTheBook(signed.request.id);
       }
     });
   };
@@ -786,9 +889,14 @@ export default function App() {
 
   const subscribe = () => run(async () => {
     const commitment = { investorId, tranche, unitsIdr: Number(amount) };
-    const next = await api.subscribe(flow!.request.id, {
+    let next = await api.subscribe(flow!.request.id, {
       ...commitment,
     });
+    /* The commitment that fills the book also funds it. Recording the security
+       right and releasing funds reconciles two registers and flips the note —
+       no judgement in any of it, so it follows the subscription rather than
+       waiting for someone to switch workspace and press one more button. */
+    if (next.step === "subscribed") next = await api.step(next.request.id, "register");
     setFlow(next);
     setLastCommitment(commitment);
     setAmount("");
@@ -816,13 +924,6 @@ export default function App() {
   const freezeInvestor = (id: string, frozen: boolean) => run(async () => {
     setFlow(await api.freeze(flow!.request.id, id, frozen));
   });
-
-  const scheduleDistribution = () => {
-    const amountIdr = Number(distributionAmount);
-    if (amountIdr <= 0) return;
-    setDistributions((items) => [...items, { id: Date.now(), kind: distributionKind, amountIdr, feeIdr: Math.floor(amountIdr * 0.005), status: "Scheduled" }]);
-    setDistributionAmount("");
-  };
 
   /** Only clears this window's view; the facility itself stays on the server
    *  until a new request replaces it as the most recent one. */
@@ -912,6 +1013,17 @@ export default function App() {
       setIntake(view.state);
       setIntakeOptions(view.options);
       setErr(null);
+      /* Acceptance only re-asserts what proposal already established: the
+         holder matches the registered entity, and the receipt carries no
+         encumbrance. Both are checked before a proposal is recorded at all, so
+         the borrower watches it settle rather than switching workspace to
+         press a button whose answer is already known. */
+      if (action.kind === "propose") {
+        await new Promise((resolve) => setTimeout(resolve, RECEIPT_CHECK_MS));
+        const accepted = await api.intakeAct("Compliance", { kind: "accept", receiptId: action.receiptId });
+        setIntake(accepted.state);
+        setIntakeOptions(accepted.options);
+      }
     } catch (error) { setErr(error instanceof Error ? error.message : "Could not record that step."); }
   };
   const registerDemoBorrower = async (profile: import("./api").BorrowerProfile) => {
@@ -1004,6 +1116,19 @@ export default function App() {
     </label>
   );
 
+  /* Where the typed ticket falls between this investor's floor and what the
+     tranche still has room for, held as a position so the limits can be drawn
+     instead of described. */
+  const ticketMin = me?.ticketIdr.min ?? 0;
+  const ticketMax = Math.min(room, me?.ticketIdr.max ?? 0);
+  const ticketBlocked = !!me && room < ticketMin;
+  const ticketValue = Number(amount) || 0;
+  const ticketAt = ticketMax > ticketMin
+    ? Math.min(1, Math.max(0, (ticketValue - ticketMin) / (ticketMax - ticketMin)))
+    : 0;
+  const ticketOutside = ticketValue > 0 && (ticketValue < ticketMin || ticketValue > ticketMax);
+
+  /** Only the workspace that commits capital draws this. The others read the book above it. */
   const subscriptionForm = (
     <form className="subscribe-form" onSubmit={(event) => { event.preventDefault(); subscribe(); }}>
       <div className="section-heading">
@@ -1022,25 +1147,36 @@ export default function App() {
       {bands.length > 0 && (
         <div className="book-state">
           {bands.map((band) => {
-            const left = band.capacityIdr - band.subscribedIdr;
             const name = band.name === "SENIOR" ? "Senior" : "Junior";
+            const filled = band.capacityIdr ? band.subscribedIdr / band.capacityIdr : 0;
+            /* Senior capacity is released by Junior commitment. Marking that
+               gate on the Senior track states the relationship where the reader
+               is already looking, rather than in a sentence below the books. */
+            const gate = band.name === "SENIOR" && band.capacityIdr && seniorUnlocked > 0
+              ? seniorUnlocked / band.capacityIdr
+              : null;
             return (
-              <div className="book-line" key={band.name}>
-                <div className="book-head">
-                  <strong>{name} book</strong>
-                  <span>{rp(band.subscribedIdr)} of {rp(band.capacityIdr)}</span>
-                </div>
-                <progress max={band.capacityIdr} value={band.subscribedIdr} aria-label={`${name} subscription`} />
-                <span className="book-room">{left <= 0 ? "Full" : `${rp(left)} still open`}</span>
+              <div className="book-row" key={band.name}>
+                <span className="book-name">{name}</span>
+                <span
+                  className="book-track"
+                  role="img"
+                  aria-label={`${name}: ${rp(band.subscribedIdr)} committed of ${rp(band.capacityIdr)}`}
+                >
+                  <span className="book-fill" style={{ width: `${Math.min(100, filled * 100)}%` }} />
+                  {gate !== null && <span className="book-gate" style={{ left: `${Math.min(100, gate * 100)}%` }} />}
+                </span>
+                <span className="book-figure">
+                  <strong>{rp(band.subscribedIdr)}</strong><small> / {rp(band.capacityIdr)}</small>
+                </span>
               </div>
             );
           })}
-          <p className="book-close">
-            <strong>{rp(juniorCommitted)} Junior committed → {rp(seniorUnlocked)} Senior capacity unlocked.</strong>{" "}
-            {bookShortfall > 0
-              ? <>{rp(bookShortfall)} of approved commitments remain before allocation.</>
-              : <>Both books are full. Compliance can now record the security right and release funds.</>}
-          </p>
+          <dl className="book-close">
+            <div><dt>Junior committed</dt><dd>{rp(juniorCommitted)}</dd></div>
+            <div><dt>Senior unlocked</dt><dd>{rp(seniorUnlocked)}</dd></div>
+            <div><dt>Remaining</dt><dd>{bookShortfall > 0 ? rp(bookShortfall) : "Books full"}</dd></div>
+          </dl>
         </div>
       )}
       <div className="subscribe-fields">
@@ -1053,29 +1189,37 @@ export default function App() {
         </label>
         <label>
           <span>Maturity face value (IDR)</span>
-          <input
-            ref={amountRef}
-            type="text" inputMode="numeric" value={formatIdr(amount)}
-            onFocus={(event) => event.target.select()}
-            onChange={(event) => {
-              const typed = event.target.value;
-              const caret = event.target.selectionStart ?? typed.length;
-              pendingCaret.current = digitsBefore(typed, caret);
-              setAmount(digitsOf(typed));
-            }}
-          />
+          <NumberField value={amount} onValue={setAmount} inputRef={amountRef} />
         </label>
       </div>
       {open && Number(amount) > 0 && <section className="commitment-comparison" aria-label="Commitment comparison">
         <div><span>Pay today</span><strong>{rp(suggestedPrice)}</strong></div>
         <div><span>Receive at maturity</span><strong>{rp(Number(amount))}</strong></div>
-        <p>{rp(Number(amount) - suggestedPrice)} discount return · {(open.returnBp / 100).toFixed(1)}% annualized target</p>
+        <div>
+          <span>Discount return</span>
+          <strong>{rp(Number(amount) - suggestedPrice)}</strong>
+          <small>{(open.returnBp / 100).toFixed(1)}% annualized</small>
+        </div>
       </section>}
-      <p className="ticket-range">
-        {me && room < me.ticketIdr.min
-          ? `Only ${rp(room)} is left in this tranche, below ${me.name}'s minimum ticket of ${rp(me.ticketIdr.min)}. Switch tranche or act as another investor.`
-          : `Ticket range ${rp(me?.ticketIdr.min ?? 0)} to ${rp(Math.min(room, me?.ticketIdr.max ?? 0))} for ${me?.name ?? "this investor"} in this tranche.`}
-      </p>
+      <div className={`ticket-gauge${ticketBlocked || ticketOutside ? " is-blocked" : ""}`}>
+        <div className="ticket-gauge-head">
+          <span>Ticket range</span>
+          <strong>{me?.name ?? "This investor"}</strong>
+        </div>
+        {ticketBlocked ? (
+          <p className="ticket-gauge-note">
+            Only {rp(room)} left in this tranche — under the {rp(ticketMin)} floor. Switch tranche or investor.
+          </p>
+        ) : (
+          <>
+            <div className="ticket-scale" role="img" aria-label={`Ticket range ${rp(ticketMin)} to ${rp(ticketMax)}`}>
+              <span className="ticket-track" />
+              {ticketValue > 0 && <span className="ticket-marker" style={{ left: `${ticketAt * 100}%` }} />}
+            </div>
+            <div className="ticket-bounds"><span>{rp(ticketMin)}</span><span>{rp(ticketMax)}</span></div>
+          </>
+        )}
+      </div>
       <div className="actions">
         <button type="submit" disabled={busy || !amount || !investorId}>Subscribe</button>
       </div>
@@ -1098,6 +1242,7 @@ export default function App() {
           <div className="order-row"><span><strong>4 · Transferable or redeemed</strong><small>Active units may move between allowlisted holders; repayment redeems them.</small></span><Badge tone={flow?.note?.state === "redeemed" ? "success" : "neutral"}>{flow?.note?.state === "redeemed" ? "Redeemed" : "Permissioned"}</Badge></div>
         </div>
       </Card>
+      <FundingGatePanel bands={bands} policy={DEMONSTRATION_POLICY} />
       <Card title="Open token partitions">
         <div className="order-book">
           {bands.map((band) => {
@@ -1173,7 +1318,7 @@ export default function App() {
 
   const transferPanel = (
     <Card title="Secondary market">
-      {err && <div className="error-banner" role="alert">{err}</div>}
+      {err && <ErrorBanner>{err}</ErrorBanner>}
       {flow?.step === "funded" && <>
         <div className="status-strip">
           <span>Transfer policy</span>
@@ -1243,26 +1388,36 @@ export default function App() {
             </label>
             <label>
               <span>Token units</span>
-              <input type="number" inputMode="numeric" value={amount} onChange={(event) => setAmount(digitsOf(event.target.value))} />
+              <NumberField value={amount} onValue={setAmount} />
             </label>
             <label>
               <span>Sale price (IDR)</span>
-              <input type="number" inputMode="numeric" value={askPrice} placeholder={amount || "0"} onChange={(event) => setAskPrice(event.target.value)} />
+              <NumberField value={askPrice} onValue={setAskPrice} placeholder={groupDigits(amount) || "0"} />
+              <small>A discounted claim rarely trades at face. Leave blank to offer at par.</small>
             </label>
           </div>
           <p className="supporting-copy">
             Recipient eligibility was verified at registration and is enforced automatically at settlement. 1 unit represents Rp 1 of face value.
           </p>
           <div className="actions">
-            <button type="submit" disabled={busy || !recipientId || !amount || flow.controls.paused}>Create sale order</button>
+            <button type="submit" disabled={busy || !recipientId || !amount || flow.controls.paused}>Review transfer</button>
           </div>
         </form>
       )}
       {listing && (
         <div className="transaction-review" role="status">
-          <div><span className="section-kicker">Sale order ready</span><h3>{tokenUnits(listing.unitsIdr)} · {listing.tranche === "SENIOR" ? "Senior" : "Junior"} position</h3><p>{investorName(listing.sellerId)} → {investorName(listing.buyerId)}</p></div>
-          <dl><div><dt>Face value</dt><dd>{rp(listing.unitsIdr)}</dd></div><div><dt>Sale price</dt><dd>{rp(listing.priceIdr)}</dd></div><div><dt>Automatic checks</dt><dd>Passed</dd></div></dl>
-          <div className="actions"><button type="button" disabled={busy || flow?.controls.paused} onClick={settleListing}>Accept and settle</button><button type="button" className="secondary-button" onClick={() => setListing(null)}>Cancel order</button></div>
+          <div><span className="section-kicker">Review transfer</span><h3>{tokenUnits(listing.unitsIdr)} · {listing.tranche === "SENIOR" ? "Senior" : "Junior"} position</h3><p>To {investorName(listing.buyerId)}</p></div>
+          <SaleQuoteLines
+            unitsIdr={BigInt(Math.trunc(listing.unitsIdr))}
+            grossPriceIdr={BigInt(Math.trunc(listing.priceIdr))}
+            feeBp={DEMONSTRATION_FEES.transferFeeBp}
+          />
+          <p className="supporting-copy">
+            The recipient's eligibility is checked when this settles, not while you compose it.
+            The price and fee above are settled by the controller; the transfer endpoint moves
+            units, so the cash leg is not debited here.
+          </p>
+          <div className="actions"><button type="button" disabled={busy || flow?.controls.paused} onClick={settleListing}>Confirm transfer</button><button type="button" className="secondary-button" onClick={() => setListing(null)}>Discard</button></div>
         </div>
       )}
       {flow && flow.transfers.length > 0 && (
@@ -1294,7 +1449,7 @@ export default function App() {
      already finished. */
   const repaymentPanel = repayment && flow && (
     <>
-      {err && <div className="error-banner" role="alert">{err}</div>}
+      {err && <ErrorBanner>{err}</ErrorBanner>}
       <Card title={repayment.settled ? "Facility settled" : "Repayment"}>
         <div className="funded-note">
           <Badge tone={repayment.settled ? "success" : repayment.payable ? "warning" : "neutral"}>
@@ -1386,11 +1541,36 @@ export default function App() {
       </div> : <p className="empty-state">No distributions: this investor is not allowlisted.</p>}
     </Card>
     <Card title="Distribution ledger">
-      <div className="fee-summary"><div><span>Servicing fee</span><strong>0.50%</strong><small>Deducted from each distribution</small></div><div><span>Transfer fee</span><strong>0.10%</strong><small>Charged on secondary sales</small></div><div><span>Net settlement</span><strong>Automatic</strong><small>Paid pro rata by units held</small></div></div>
-      <div className="order-book">
-        {distributions.map((item) => <div className="order-row" key={item.id}><span><strong>{item.kind} distribution</strong><small>{rp(item.feeIdr)} fee · net {rp(item.amountIdr - item.feeIdr)}</small></span><span><Badge tone={item.status === "Distributed" ? "success" : "neutral"}>{item.status}</Badge><strong>{rp(item.amountIdr)}</strong></span></div>)}
+      <div className="fee-summary">
+        <div><span>Servicing fee</span><strong>{(Number(DEMONSTRATION_FEES.servicingFeeBp) / 100).toFixed(2)}%</strong><small>Snapshotted on each distribution when it is scheduled</small></div>
+        <div><span>Transfer fee</span><strong>{(Number(DEMONSTRATION_FEES.transferFeeBp) / 100).toFixed(2)}%</strong><small>Snapshotted on each sale order when it is created</small></div>
+        <div><span>Net settlement</span><strong>Pro rata</strong><small>By units held at the record date</small></div>
       </div>
-      <p className="supporting-copy">The warehouse note pays no coupon: its return is the discount between purchase price and face value at maturity. Coupon, dividend and royalty are separately funded distributions riding the same pro-rata rail.</p>
+      {distributions.length === 0
+        ? <p className="empty-state">No distribution has been scheduled against this facility.</p>
+        : <div className="order-book">
+            {distributions.map((item) => {
+              const feeIdr = (item.grossIdr * item.servicingFeeBp) / 10_000n;
+              return (
+                <div className="order-row" key={item.id}>
+                  <span>
+                    <strong>{item.kind} · {item.partition === "SENIOR" ? "Senior" : "Junior"}</strong>
+                    <small>Record date {item.recordDate} · {rp(Number(feeIdr))} fee · net {rp(Number(item.grossIdr - feeIdr))}</small>
+                  </span>
+                  <span>
+                    <Badge tone={item.executed ? "success" : "neutral"}>{item.executed ? "Executed" : "Scheduled"}</Badge>
+                    <strong>{rp(Number(item.grossIdr))}</strong>
+                  </span>
+                </div>
+              );
+            })}
+          </div>}
+      <p className="supporting-copy">
+        Your note's own return is the discount between what you paid and the face repaid at
+        maturity. A coupon, dividend or royalty here is separately funded cash on the same
+        pro-rata rail — never an extra return on the warehouse note.
+      </p>
+      <Source provenance="local" />
     </Card>
     <Card title="Shortfall protection">
       <p className="supporting-copy">Available cash equals recovered cash less permitted costs. Junior maturity claims absorb loss before Senior claims. Notes and cashflows update automatically from the servicing record.</p>
@@ -1398,17 +1578,36 @@ export default function App() {
     </Card>
   </>;
 
+  /* What the bands actually say, so the proposal can be read against them
+     instead of in place of them. Null until the note exists. */
+  const liveTerms = (() => {
+    const senior = bands.find((band) => band.name === "SENIOR");
+    const junior = bands.find((band) => band.name === "JUNIOR");
+    if (!senior || !junior) return null;
+    return {
+      faceIdr: BigInt(Math.trunc(senior.capacityIdr + junior.capacityIdr)),
+      seniorCapIdr: BigInt(Math.trunc(senior.capacityIdr)),
+      juniorCapIdr: BigInt(Math.trunc(junior.capacityIdr)),
+      seniorBp: BigInt(Math.trunc(senior.returnBp)),
+      juniorBp: BigInt(Math.trunc(junior.returnBp)),
+    };
+  })();
+
+  const complianceStructuringPanel = <>
+    <StructuringPanel proposal={proposal} policy={DEMONSTRATION_POLICY} live={liveTerms} />
+    <details className="structure-disclosure collateral-disclosure">
+      <summary>Collateral observation and reconciliation</summary>
+      <CollateralPanel view={collateral} policy={DEMONSTRATION_POLICY} editable onObserve={setObservation} />
+    </details>
+  </>;
+
   const complianceServicingPanel = <>
-    <Card title="Collateral reconciliation">
-      <div className="finance-metrics">
-        <div><span>Registry quantity</span><strong>{facility ? `${facility.quantityKg.toLocaleString("en-US")} kg` : "—"}</strong><small>Official receipt record</small></div>
-        <div><span>Warehouse quantity</span><strong>{facility ? `${facility.quantityKg.toLocaleString("en-US")} kg` : "—"}</strong><small>Latest signed observation</small></div>
-        <div><span>Effective quantity</span><strong>{facility ? `${facility.quantityKg.toLocaleString("en-US")} kg` : "—"}</strong><small>Lower reconciled value</small></div>
-        <div><span>Eligible collateral</span><strong>{facility ? rp(facility.valueIdr) : "—"}</strong><small>Before the facility LTV limit</small></div>
-        <div><span>Difference</span><strong>0.00%</strong><small>Within the 0.50% tolerance</small></div>
-        <div><span>Observation</span><strong>Current</strong><small>Ready for the demo lifecycle</small></div>
-      </div>
-    </Card>
+    <CollateralPanel
+      view={collateral}
+      policy={DEMONSTRATION_POLICY}
+      editable={false}
+      onObserve={setObservation}
+    />
     <Card title="Facility servicing">
       <div className="funded-note">
         <Badge tone={repayment?.payable ? "warning" : repayment?.settled ? "success" : "neutral"}>{repayment?.settled ? "Closed" : repayment?.payable ? "Repayment due" : "Monitoring"}</Badge>
@@ -1422,17 +1621,15 @@ export default function App() {
         </dl>
       </div>
     </Card>
-    <Card title="Distribution scheduler">
-      <div className="fee-summary"><div><span>Servicing fee</span><strong>0.50%</strong><small>Applied at execution</small></div><div><span>Transfer fee</span><strong>0.10%</strong><small>Applied to secondary settlement</small></div><div><span>Recipient rule</span><strong>Record date</strong><small>Pro rata to eligible unit holders</small></div></div>
-      <div className="subscribe-fields">
-        <label><span>Distribution</span><select value={distributionKind} onChange={(event) => setDistributionKind(event.target.value as DistributionKind)}><option>Coupon</option><option>Dividend</option><option>Royalty</option></select></label>
-        <label><span>Gross amount (IDR)</span><input type="number" inputMode="numeric" value={distributionAmount} onChange={(event) => setDistributionAmount(event.target.value)} /></label>
-      </div>
-      <div className="actions"><button type="button" disabled={!distributionAmount} onClick={scheduleDistribution}>Schedule distribution</button></div>
-      <div className="order-book">
-        {distributions.map((item) => <div className="order-row" key={item.id}><span><strong>{item.kind}</strong><small>{rp(item.feeIdr)} fee · {rp(item.amountIdr - item.feeIdr)} net to holders</small></span><span><Badge tone={item.status === "Distributed" ? "success" : "neutral"}>{item.status}</Badge>{item.status === "Scheduled" && <button type="button" className="text-button" onClick={() => setDistributions((items) => items.map((row) => row.id === item.id ? { ...row, status: "Distributed" } : row))}>Execute</button>}</span></div>)}
-      </div>
-    </Card>
+    <DistributionPanel
+      scheduled={distributions}
+      positions={positions}
+      investors={investors}
+      feeBp={DEMONSTRATION_FEES.servicingFeeBp}
+      onSchedule={(item) => setDistributions((items) => [...items, item])}
+      onExecute={(id) => setDistributions((items) =>
+        items.map((item) => (item.id === id ? { ...item, executed: true } : item)))}
+    />
     <Card title="Transfer controls">
       <div className="status-strip">
         <span>Policy state</span>
@@ -1447,6 +1644,12 @@ export default function App() {
           <div className="actions secondary"><button type="button" className="secondary-button" onClick={() => setKycOverrides((current) => ({ ...current, [controlledInvestor.id]: !controlledKyc }))}>{controlledKyc ? "Revoke KYC" : "Grant KYC"}</button>{flow?.step === "funded" && <button type="button" className="secondary-button" disabled={busy} onClick={() => freezeInvestor(controlledInvestor.id, !flow.controls.frozenInvestorIds.includes(controlledInvestor.id))}>{flow.controls.frozenInvestorIds.includes(controlledInvestor.id) ? "Unfreeze account" : "Freeze account"}</button>}</div>
         </section>
       )}
+      <p className="supporting-copy">
+        Pause and freeze are enforced by the API. KYC grants and partition permissions are held in
+        this window until the controller accepts them, so a holder revoked here is still accepted at
+        settlement.
+      </p>
+      <Source provenance="local">KYC and partition permissions: entered here, not yet written to the controller</Source>
       <div className="policy-holder-list">
         {investors.map((item) => {
           const frozen = flow?.controls.frozenInvestorIds.includes(item.id) ?? false;
@@ -1457,6 +1660,15 @@ export default function App() {
       </div>
       {flow?.step === "funded" && <div className="actions secondary"><button type="button" className="secondary-button" disabled={busy} onClick={() => pauseTransfers(!flow.controls.paused)}>{flow.controls.paused ? "Resume transfers" : "Pause transfers"}</button></div>}
     </Card>
+    <FundingGatePanel bands={bands} policy={DEMONSTRATION_POLICY} />
+    <SettlementPanel
+      bands={bands}
+      positions={positions}
+      investors={investors}
+      recoveredIdr={BigInt(Math.trunc(flow?.settlement?.cashReceivedIdr ?? repayment?.faceValueIdr ?? 0))}
+      settled={flow?.step === "repaid"}
+      provenance={flow?.settlement ? "server" : "derived"}
+    />
     <Card title="Exception path">
       <div className="order-book">
         <div className="order-row"><span><strong>1 · Payment monitoring</strong><small>System watches the contractual due date</small></span><Badge tone="success">Active</Badge></div>
@@ -1507,9 +1719,9 @@ export default function App() {
     activeRole === "Capital Provider"
       ? { Opportunities: opportunitiesPanel, "My notes": positionsPanel, Transfers: transferPanel, Cashflows: capitalCashflowsPanel }
       : activeRole === "Compliance"
-        ? { "Funding & settlement": complianceServicingPanel }
+        ? { Structuring: complianceStructuringPanel, "Funding & settlement": complianceServicingPanel }
       : activeRole === "Borrower" ? {
-          [INTAKE_SECTION]: <>{err && <div className="error-banner" role="alert">{err}</div>}{intakePanel}</>,
+          [INTAKE_SECTION]: <>{err && <ErrorBanner>{err}</ErrorBanner>}{intakePanel}</>,
           ...(repaymentPanel ? { Repayments: repaymentPanel } : {}),
         } : {};
   const stages = JOURNEY[activeRole];
@@ -1531,13 +1743,13 @@ export default function App() {
 
   const stepCard = (
     <>
-        {screen === "pick" && !choosingReceipt && (
+        {onScreen("pick") && !choosingReceipt && (
           <div className="step-back-row">
             <button type="button" className="step-back" onClick={() => setReceiptId("")}>Back to receipt proposals</button>
             <span>Propose another receipt, or pick a different accepted one.</span>
           </div>
         )}
-        {screen === "pick" && !choosingReceipt && (
+        {onScreen("pick") && !choosingReceipt && (
           <Card title="Select an accepted receipt">
             {loading && <p className="empty-state">Loading available receipts…</p>}
             {!loading && acceptedReceipts.length === 0 && <p className="empty-state">No receipts have been accepted yet. Complete intake above, then ask Compliance to review your proposal.</p>}
@@ -1567,9 +1779,17 @@ export default function App() {
           </Card>
         )}
 
-        {screen === "mandate" && facility && (
+        {onScreen("mandate") && facility && (
           <Card title="Receipt and mandate">
-            <div className="status-strip"><span>Signature</span><Badge tone={flow?.documentSigning?.status === "signed" ? "success" : "neutral"}>{flow?.documentSigning?.status === "awaiting_signature" ? "Awaiting signature" : "DocuSeal"}</Badge></div>
+            <div className="status-strip">
+              <span>Signature</span>
+              <Badge tone={flow?.documentSigning?.status === "signed" ? "success" : "neutral"}>
+                {flow?.documentSigning?.status === "awaiting_signature" ? "Awaiting signature"
+                  : flow?.documentSigning ? "DocuSeal" : "DocuSeal, or the officers' quorum"}
+              </Badge>
+              <small>Signing opens a DocuSeal form where one is configured. Otherwise the
+                cooperative's officers sign as an organisation, two of three.</small>
+            </div>
             <div className="two-column">
               <section>
                 <h3>Receipt details</h3>
@@ -1595,23 +1815,31 @@ export default function App() {
           </Card>
         )}
 
-        {screen === "review" && (
+        {onScreen("review") && (
           <Card title="Review documents and lien">
-            <p className="supporting-copy">Review the receipt and signed mandate, then check the registry lien. Approval moves this request to eligibility verification; it does not authorize funding.</p>
+            <p className="supporting-copy">
+              {autoStage
+                ? "Each check reads the receipt, the signed mandate, or the registry lien. None of them is a judgement, so none of them waits for an approval."
+                : "Review the receipt and signed mandate, then check the registry lien. Approval moves this request to eligibility verification; it does not authorize funding."}
+            </p>
             <CheckList items={REVIEW_CHECKS} cursor={seqCursor} running={Boolean(sequence)} spacious />
-            <div className="actions">
-              <button disabled={busy} onClick={() => advanceSequenced("approve", REVIEW_CHECKS.length)}>
-                {sequence ? "Reviewing…" : "Approve review and continue"}
-              </button>
-            </div>
+            {!autoStage && (
+              <div className="actions">
+                <button disabled={busy} onClick={() => advanceSequenced("approve", REVIEW_CHECKS.length)}>
+                  {sequence ? "Reviewing…" : "Approve review and continue"}
+                </button>
+              </div>
+            )}
           </Card>
         )}
 
-        {screen === "proof" && (
+        {onScreen("proof") && (
           <Card title={flow?.proof ? "Eligibility confirmed" : "Private eligibility check"}>
             {!flow?.proof ? (
               <>
-                <div className="actions"><button disabled={busy} onClick={() => advance("prove")}>{busy ? "Verifying…" : "Verify"}</button></div>
+                {autoStage === "proof"
+                  ? <p className="supporting-copy" role="status">Proving eligibility, then verifying that proof on Hedera. Neither is simulated, so this takes a few seconds.</p>
+                  : <div className="actions"><button disabled={busy} onClick={() => advance("prove")}>{busy ? "Verifying…" : "Retry verification"}</button></div>}
               </>
             ) : (
               <>
@@ -1620,7 +1848,7 @@ export default function App() {
                     const settled = index < proofCursor;
                     return (
                       <div className="result-row" key={check.label} data-state={settled ? "done" : index === proofCursor ? "running" : "queued"}>
-                        <span>{PROOF_COPY[check.label] ?? "Eligibility policy check"}</span>
+                        <span>{check.label}</span>
                         {settled ? (
                           <Badge tone={check.pass ? "success" : "danger"}>{check.pass ? "Passed" : "Failed"}</Badge>
                         ) : (
@@ -1633,16 +1861,16 @@ export default function App() {
                     );
                   })}
                 </div>
-                {activeRole === "Compliance" && flow && facility && (
+                {activeRole === "Compliance" && flow && facility && proposal.structure && (
                   <section className="issuance-review" aria-label="Issuance review">
                     <header><div><span className="section-kicker">Issuance review</span><h3>Ready to tokenize</h3></div><Badge tone="success">Within policy</Badge></header>
                     <div className="finance-metrics">
-                      <div><span>Eligible collateral</span><strong>{rp(facility.valueIdr)}</strong><small>{facility.quantityKg.toLocaleString("en-US")} kg reconciled</small></div>
-                      <div><span>Facility ceiling</span><strong>{rp(flow.request.requestedIdr)}</strong><small>{(flow.request.maxLtvBp / 100).toFixed(0)}% maximum LTV</small></div>
-                      <div><span>Planned issued face</span><strong>{rp(Math.floor(flow.request.requestedIdr * 390 / 420))}</strong><small>Senior and Junior combined</small></div>
-                      <div><span>Senior partition</span><strong>{rp(Math.floor(flow.request.requestedIdr * 270 / 420))}</strong><small>Paid first</small></div>
-                      <div><span>Junior partition</span><strong>{rp(Math.floor(flow.request.requestedIdr * 120 / 420))}</strong><small>First loss layer</small></div>
-                      <div><span>Junior share</span><strong>30.8%</strong><small>Of the issued note</small></div>
+                      <div><span>Eligible collateral</span><strong>{rpExact(proposal.structure.collateralIdr)}</strong><small>{kg(proposal.structure.effectiveQuantityGrams)} reconciled</small></div>
+                      <div><span>Facility ceiling</span><strong>{rpExact(proposal.structure.faceCeilingIdr)}</strong><small>{pct(DEMONSTRATION_POLICY.maxLtvBp)} maximum LTV</small></div>
+                      <div><span>Planned issued face</span><strong>{rpExact(proposal.structure.targetFaceIdr)}</strong><small>Senior and Junior combined</small></div>
+                      <div><span>Senior partition</span><strong>{rpExact(proposal.structure.seniorCapIdr)}</strong><small>Paid first</small></div>
+                      <div><span>Junior partition</span><strong>{rpExact(proposal.structure.juniorCapIdr)}</strong><small>First loss layer</small></div>
+                      <div><span>Junior share</span><strong>{pct(proposal.structure.juniorCapIdr * 10_000n / proposal.structure.targetFaceIdr)}</strong><small>Of the issued note</small></div>
                     </div>
                   </section>
                 )}
@@ -1657,7 +1885,7 @@ export default function App() {
             Rp 390m of Rp 420m — and an investor read a capacity the subscribe
             form below did not agree with. The reference token is real and
             stays, as the labelled aside it always was. */}
-        {screen === "note" && flow?.note && !borrowerAwaitingRelease && bands.length > 0 && (
+        {onScreen("note") && flow?.note && !borrowerAwaitingRelease && bands.length > 0 && (
           <Card title="Funding structure" className="feature-card">
             <div className="funding-progress">
               <div>
@@ -1695,11 +1923,11 @@ export default function App() {
               <div><span>Junior commitment</span><strong>{rp(juniorCommitted)}</strong><p>First loss capital committed to this facility.</p></div>
               <div><span>Senior capacity unlocked</span><strong>{rp(seniorUnlocked)}</strong><p>Unlocked at {seniorBand && juniorBand ? (seniorBand / juniorBand).toFixed(2) : "0.00"}× Junior commitment.</p></div>
             </div>
-            {subscriptionForm}
+            {activeRole === "Capital Provider" && subscriptionForm}
           </Card>
         )}
 
-        {screen === "note" && flow?.note && !borrowerAwaitingRelease && bands.length === 0 && (
+        {onScreen("note") && flow?.note && !borrowerAwaitingRelease && bands.length === 0 && (
           <Card title="Note">
             <Row label="Token series" value={flow.note.series} mono />
             <Row label="Linked receipt" value={flow.note.underlying} mono />
@@ -1707,11 +1935,11 @@ export default function App() {
             <Row label="Transfer restrictions" value="Allowlisted holders only" />
             <Row label="State" value={noteState} />
             <p className="supporting-copy">The token represents an investor claim linked to the receipt; it does not transfer ownership of the e-SRG.</p>
-            {subscriptionForm}
+            {activeRole === "Capital Provider" && subscriptionForm}
           </Card>
         )}
 
-        {screen === "fund" && flow && !borrowerAwaitingRelease && (
+        {onScreen("fund") && flow && !borrowerAwaitingRelease && (
           <Card title="Closing checklist">
             <div className="summary-grid compact">
               <Row label="Subscriptions" value={`${flow.subscriptions.length} investors`} />
@@ -1739,7 +1967,7 @@ export default function App() {
           </Card>
         )}
 
-        {screen === "done" && flow && (
+        {onScreen("done") && flow && (
           <Card title="Facility status">
             <div className="truth-labels"><Badge tone={flow.step === "repaid" ? "neutral" : "success"}>{flow.step === "repaid" ? "Repaid" : "Active"}</Badge></div>
             <div className="summary-grid compact">
@@ -1848,6 +2076,11 @@ export default function App() {
     </Card>
   );
 
+  /* One notice, always first. Precedence: issuance strip, handoff line. A step
+     the current workspace owns gets no banner — the card states the action. */
+  const notice = issuanceStatus
+    || (!ownsStep && !borrowerAwaitingRelease && <div className="handoff-banner"><div><strong>Waiting on {stepOwner}</strong><span>You can review this record. The next action belongs to {stepOwner}.</span></div></div>);
+
   const flowPanel = (
     <div className="flow-layout">
       {/* Spans both columns. Inside the left one it pushed that card down while
@@ -1862,14 +2095,13 @@ export default function App() {
       </header>
 
       <div className="flow-main" aria-busy={busy}>
-        {err && <div className="error-banner" role="alert">{err}</div>}
+        {err && <ErrorBanner>{err}</ErrorBanner>}
+        {notice}
 
         {activeRole === "Capital Provider" && opportunitiesPanel}
 
         {(activeRole === "Borrower" && choosingReceipt || activeRole === "Compliance") && intakePanel}
-        {!ownsStep && !borrowerAwaitingRelease && <div className="handoff-banner"><div><strong>Waiting on {stepOwner.toLowerCase()}</strong><span>You can review this record. The next action belongs to the {stepOwner.toLowerCase()}.</span></div></div>}
         {fundedCard}
-        {issuanceStatus}
         <fieldset className="flow-fieldset" disabled={!ownsStep}>
           {stepCard}
         {activeRole !== "Capital Provider" && facilitySummary}
@@ -1878,7 +2110,7 @@ export default function App() {
 
         {/* Outside the fieldset on purpose: reading the record is not acting on
             the facility, so it stays available to whoever is looking. */}
-        {screen === "done" && flow && (
+        {onScreen("done") && flow && (
           <Card title="Activity">
             {myActivity.length === 0 ? (
               <p className="empty-state">Nothing from this workspace yet.</p>
@@ -1986,7 +2218,7 @@ function LandingPage({ onNavigate, onAccess }: { onNavigate: (view: View) => voi
             <div className="hero-copy">
               <div className="hero-wordmark">Anora</div>
               <h1 id="landing-title">Turn verified inventory<br />into investable credit.</h1>
-              <p>Anora connects holders of Indonesian electronic warehouse receipts (e-SRG) with capital providers through structured, permissioned notes.</p>
+              <p>Anora connects holders of warehouse receipts (Indonesia - SRG) with capital providers through structured, permissioned notes.</p>
               <div className="hero-actions">
                 <button type="button" onClick={() => onAccess()}>Get started</button>
                 <button type="button" className="secondary-button" onClick={() => onNavigate("how")}>How it works</button>
@@ -2253,8 +2485,8 @@ function WorkspacePage({ role, section, onSection, onAction, onSwitchRole, onRes
         {/* The flow states its own step and receipt directly below, and the
             breadcrumb and sidebar already say which section this is — so in the
             flow the page heading was the section name twice over. */}
-        {!inFlow && <header className="workspace-heading"><div><span className="eyebrow">{section === "Overview" ? meta.eyebrow : role}</span><h1>{section === "Overview" ? meta.title : section}</h1><p>{section === "Overview" ? meta.summary : `Review ${section.toLowerCase()} available to this workspace.`}</p>{lock && <p className="lock-note">{lockIcon}{lock}</p>}</div><button type="button" ref={headingAction} className={lock ? "locked-action" : undefined} disabled={!!lock} title={lock ?? undefined} onClick={onAction}>{lock && lockIcon}{meta.action}</button></header>}
-        {inFlow ? flowPanel : panels[section] ?? analytics}
+        {!inFlow && <header className="workspace-heading"><div><span className="eyebrow">{section === "Overview" ? meta.eyebrow : role}</span><h1>{section === "Overview" ? meta.title : section}</h1><p>{section === "Overview" ? meta.summary : section === "Structuring" ? "See how collateral and policy determine the note." : `Review ${section.toLowerCase()} available to this workspace.`}</p>{lock && <p className="lock-note">{lockIcon}{lock}</p>}</div><button type="button" ref={headingAction} className={lock ? "locked-action" : undefined} disabled={!!lock} title={lock ?? undefined} onClick={onAction}>{lock && lockIcon}{meta.action}</button></header>}
+        {inFlow ? flowPanel : <div className="section-panel">{panels[section] ?? analytics}</div>}
       </main>
     </div>
   );
@@ -2280,20 +2512,4 @@ function CheckList({ items, cursor, running, spacious }: {
       })}
     </ul>
   );
-}
-
-function Card({ title, className = "", children }: { title: string; className?: string; children: React.ReactNode }) {
-  return <section className={`card ${className}`}><h2>{title}</h2>{children}</section>;
-}
-
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
-  return <div className="data-row"><span>{label}</span><strong className={mono ? "mono" : ""}>{value}</strong></div>;
-}
-
-function RailRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="rail-row"><span>{label}</span><strong>{children}</strong></div>;
-}
-
-function Badge({ tone, children }: { tone: "success" | "warning" | "danger" | "accent" | "neutral"; children: React.ReactNode }) {
-  return <span className={`badge ${tone}`}>{children}</span>;
 }

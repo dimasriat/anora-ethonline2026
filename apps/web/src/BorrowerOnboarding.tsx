@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { BorrowerProfile, IntakeAction, IntakeOptions, IntakeState } from "./api";
 import { useIdentityStanding } from "./identity";
 import WorldIdCheck from "./WorldIdCheck";
+import { ErrorBanner } from "./ui";
 
 const fieldsFor = (options: IntakeOptions): [keyof BorrowerProfile, string, string[]?][] => [["entityType", "Entity type", options.entityTypes], ["entityName", "Legal entity name"], ["registrationRef", "Business registration / NIB"], ["taxRef", "Tax registration reference"], ["representativeRole", "Representative capacity", options.representativeRoles], ["authorityRef", "Board mandate / authority reference"], ["commodity", "Goods intended for SRG storage", options.commodities], ["quantityKg", "Intended quantity (kg)"], ["warehouse", "Proposed SRG warehouse", options.warehouses]];
 const documents = ["Entity registration", "Tax registration", "Representative authority", "Goods declaration"];
@@ -17,7 +18,7 @@ export default function BorrowerOnboarding({ state, options, error, onAction, on
     <main className="onboarding-main">
       <header className="onboarding-heading"><div><span className="section-kicker">Borrower registration</span><h1>Register and attest your eligibility.</h1></div></header>
       <div className="onboarding-layout"><section className="onboarding-form">
-        {error && <div className="error-banner" role="alert">{error}</div>}
+        {error && <ErrorBanner>{error}</ErrorBanner>}
         <form onSubmit={event => { event.preventDefault(); onComplete(profile); }}>
           <div className="analytics-panel onboarding-section"><div className="status-strip onboarding-privy" data-tone={standing.tone}><span>Privy account</span><strong>{standing.label}</strong></div><h2>Entity, authority, and goods</h2>
           <fieldset className="onboarding-fields">{fields.map(([key, label, choices]) => <label key={key}>{label}{choices

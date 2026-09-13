@@ -1,27 +1,20 @@
-import type { Investor, Subscription, TrancheName, TrancheTerms } from "./domain";
+import type { ESrg, Investor, Subscription, TrancheName, TrancheTerms } from "./domain";
+import { eligibleCollateral, faceCeiling } from "./tranche-math";
+import { propose, type CollateralReport, type Policy, type Reason } from "./structuring";
 
-export type Fraction = { numerator: number; denominator: number };
-
-export type FacilityPolicy = {
-  maxLtvBp: number;
-  issued: Fraction;
-  juniorShare: Fraction;
-  seniorReturnBp: number;
-  juniorReturnBp: number;
-};
-
-export const ANORA_POLICY: FacilityPolicy = {
-  maxLtvBp: 7_000,
-  issued: { numerator: 13, denominator: 14 },
-  juniorShare: { numerator: 4, denominator: 13 },
-  seniorReturnBp: 200,
-  juniorReturnBp: 450,
-};
+const GRAMS_PER_KG = 1_000n;
 
 export type Facility = {
   ceilingIdr: number;
+  /** What is actually issued, at or below the ceiling. The gap is headroom. */
+  faceIdr: number;
   tranches: TrancheTerms[];
 };
+
+/** Policy refused the structure. It is never widened to make a breach go away. */
+export type Derivation =
+  | { ok: true; facility: Facility }
+  | { ok: false; reasons: Reason[] };
 
 export type Refusal =
   | { code: "not_allowlisted"; investorId: string; standing: string }
@@ -32,29 +25,92 @@ export type Refusal =
 
 export type Screening = { ok: true } | { ok: false; refusal: Refusal };
 
-export function facilityFrom(collateralValueIdr: number, policy: FacilityPolicy): Facility {
-  const ceilingIdr = Math.floor((collateralValueIdr * policy.maxLtvBp) / 10_000);
-  const issuedIdr = Math.floor((ceilingIdr * policy.issued.numerator) / policy.issued.denominator);
-  const juniorIdr = Math.ceil((issuedIdr * policy.juniorShare.numerator) / policy.juniorShare.denominator);
+/**
+ * The receipt as an observation. The domain carries one quantity and one value,
+ * so the registry and warehouse counts start equal and the price divides out
+ * exactly; a role can then vary the warehouse count to exercise the
+ * reconciliation path the controller owns.
+ */
+export function reportFrom(
+  esrg: Pick<ESrg, "quantityKg" | "valueIdr" | "issuedAt" | "documentHash">,
+  haircutBp: bigint,
+): CollateralReport {
+  const quantityKg = BigInt(Math.trunc(esrg.quantityKg));
+  return {
+    registryGrams: quantityKg * GRAMS_PER_KG,
+    warehouseGrams: quantityKg * GRAMS_PER_KG,
+    priceIdrPerKg: quantityKg > 0n ? BigInt(Math.trunc(esrg.valueIdr)) / quantityKg : 0n,
+    haircutBp,
+    observedAt: esrg.issuedAt,
+    nonce: 0n,
+    reportHash: esrg.documentHash,
+  };
+}
 
-  const bands: { name: TrancheName; capacityIdr: number; returnBp: number }[] = [
-    { name: "JUNIOR", capacityIdr: juniorIdr, returnBp: policy.juniorReturnBp },
-    { name: "SENIOR", capacityIdr: issuedIdr - juniorIdr, returnBp: policy.seniorReturnBp },
+/**
+ * Size and price a facility from the receipt and the policy — no fixed split.
+ *
+ * The ceiling is λ on eligible collateral and is authority, not cash; the face
+ * is written at the policy's target LTV, and the gap between them is headroom
+ * nobody funds. Junior is then whatever the worst stress scenario plus the
+ * structural buffer demands, Senior is what is left, and both yields come off
+ * the spread schedule. Every figure is a function of the receipt and the rules.
+ *
+ * Returns the policy's reasons rather than a facility when the structure is
+ * infeasible, so the caller refuses instead of issuing something unsupported.
+ */
+export function facilityFrom(
+  esrg: ESrg,
+  policy: Policy,
+  termDays: bigint,
+  upfrontCostsIdr: bigint,
+): Derivation {
+  const report = reportFrom(esrg, 0n);
+  const collateralIdr = eligibleCollateral(
+    report.registryGrams,
+    report.priceIdrPerKg,
+    report.haircutBp,
+  );
+  const proposal = propose({
+    policy,
+    report,
+    requestedFaceIdr: faceCeiling(collateralIdr, policy.targetLtvBp),
+    authorizedFaceCeilingIdr: faceCeiling(collateralIdr, policy.maxLtvBp),
+    termDays,
+    upfrontCostsIdr,
+  });
+  if (!proposal.feasible || !proposal.structure || !proposal.pricing) {
+    return { ok: false, reasons: proposal.reasons };
+  }
+  const { structure, pricing } = proposal;
+
+  /* Junior first so attachment accumulates from the bottom of the stack, then
+     unshift to publish Senior first. The order is the loss order. */
+  const issued: { name: TrancheName; capacityIdr: bigint; returnBp: bigint }[] = [
+    { name: "JUNIOR", capacityIdr: structure.juniorCapIdr, returnBp: pricing.juniorYieldBp },
+    { name: "SENIOR", capacityIdr: structure.seniorCapIdr, returnBp: pricing.seniorYieldBp },
   ];
-
   let attachmentIdr = 0;
   const tranches: TrancheTerms[] = [];
-  for (const { name, capacityIdr, returnBp } of bands) {
+  for (const { name, capacityIdr, returnBp } of issued) {
+    const capacity = Number(capacityIdr);
     tranches.unshift({
       name,
-      capacityIdr,
-      returnBp,
+      capacityIdr: capacity,
+      returnBp: Number(returnBp),
       attachmentIdr,
-      detachmentIdr: attachmentIdr + capacityIdr,
+      detachmentIdr: attachmentIdr + capacity,
     });
-    attachmentIdr += capacityIdr;
+    attachmentIdr += capacity;
   }
-  return { ceilingIdr, tranches };
+  return {
+    ok: true,
+    facility: {
+      ceilingIdr: Number(structure.faceCeilingIdr),
+      faceIdr: Number(structure.targetFaceIdr),
+      tranches,
+    },
+  };
 }
 
 export function remainingCapacityIdr(

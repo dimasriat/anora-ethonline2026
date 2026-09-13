@@ -7,6 +7,7 @@ export type ErrorCode =
   | "facility_limit_reached"
   | "not_eligible"
   | "receipt_encumbered"
+  | "policy_infeasible"
   | "capability_not_available"
   | "step_out_of_order"
   | "not_reversible"
@@ -37,6 +38,7 @@ export const STATUS_FOR: Record<ErrorCode, number> = {
   facility_limit_reached: 429,
   not_eligible: 403,
   receipt_encumbered: 409,
+  policy_infeasible: 409,
   capability_not_available: 501,
   step_out_of_order: 409,
   not_reversible: 409,

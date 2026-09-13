@@ -1,9 +1,17 @@
 import { $ } from "bun";
-import type { RecoverySplit } from "@anora/core";
 
 export type FacilityReader = {
   address: string;
   read(): Promise<OnChainFacility>;
+};
+
+type OnChainSplit = {
+  costsPaidIdr: number;
+  seniorIdr: number;
+  juniorIdr: number;
+  seniorLossIdr: number;
+  juniorLossIdr: number;
+  surplusIdr: number;
 };
 
 export type OnChainFacility = {
@@ -11,7 +19,7 @@ export type OnChainFacility = {
   issuedFaceIdr: number;
   active: boolean;
   settled: boolean;
-  split: RecoverySplit | null;
+  split: OnChainSplit | null;
 };
 
 const SENIOR = 0;

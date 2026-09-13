@@ -1,9 +1,10 @@
 import {
-  ANORA_POLICY, facilityFrom, isReversible, previousStep, splitRecovery,
-  remainingCapacityIdr, requireStep, screenSubscription,
+  allocateLoss, DEMONSTRATION_POLICY, DEMONSTRATION_UPFRONT_COSTS_IDR, distribute,
+  facilityFrom, isReversible, previousStep, remainingCapacityIdr, requireStep,
+  screenSubscription,
 } from "@anora/core";
 import type {
-  ESrg, EligibilityProof, Facility, FinancingRequest, NoteToken, RecoverySplit,
+  Distribution, ESrg, EligibilityProof, Facility, FinancingRequest, NoteToken,
   OrgWallet, Ports, RequestStatus, Subscription, TrancheName, TrancheTerms,
 } from "@anora/core";
 import { FlowError } from "./errors";
@@ -62,6 +63,7 @@ const whatFailed = (cause: unknown): string => {
 };
 
 const MATURITY_DAYS = 90;
+const DAYS_IN_YEAR = 365;
 
 /* Each facility deploys a contract and creates a Privy wallet. Unbounded
    creation drains testnet gas, so a caller gets a fixed allowance. */
@@ -69,29 +71,39 @@ export const FACILITIES_PER_OWNER = 5;
 
 export type Settlement = {
   cashReceivedIdr: number;
-  paid: RecoverySplit;
+  paid: Distribution;
   loss: { tranche: TrancheName; lossIdr: number }[];
   conserved: boolean;
 };
 
-function facesOf(state: FlowState) {
+function claimsOf(state: FlowState) {
   const of = (name: TrancheName) => state.facility.tranches.find((t) => t.name === name)!;
+  const interest = (terms: TrancheTerms) =>
+    Math.floor((terms.capacityIdr * terms.returnBp * state.request.maturityDays)
+      / (10_000 * DAYS_IN_YEAR));
   return {
-    seniorFaceIdr: of("SENIOR").capacityIdr,
-    juniorFaceIdr: of("JUNIOR").capacityIdr,
+    seniorPrincipalIdr: of("SENIOR").capacityIdr,
+    juniorPrincipalIdr: of("JUNIOR").capacityIdr,
+    seniorReturnIdr: interest(of("SENIOR")),
+    juniorReturnIdr: interest(of("JUNIOR")),
   };
 }
 
-export function settle(state: FlowState, cashReceivedIdr: number, costsIdr = 0): Settlement {
-  const { seniorFaceIdr, juniorFaceIdr } = facesOf(state);
-  const paid = splitRecovery(cashReceivedIdr, costsIdr, seniorFaceIdr, juniorFaceIdr);
+export function settle(state: FlowState, cashReceivedIdr: number): Settlement {
+  const claims = claimsOf(state);
+  const paid = distribute(cashReceivedIdr, claims);
 
-  const loss: { tranche: TrancheName; lossIdr: number }[] = [
-    { tranche: "SENIOR", lossIdr: paid.seniorLossIdr },
-    { tranche: "JUNIOR", lossIdr: paid.juniorLossIdr },
-  ];
+  const issued = claims.seniorPrincipalIdr + claims.juniorPrincipalIdr;
+  const principalPaid = paid.seniorPrincipalIdr + paid.juniorPrincipalIdr;
+  const realisedLoss = Math.max(issued - principalPaid, 0);
 
-  const out = paid.costsPaidIdr + paid.seniorIdr + paid.juniorIdr + paid.surplusIdr;
+  const loss = state.facility.tranches.map((t) => ({
+    tranche: t.name,
+    lossIdr: allocateLoss(realisedLoss, t),
+  }));
+
+  const out = paid.seniorReturnIdr + paid.seniorPrincipalIdr
+    + paid.juniorReturnIdr + paid.juniorPrincipalIdr + paid.residualIdr;
 
   return { cashReceivedIdr, paid, loss, conserved: out === cashReceivedIdr };
 }
@@ -156,16 +168,31 @@ export function makeFlow(ports: Ports) {
         throw new FlowError("receipt_encumbered", `${esrgId} is already pledged`, { esrgId });
       }
 
-      const facility = facilityFrom(esrg.valueIdr, ANORA_POLICY);
+      /* Size and price from the policy, not a fixed split. An infeasible
+         structure is refused here rather than issued and explained later. */
+      const derived = facilityFrom(
+        esrg,
+        DEMONSTRATION_POLICY,
+        BigInt(MATURITY_DAYS),
+        DEMONSTRATION_UPFRONT_COSTS_IDR,
+      );
+      if (!derived.ok) {
+        throw new FlowError(
+          "policy_infeasible",
+          derived.reasons[0]?.detail ?? "The policy refuses this structure.",
+          { reasons: derived.reasons },
+        );
+      }
+      const facility = derived.facility;
       const id = `REQ-${++sequence}`;
       const state: FlowState = {
         ownerId,
         request: {
           id,
           esrgId,
-          requestedIdr: facility.ceilingIdr,
+          requestedIdr: facility.faceIdr,
           maturityDays: MATURITY_DAYS,
-          maxLtvBp: ANORA_POLICY.maxLtvBp,
+          maxLtvBp: Number(DEMONSTRATION_POLICY.maxLtvBp),
           epoch: 1,
           status: "draft",
         },
@@ -345,8 +372,9 @@ export function makeFlow(ports: Ports) {
       const state = must(id);
       gate(state, "funded", "Repayment");
 
-      const { seniorFaceIdr, juniorFaceIdr } = facesOf(state);
-      const dueInFull = seniorFaceIdr + juniorFaceIdr;
+      const claims = claimsOf(state);
+      const dueInFull = claims.seniorPrincipalIdr + claims.juniorPrincipalIdr
+        + claims.seniorReturnIdr + claims.juniorReturnIdr;
 
       state.settlement = settle(state, cashReceivedIdr ?? dueInFull);
       if (state.note) state.note = await ports.token.redeem(state.note.series);
