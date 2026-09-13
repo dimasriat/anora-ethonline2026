@@ -79,4 +79,23 @@ describe("a board whose signers are the officers", () => {
     expect(again.approvals).toHaveLength(1);
     expect(again.signature).toBeNull();
   });
+
+  test("reset empties the seats, the wallet and the signature", async () => {
+    const state = makeBoardState(fakeBoard());
+    await state.enrol("did:privy:a");
+    await state.enrol("did:privy:b");
+    await state.approve("did:privy:a", "sig-a", "mandate");
+    await state.approve("did:privy:b", "sig-b", "mandate");
+    expect(state.view().signature).toBe("0xsigned");
+
+    state.reset();
+
+    const view = state.view("did:privy:a");
+    expect(view.members.some((m) => m.enrolled)).toBe(false);
+    expect(view.walletAddress).toBeNull();
+    expect(view.signature).toBeNull();
+    expect(view.approvals).toHaveLength(0);
+    expect(view.you).toBeNull();
+    expect(view.facilityId).toBeNull();
+  });
 });

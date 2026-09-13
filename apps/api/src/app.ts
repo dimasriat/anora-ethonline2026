@@ -305,6 +305,7 @@ export function makeApp(
   app.post("/api/reset", (c) => {
     flow.reset();
     resetIntake();
+    board?.reset();
     return c.json({ ok: true as const });
   });
 

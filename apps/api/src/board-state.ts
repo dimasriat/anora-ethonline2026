@@ -96,5 +96,16 @@ export function makeBoardState(
       }
       return this.view(privyUserId);
     },
+
+    /* The demo's Reset clears the flow and the intake; without this the board
+       kept its seats, its wallet and a quorum that was already reached, so the
+       next run opened on a mandate nobody in the room had signed. */
+    reset(): void {
+      enrolled.length = 0;
+      approvals.clear();
+      wallet = null;
+      signature = null;
+      facilityId = null;
+    },
   };
 }
