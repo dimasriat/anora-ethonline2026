@@ -31,6 +31,27 @@ export interface EligibilityChecker {
   credentialOf(ownerId: string): Credential | null;
 }
 
+/**
+ * The uniqueness signal. Protocol 4 carries it per response rather than at the
+ * top level, and older shapes use nullifier_hash, so read both before giving up:
+ * a credential without one cannot tell two people apart, which is the whole
+ * point of the check.
+ */
+function nullifierOf(body: Record<string, unknown>): string | null {
+  const direct = body.nullifier_hash ?? body.nullifier;
+  if (typeof direct === "string" && direct.length > 0) return direct;
+
+  const responses = body.responses;
+  if (Array.isArray(responses)) {
+    for (const entry of responses) {
+      const value = (entry as Record<string, unknown> | null)?.nullifier;
+      if (typeof value === "string" && value.length > 0) return value;
+      if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+    }
+  }
+  return null;
+}
+
 export function worldChecker(config: WorldConfig): EligibilityChecker {
   const sessions = new Map<string, CheckSession>();
   const credentials = new Map<string, Credential>();
@@ -87,9 +108,16 @@ export function worldChecker(config: WorldConfig): EligibilityChecker {
           return;
         }
 
-        const verified = await res.json() as { nullifier_hash?: string };
+        const verified = await res.json() as Record<string, unknown>;
+        const nullifier = nullifierOf(verified);
+        if (!nullifier) {
+          session.state = "failed";
+          session.because = `verified without a nullifier; keys: ${Object.keys(verified).join(", ")}`;
+          return;
+        }
+
         const credential: Credential = {
-          nullifierHash: verified.nullifier_hash ?? "unknown",
+          nullifierHash: nullifier,
           verifiedAt: new Date().toISOString(),
           method: "selfie-check",
         };
