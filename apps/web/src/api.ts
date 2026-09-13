@@ -109,7 +109,7 @@ export type AuthorizationRequest = {
 export type BoardView = {
   quorum: number;
   you: string | null;
-  members: { officerId: string; name: string; role: string; enrolled: boolean }[];
+  members: { officerId: string; role: string; enrolled: boolean }[];
   walletAddress: string | null;
   organizationId: string | null;
   approvals: string[];

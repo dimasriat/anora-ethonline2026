@@ -2,7 +2,7 @@ import type { PrivyConfig } from "./privy";
 
 const API = "https://api.privy.io/v1";
 
-export type BoardMember = { officerId: string; name: string; role: string; privyUserId: string };
+export type BoardMember = { officerId: string; role: string; privyUserId: string };
 
 export type BoardWallet = {
   walletId: string;

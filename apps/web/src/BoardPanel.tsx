@@ -50,7 +50,7 @@ export default function BoardPanel({ facilityId }: { facilityId?: string }) {
       <div className="order-book">
         {board.members.map((m) => (
           <div className="order-row" key={m.officerId}>
-            <span><strong>{m.name}</strong><small>{m.role}</small></span>
+            <span><strong>{m.role}</strong></span>
             <strong>{board.approvals.includes(m.officerId) ? "Signed" : m.enrolled ? "Enrolled" : "Seat open"}</strong>
           </div>
         ))}

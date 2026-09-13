@@ -3,7 +3,7 @@ import type { BoardMember, BoardWallet, SignaturePayload } from "./adapters/live
 export type BoardView = {
   quorum: number;
   you: string | null;
-  members: { officerId: string; name: string; role: string; enrolled: boolean }[];
+  members: { officerId: string; role: string; enrolled: boolean }[];
   walletAddress: string | null;
   organizationId: string | null;
   approvals: string[];
@@ -12,8 +12,8 @@ export type BoardView = {
 };
 
 export const COOPERATIVE_BOARD = [
-  { officerId: "OFF-1", name: "Ketua koperasi", role: "Chair" },
-  { officerId: "OFF-2", name: "Bendahara", role: "Treasurer" },
+  { officerId: "OFF-1", role: "Chair" },
+  { officerId: "OFF-2", role: "Treasurer" },
 ];
 
 export const BOARD_QUORUM = 2;

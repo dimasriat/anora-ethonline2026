@@ -1830,7 +1830,8 @@ export default function App() {
                   : flow?.documentSigning ? "DocuSeal" : "DocuSeal, or the officers' quorum"}
               </Badge>
               <small>Signing opens a DocuSeal form where one is configured. Otherwise the
-                cooperative's officers sign as an organisation, two of three.</small>
+                cooperative's officers sign as an organisation, and their own wallet
+                enforces the quorum.</small>
             </div>
             {identity.label !== "Simulated" && flow && <BoardPanel facilityId={flow.request.id} />}
             <div className="two-column">
