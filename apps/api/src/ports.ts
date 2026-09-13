@@ -5,12 +5,16 @@ import { makePrivy } from "./adapters/live/privy";
 import { liveTokenIssuer } from "./adapters/live/token";
 import { unavailableChecker, worldChecker, type EligibilityChecker } from "./adapters/live/world";
 import { demoChecker } from "./adapters/demo/eligibility";
+import { worldService } from "./adapters/live/world-service";
 import deployed from "../../../contracts/deployed.json";
 
 const RPC_URL = process.env.HEDERA_RPC ?? "https://testnet.hashio.io/api";
 
 export function resolveChecker(): { checker: EligibilityChecker; live: boolean } {
   if (process.env.ADAPTER_ELIGIBILITY === "demo") return { checker: demoChecker(), live: false };
+
+  const service = process.env.WORLD_SERVICE_URL;
+  if (service) return { checker: worldService(service), live: true };
 
   const appId = process.env.WORLD_APP_ID;
   const rpId = process.env.WORLD_RP_ID;
